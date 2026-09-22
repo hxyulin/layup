@@ -1,0 +1,19 @@
+// Fictional web service: authored bands and weighted rows.
+diagram "A small web service" {
+  note "A layered design: request handling depends on application logic and storage."
+  band "Entry points" {
+    row {
+      card http "HTTP API" blue { code "GET /items"; sub "Validate requests and format responses." }
+      card cli "Admin CLI" blue { code "service import"; sub "Run maintenance jobs." }
+    }
+  }
+  band "Application" {
+    card service "Catalog service" green { sub "Coordinate use cases and enforce business rules." }
+  }
+  band "Infrastructure" {
+    row 2:1 {
+      card database "Database" yellow { code "Repository"; sub "Persist catalog records." }
+      card cache "Cache" purple { sub "Reuse frequent lookups." }
+    }
+  }
+}

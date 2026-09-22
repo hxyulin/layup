@@ -1,0 +1,9 @@
+// Fictional background job pipeline: automatic tones and vertical routing.
+diagram "Background job pipeline" {
+  note "Durable work moves through three stages."
+  node gateway "Accept work" { code "POST /jobs"; sub "Validate input and return a job ID." }
+  node queue "Queue" { code "enqueue(job)"; sub "Keep pending jobs until a worker acknowledges them." }
+  node worker "Worker" { code "process(job)"; sub "Retry transient failures and record the result." }
+  gateway -> queue "enqueue"
+  queue -> worker "dispatch"
+}

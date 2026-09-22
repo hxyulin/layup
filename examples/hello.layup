@@ -1,0 +1,19 @@
+// Zero-config diagram: tones cycle automatically, the bare edge takes the
+// source tone, and the legend appears because a typed edge is used.
+diagram "Hello layup" {
+  note "No tones, no legend, no widths — just nodes and edges."
+
+  node api "Requests" {
+    code "GET /items"
+  }
+  node worker "Worker" {
+    code "poll()"
+    sub "retries with backoff · dead-letters after ten tries"
+  }
+  node store "Store" {
+    code "items.put()"
+  }
+
+  api -> worker "sends"
+  worker -uses-> store labeled
+}

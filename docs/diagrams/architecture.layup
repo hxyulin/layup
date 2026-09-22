@@ -1,0 +1,36 @@
+// Render with `just docs`. This diagram is built by the tool it describes.
+diagram "How layup builds a diagram" width=900 {
+  note "One Rust crate: a command-line tool and a reusable library."
+  desc "The CLI passes diagram text to compile. Lexer and parser read syntax; model resolves semantics; layout measures blocks using bundled fonts; route places edges; check reports warnings. SVG embeds the fonts, and HTML wraps SVG with interaction."
+
+  node syntax "1. Read the source" blue {
+    code "lexer.rs + parser.rs"
+    sub "Turn .layup text into tokens and generic syntax items."
+  }
+  node model "2. Resolve the diagram" green {
+    code "model.rs + style.rs"
+    sub "Resolve node IDs, kinds, tones, edge targets, and the legend."
+  }
+  node layout "3. Measure and place blocks" yellow {
+    code "layout.rs + text/"
+    sub "Read bundled IBM Plex advances; wrap text and place rows and containers."
+  }
+  node route "4. Route edges" purple {
+    code "route.rs"
+    sub "Find orthogonal paths around nodes and place edge labels."
+  }
+  node check "5. Report problems" orange {
+    code "check.rs"
+    sub "Combine scene checks with layout and routing warnings; --strict fails on warnings."
+  }
+  node output "6. Render the result" blue {
+    code "svg.rs + html.rs"
+    sub "SVG embeds the measured fonts. HTML wraps SVG with pan, zoom, and selection."
+  }
+
+  syntax -> model
+  model -> layout
+  layout -> route
+  route -> check
+  check -> output
+}

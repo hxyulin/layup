@@ -1,0 +1,12 @@
+[workspace]
+resolver = "3"
+members = ["crates/layup"]
+default-members = ["crates/layup"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/hxyulin/layup"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "deny"
