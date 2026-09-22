@@ -174,7 +174,7 @@ edges. The default remains `layout=manual`, preserving authored block flow.
 This is independent of the style `preset`.
 
 Within each consecutive run of sibling nodes, sources precede targets and
-peers share equal-width rows. Declaration order breaks ties; rows contain at
+peers share equal-width rows. Declaration order breaks ties; unconstrained rows contain at
 most three nodes and wider layers wrap in that order. Disconnected nodes
 start in the first layer. Directed cycles share a layer; bidirectional and
 undirected edges do not impose a layer order. Self-edges do not affect placement.
@@ -189,6 +189,36 @@ after placement: three columns can widen an unpinned canvas to 1400px.
 There is no direction option, crossing minimization, saved-position state, or
 automatic routing improvement in this checkpoint. Cycles and dense graphs may
 still need routing hints. Run `just preview-auto` for the review gallery.
+
+### Layout hints (v0.2 development)
+
+With `layout=auto`, node attributes constrain placement without adding edges:
+
+```text
+node worker "Worker" below=api
+node cache "Cache" same-layer=worker
+node audit "Audit" beside=worker
+```
+
+- `below=id`: a strictly later layer than the target, not necessarily the
+  immediately following layer. Contradictions with directed dependencies,
+  cycles, or same-layer constraints are errors.
+- `same-layer=id`: share a physical row. This overrides inferred edge ranks;
+  if it closes a directed path into a cycle, intermediate nodes also acquire
+  that rank. It does not choose left-to-right order.
+- `beside=id`: immediately to the right of the target in the same row.
+  Chains are supported; branching neighbors or circular chains are errors.
+
+Targets must be immediate peers in the same consecutive automatic-layout
+region. Forward references work. Cross-container or cross-section references,
+explicit row-cell hints, self-references, and hints in manual layout report
+source-line errors. Descendants of explicit row cells can still use hints
+within their own automatic-layout region.
+
+Same-layer groups and beside chains stay together even when they exceed the
+usual three-column wrapping limit. They can require a wider canvas or shorter
+labels; normal overflow checks still apply. Otherwise declaration order
+remains the tie-breaker. Run `just preview-hints` for before/after comparisons.
 
 ### Edges
 

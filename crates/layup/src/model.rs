@@ -89,6 +89,19 @@ pub enum Line {
     Text(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HintKind {
+    Below,
+    SameLayer,
+    Beside,
+}
+
+#[derive(Debug, Clone)]
+pub struct LayoutHint {
+    pub kind: HintKind,
+    pub target: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct Node {
     pub id: String,
@@ -101,6 +114,7 @@ pub struct Node {
     pub lines: Vec<Line>,
     pub children: Vec<Block>,
     pub gutter: Option<f64>,
+    pub hints: Box<[LayoutHint]>,
     pub line: usize,
 }
 
@@ -257,8 +271,9 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
             }
         }
     }
+    crate::arrange::validate_mode(&d.blocks, d.auto_layout)?;
     if d.auto_layout {
-        crate::arrange::arrange(&mut d.blocks, &d.edges);
+        crate::arrange::arrange(&mut d.blocks, &d.edges)?;
     }
     if d.preset == Preset::Clean {
         auto_width(&mut d);
@@ -438,6 +453,7 @@ impl Builder {
         let mut role = style.role.clone();
         let mut gutter = None;
         let mut tag = None;
+        let mut hints = Vec::new();
         for a in &it.args {
             match a {
                 Arg::Value(Value::Ident(w)) => {
@@ -466,6 +482,14 @@ impl Builder {
                     return Err(Error::at(it.line, "numbers are not valid node arguments"));
                 }
                 Arg::Attr(k, v) => match k.as_str() {
+                    "below" | "same-layer" | "beside" => hints.push(LayoutHint {
+                        kind: match k.as_str() {
+                            "below" => HintKind::Below,
+                            "same-layer" => HintKind::SameLayer,
+                            _ => HintKind::Beside,
+                        },
+                        target: v.as_text(),
+                    }),
                     "id" => id = Some(v.as_text()),
                     "title" | "name" => title = Some(v.as_text()),
                     "tone" => {
@@ -549,6 +573,7 @@ impl Builder {
             lines,
             children,
             gutter,
+            hints: hints.into_boxed_slice(),
             line: it.line,
         })
     }

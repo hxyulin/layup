@@ -16,7 +16,9 @@ On the development branch, `diagram "Title" layout=auto { ... }` infers
 layers and rows from edges, including inside containers. Explicit rows and
 section boundaries retain control. Omit the option to preserve authored flow.
 Run `just preview-auto` to generate the first checkpoint's before/after gallery.
-This feature is not in the published v0.1.0 crates.
+Add `below=id`, `same-layer=id`, or `beside=id` on nodes for more control
+without writing rows; `just preview-hints` generates the second checkpoint.
+These features are not in the published v0.1.0 crates.
 
 ### Architecture
 

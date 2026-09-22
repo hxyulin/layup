@@ -12,7 +12,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/01-auto-layout/*.layup --strict
+    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
@@ -41,3 +41,8 @@ docs:
 preview-auto:
     cargo build -p layup-cli
     python3 tools/preview-auto-layout.py
+
+# Before/after gallery for v0.2 layout hints.
+preview-hints:
+    cargo build -p layup-cli
+    python3 tools/preview-layout-hints.py
