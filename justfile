@@ -10,18 +10,18 @@ build:
 # Format, lint, test, then check every example and documentation diagram with warnings as errors.
 check:
     cargo fmt --all -- --check
-    cargo clippy --all-targets -- -D warnings
-    cargo test
-    cargo run -q -- check examples/*.layup docs/diagrams/*.layup --strict
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo test --workspace
+    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
     mkdir -p out
     for f in examples/*.layup; do \
         b=$(basename "$f" .layup); \
-        cargo run -q -- render "$f"; \
-        cargo run -q -- render "$f" --html --theme auto -o "out/$b.html"; \
-        cargo run -q -- render "$f" --html --embed --theme auto -o "out/$b.embed.html"; \
+        cargo run -q -p layup-cli -- render "$f"; \
+        cargo run -q -p layup-cli -- render "$f" --html --theme auto -o "out/$b.html"; \
+        cargo run -q -p layup-cli -- render "$f" --html --embed --theme auto -o "out/$b.embed.html"; \
     done
 
 # Serve out/ and examples/ for trying the interactive pages and the iframe host.
@@ -35,4 +35,4 @@ png svg:
 
 # Regenerate the architecture diagram embedded in README.md.
 docs:
-    cargo run -q -- render docs/diagrams/architecture.layup --strict
+    cargo run -q -p layup-cli -- render docs/diagrams/architecture.layup --strict

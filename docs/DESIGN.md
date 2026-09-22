@@ -1,6 +1,6 @@
 # Layup design
 
-`layup` is a small Rust CLI that turns a text description of an
+`layup` is a Rust layout engine, with a `layup-cli` command-line frontend, that turns a text description of an
 architecture diagram into a static SVG, or into an interactive HTML page
 for the web. Layout stays under the author's control, while text measurement,
 edge routing, and diagnostic checks are automated.

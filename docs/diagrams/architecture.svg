@@ -133,7 +133,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
   <rect class="frame" x="0.5" y="0.5" width="899" height="654"/>
   <g class="content">
       <text class="t ink" x="40" y="40" font-size="19" font-weight="680">How layup builds a diagram</text>
-      <text class="t muted" x="40" y="61" font-size="13" font-weight="400">One Rust crate: a command-line tool and a reusable library.</text>
+      <text class="t muted" x="40" y="61" font-size="13" font-weight="400">layup-cli handles commands and files; layup provides the layout engine.</text>
     <g class="node k-node" data-id="syntax">
       <rect class="box bg-blue bd-blue" x="40" y="89" width="820" height="77" rx="7" stroke-width="1.25"/>
       <text class="t ink" x="60" y="113" font-size="15" font-weight="640">1. Read the source</text>

@@ -1,8 +1,9 @@
 # Architecture
 
-Layup is one Cargo package with two entry points: the `layup` binary in
-[`main.rs`](../crates/layup/src/main.rs), and the public Rust library in
-[`lib.rs`](../crates/layup/src/lib.rs). The CLI handles files, arguments,
+Layup has two Cargo packages: `layup-cli` provides the `layup` binary in
+[`main.rs`](../crates/layup-cli/src/main.rs), and `layup` provides the layout
+engine and renderers in [`lib.rs`](../crates/layup/src/lib.rs).
+`layup-cli` depends on `layup`; the engine does not depend on the CLI or Clap. The CLI handles files, arguments,
 diagnostics, and exit codes. The library compiles text into a diagram and
 scene, then exposes SVG and HTML renderers.
 

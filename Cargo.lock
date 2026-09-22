@@ -121,8 +121,15 @@ name = "layup"
 version = "0.1.0"
 dependencies = [
  "base64",
- "clap",
  "ttf-parser",
+]
+
+[[package]]
+name = "layup-cli"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "layup",
 ]
 
 [[package]]

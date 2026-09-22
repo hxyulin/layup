@@ -1,23 +1,18 @@
 [package]
 name = "layup"
 version = "0.1.0"
-description = "Authored-layout diagrams: a small text language rendered to clean SVG and interactive HTML"
+description = "Layout engine for authored diagrams rendered to SVG and interactive HTML"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 readme = "../../README.md"
-keywords = ["diagram", "svg", "architecture", "cli"]
-categories = ["command-line-utilities", "visualization"]
+keywords = ["diagram", "svg", "architecture"]
+categories = ["visualization"]
 publish = ["crates-io"]
-
-[[bin]]
-name = "layup"
-path = "src/main.rs"
 
 [dependencies]
 base64 = "0.22"
 ttf-parser = "0.25"
-clap = { version = "4", features = ["derive"] }
 
 [lints]
 workspace = true

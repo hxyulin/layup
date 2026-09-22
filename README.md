@@ -23,17 +23,18 @@ Regenerate the diagram with `just docs`.
 
 ### Install
 
-The package includes both the `layup` CLI and the Rust library.
+The `layup` crate is the layout engine. The `layup-cli` crate provides the
+`layup` command.
 
 ```sh
-cargo install layup --version 0.1.0 --locked
+cargo install layup-cli --version 0.1.0 --locked
 ```
 
 Or build and install from a source checkout:
 
 ```sh
 cargo build --release          # target/release/layup
-cargo install --path crates/layup
+cargo install --path crates/layup-cli
 ```
 
 Rust stable, with no external runtime dependencies or font downloads.
@@ -104,7 +105,7 @@ just docs        # regenerate the architecture diagram
 ### Fonts and measurement
 
 IBM Plex Sans (regular and semibold) and IBM Plex Mono are bundled in the
-binary and embedded in each SVG, including SVGs inside HTML output. Layout
+library and embedded in each SVG, including SVGs inside HTML output. Layout
 reads advances directly from those same font files, with no system-font
 lookup, generated metrics tables, or platform safety factor. Kerning and
 optional ligatures are disabled in the SVG to match advance-based measurement.
@@ -116,6 +117,11 @@ viewer's fallback fonts and estimated widths; complex-script shaping is not
 yet supported by the layout engine.
 
 ### Rust library
+
+```toml
+[dependencies]
+layup = "0.1.0"
+```
 
 ```rust
 let diagram = layup::compile(r#"diagram "Hello" { node api "API" }"#)?;
@@ -136,7 +142,10 @@ license, source revision, and checksums.
 ```sh
 just check
 cargo publish -p layup --dry-run
+# After layup 0.1.0 is available on crates.io:
+cargo publish -p layup-cli --dry-run
 ```
 
-The workspace publishes one package, `layup`, containing the library, CLI,
-fonts, and license files. Publishing to crates.io is a separate release step.
+Publish `layup` (the engine, fonts, and renderers) first, then `layup-cli`
+(the command-line interface). The CLI depends on the released engine version.
+Publishing to crates.io is a separate release step.

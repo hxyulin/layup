@@ -1,6 +1,6 @@
 // Render with `just docs`. This diagram is built by the tool it describes.
 diagram "How layup builds a diagram" width=900 {
-  note "One Rust crate: a command-line tool and a reusable library."
+  note "layup-cli handles commands and files; layup provides the layout engine."
   desc "The CLI passes diagram text to compile. Lexer and parser read syntax; model resolves semantics; layout measures blocks using bundled fonts; route places edges; check reports warnings. SVG embeds the fonts, and HTML wraps SVG with interaction."
 
   node syntax "1. Read the source" blue {
