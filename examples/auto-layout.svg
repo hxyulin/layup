@@ -135,17 +135,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
       <text class="t ink" x="40" y="40" font-size="19" font-weight="680">Request processing</text>
       <text class="t muted" x="40" y="61" font-size="13" font-weight="400">Parallel services sit together; shared storage follows them.</text>
     <g class="node k-node" data-id="gateway">
-      <rect class="box bg-blue bd-blue" x="40" y="89" width="820" height="59" rx="7" stroke-width="1.25"/>
+      <rect class="box bg-purple bd-purple" x="40" y="89" width="820" height="59" rx="7" stroke-width="1.25"/>
       <text class="t ink" x="60" y="113" font-size="15" font-weight="640">Gateway</text>
       <text class="m codeink" x="60" y="134" font-size="12.5" font-weight="400">POST /requests</text>
     </g>
     <g class="node k-node" data-id="auth">
-      <rect class="box bg-green bd-green" x="40" y="164" width="398" height="59" rx="7" stroke-width="1.25"/>
+      <rect class="box bg-yellow bd-yellow" x="40" y="164" width="398" height="59" rx="7" stroke-width="1.25"/>
       <text class="t ink" x="60" y="188" font-size="15" font-weight="640">Authenticate</text>
       <text class="m codeink" x="60" y="209" font-size="12.5" font-weight="400">verify(token)</text>
     </g>
     <g class="node k-node" data-id="validate">
-      <rect class="box bg-yellow bd-yellow" x="462" y="164" width="398" height="59" rx="7" stroke-width="1.25"/>
+      <rect class="box bg-blue bd-blue" x="462" y="164" width="398" height="59" rx="7" stroke-width="1.25"/>
       <text class="t ink" x="482" y="188" font-size="15" font-weight="640">Validate</text>
       <text class="m codeink" x="482" y="209" font-size="12.5" font-weight="400">check(payload)</text>
     </g>
@@ -157,16 +157,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
   </g>
   <g class="edges">
     <g class="edge k-default" data-from="gateway" data-to="auth">
-      <path d="M239 148 L239 164" class="ln ln-blue" marker-end="url(#m-blue)"/>
+      <path d="M239 148 L239 164" class="ln ln-purple" marker-end="url(#m-purple)"/>
     </g>
     <g class="edge k-default" data-from="gateway" data-to="validate">
-      <path d="M661 148 L661 164" class="ln ln-blue" marker-end="url(#m-blue)"/>
+      <path d="M661 148 L661 164" class="ln ln-purple" marker-end="url(#m-purple)"/>
     </g>
     <g class="edge k-default" data-from="auth" data-to="store">
-      <path d="M239 223 L239 239" class="ln ln-green" marker-end="url(#m-green)"/>
+      <path d="M239 223 L239 239" class="ln ln-yellow" marker-end="url(#m-yellow)"/>
     </g>
     <g class="edge k-default" data-from="validate" data-to="store">
-      <path d="M661 223 L661 239" class="ln ln-yellow" marker-end="url(#m-yellow)"/>
+      <path d="M661 223 L661 239" class="ln ln-blue" marker-end="url(#m-blue)"/>
     </g>
   </g>
 </svg>

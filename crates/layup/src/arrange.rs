@@ -133,20 +133,29 @@ fn layer(blocks: Vec<Block>, edges: &[Edge]) -> Result<Vec<Block>, Error> {
         }
     }
     let equality = components(&equal);
+    let mut weak = equal.clone();
     let mut graph = equal;
     for edge in edges {
-        // Undirected and bidirectional edges impose no vertical direction.
-        if !edge.head_at_end || edge.head_at_start {
-            continue;
-        }
         if let (Some(&a), Some(&b)) = (ids.get(&edge.from), ids.get(&edge.to))
             && a != b
         {
-            graph[a].insert(b);
+            weak[a].insert(b);
+            weak[b].insert(a);
+            // Undirected and bidirectional edges connect a region but do not rank it.
+            if edge.head_at_end && !edge.head_at_start {
+                graph[a].insert(b);
+            }
         }
     }
     for &(a, b, _) in &below {
         graph[a].insert(b);
+        weak[a].insert(b);
+        weak[b].insert(a);
+    }
+    let islands = components(&weak);
+    let mut island_first = vec![n; n];
+    for (i, &island) in islands.iter().enumerate() {
+        island_first[island] = island_first[island].min(i);
     }
     let component = components(&graph);
     for &(a, b, line) in &below {
@@ -217,10 +226,18 @@ fn layer(blocks: Vec<Block>, edges: &[Edge]) -> Result<Vec<Block>, Error> {
         })
         .collect();
     groups.sort_by_key(|g| *g.iter().min().unwrap());
-    let mut levels: BTreeMap<usize, Vec<Vec<usize>>> = BTreeMap::new();
+    let mut levels: BTreeMap<(usize, usize), Vec<Vec<usize>>> = BTreeMap::new();
     for group in groups {
+        // Connected regions stay separate. Unconnected peers form one final
+        // region, so inserting a note-like node does not resize graph layers.
+        let first = group[0];
+        let island = if weak[first].is_empty() {
+            n
+        } else {
+            island_first[islands[first]]
+        };
         levels
-            .entry(rank[component[group[0]]])
+            .entry((island, rank[component[first]]))
             .or_default()
             .push(group);
     }

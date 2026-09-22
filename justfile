@@ -50,3 +50,7 @@ preview-hints:
 # Compare the checkpoint-2 router with the current one on identical diagrams.
 preview-routing:
     python3 tools/preview-routing.py
+
+# Compare common edits under the checkpoint-3 and current layout policies.
+preview-incremental:
+    python3 tools/preview-incremental.py

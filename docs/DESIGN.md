@@ -121,18 +121,21 @@ KIND [id] ["Title"] [tone] [flags] [key=value ...] [{ content }]
 ```
 
 - The first bare word that is not a tone or flag is the id. Without one
-  the id is slugged from the title (`Storage error contract` → `spi_error_contract`)
+  the id is slugged from the title (`Storage error contract` → `storage-error-contract`)
   and made unique; explicit ids are reserved first so a generated one
   never steals them.
 - Tones: `gray blue green yellow purple orange red`, or omit the tone:
   `card` and `node` cycle `blue green yellow purple orange` in document
-  order (`auto` forces this even after a `style` set a fixed tone).
+  order with manual layout. Under `layout=auto`, a fixed hash of the node ID
+  selects from that palette instead. The `auto` flag opts into the applicable
+  automatic tone policy even after a style sets a fixed tone.
   Typed kinds (`trait`, `type`, `module`, …) keep their semantic tones.
 - `node` is a `card` under another name: the zero-config leaf. A
   `node`/`card`/`api` with nested children draws as a hollow container,
   so grouping needs no `package`/`group` vocabulary on day one.
 - Flags: `hollow filled center left mono sans`.
-- Attributes: `id= tone= role= tag= gutter= align=`.
+- Attributes: `id= tone= role= tag= gutter= align=`; in automatic layout,
+  also `below= same-layer= beside=`.
 - A title starting with `[word]` sets a tag drawn in bold blue.
 
 Content lines:
@@ -175,8 +178,8 @@ This is independent of the style `preset`.
 
 Within each consecutive run of sibling nodes, sources precede targets and
 peers share equal-width rows. Declaration order breaks ties; unconstrained rows contain at
-most three nodes and wider layers wrap in that order. Disconnected nodes
-start in the first layer. Directed cycles share a layer; bidirectional and
+most three nodes and wider layers wrap in that order. Disconnected graphs occupy separate regions ordered by their first
+declared node. Unconnected nodes form a final region, wrapping in source order. Directed cycles share a layer; bidirectional and
 undirected edges do not impose a layer order. Self-edges do not affect placement.
 
 Containers and sections use the same rules recursively. Edges between their
@@ -189,6 +192,32 @@ after placement: three columns can widen an unpinned canvas to 1400px.
 There is no direction option, crossing minimization, saved-position state, or
 automatic routing improvement in this checkpoint. Cycles and dense graphs may
 still need routing hints. Run `just preview-auto` for the review gallery.
+
+### Predictable edits (v0.2 development)
+
+Automatic placement is computed afresh, with no saved position state:
+
+- Within an authored boundary, connected regions stay separate, in order of
+  their earliest declaration. All edge kinds and layout hints connect regions,
+  even when an edge does not impose a rank.
+- Unconnected nodes form a final region. Inserting one into a connected graph's
+  declarations does not cause it to share a row with the graph's sources.
+- Source order still determines peer order. Extending a simple chain adds a
+  layer; adding a peer reflows that layer; connecting previously independent
+  regions deliberately combines them.
+- Auto-layout tones derive from a fixed hash of node IDs. Inserting nodes no
+  longer changes existing tones. Hash collisions can give peers the same tone;
+  explicit colors still win. Renaming an ID can change its automatic tone.
+  Manual layout retains the original source-order palette cycle.
+
+This does not freeze coordinates across arbitrary edits. Longer labels can
+change row heights, added peers change cell widths, and three columns or deep
+nesting can trigger the existing 1400px canvas default. Pin `width=` to avoid
+canvas-width changes. Earlier regions growing can move later regions down;
+new edges can alter ranks and route choices. Use explicit IDs and authored
+boundaries when identity and grouping matter. No position cache is required.
+
+Run `just preview-incremental` to compare edits under checkpoints 3 and 4.
 
 ### Layout hints (v0.2 development)
 

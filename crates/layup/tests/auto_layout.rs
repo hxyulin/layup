@@ -43,7 +43,7 @@ fn cycles_and_disconnected_nodes_are_deterministic() {
     let a = compile(src).unwrap();
     let b = compile(src).unwrap();
     assert_eq!(rect(&a, "a").y, rect(&a, "b").y);
-    assert_eq!(rect(&a, "a").y, rect(&a, "isolated").y);
+    assert!(rect(&a, "isolated").y > rect(&a, "sink").bottom());
     assert!(rect(&a, "sink").y > rect(&a, "a").bottom());
     for id in ["a", "b", "isolated", "sink"] {
         assert_eq!(rect(&a, id), rect(&b, id));

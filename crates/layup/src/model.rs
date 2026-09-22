@@ -244,7 +244,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
     d.arrows = b.arrows;
     d.legend = b.legend;
     if d.preset == Preset::Clean {
-        assign_auto_tones(&mut d.blocks);
+        assign_auto_tones(&mut d.blocks, d.auto_layout);
         fill_default_gutters(&mut d.blocks);
 
         auto_edge_tones(&mut d);
@@ -828,30 +828,40 @@ fn reserve_explicit_ids(stmts: &[Stmt], out: &mut BTreeSet<String>) {
     }
 }
 
-/// Assigns `AUTO_CYCLE` tones in document order to nodes that omit a tone.
-fn assign_auto_tones(blocks: &mut [Block]) {
+/// Manual flow cycles tones in source order. Automatic layout derives them
+/// from node IDs so inserting an unrelated node does not recolor the graph.
+fn assign_auto_tones(blocks: &mut [Block], stable_ids: bool) {
     let mut next = 0usize;
-    fn walk(blocks: &mut [Block], next: &mut usize) {
+    fn walk(blocks: &mut [Block], next: &mut usize, stable_ids: bool) {
         for b in blocks.iter_mut() {
             match b {
                 Block::Node(n) => {
                     if n.style.auto {
-                        n.style.tone = AUTO_CYCLE[*next % AUTO_CYCLE.len()];
+                        let index = if stable_ids {
+                            // Fixed FNV-1a, not a process-seeded standard-library hash.
+                            let hash = n.id.bytes().fold(0xcbf29ce484222325u64, |h, byte| {
+                                (h ^ u64::from(byte)).wrapping_mul(0x100000001b3)
+                            });
+                            (hash % AUTO_CYCLE.len() as u64) as usize
+                        } else {
+                            *next % AUTO_CYCLE.len()
+                        };
+                        n.style.tone = AUTO_CYCLE[index];
                         *next += 1;
                     }
-                    walk(&mut n.children, next);
+                    walk(&mut n.children, next, stable_ids);
                 }
                 Block::Row(r) => {
                     for c in r.cells.iter_mut().flatten() {
-                        walk(std::slice::from_mut(c), next);
+                        walk(std::slice::from_mut(c), next, stable_ids);
                     }
                 }
-                Block::Section(s) => walk(&mut s.children, next),
+                Block::Section(s) => walk(&mut s.children, next, stable_ids),
                 _ => {}
             }
         }
     }
-    walk(blocks, &mut next);
+    walk(blocks, &mut next, stable_ids);
 }
 
 /// Default row gutter for diagrams that don't set one (16px under clean;

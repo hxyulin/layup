@@ -1,0 +1,7 @@
+diagram "A growing service" layout=auto {
+  node input "Input" { code "accept(request)" }
+  node worker "Worker" { code "process(request)" }
+  node store "Store" { code "persist(result)" }
+  input -> worker
+  worker -> store
+}
