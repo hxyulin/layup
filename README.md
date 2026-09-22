@@ -21,10 +21,15 @@ Layup draws its own architecture diagram:
 
 Regenerate the diagram with `just docs`.
 
-### Install from source
+### Install
 
 The package includes both the `layup` CLI and the Rust library.
-Until the first crates.io release, install from this checkout:
+
+```sh
+cargo install layup --version 0.1.0 --locked
+```
+
+Or build and install from a source checkout:
 
 ```sh
 cargo build --release          # target/release/layup
