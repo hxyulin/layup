@@ -1,0 +1,12 @@
+diagram "Inside a service" layout=auto {
+  node service "Request service" {
+    node entry "Receive"
+    node decode "Decode"
+    node verify "Verify"
+    node result "Respond"
+    entry -> decode
+    entry -> verify
+    decode -> result
+    verify -> result
+  }
+}

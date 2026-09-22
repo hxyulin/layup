@@ -10,6 +10,14 @@ See [the language and design reference](https://github.com/hxyulin/layup/blob/ma
 reference and the iframe protocol. The `examples/` directory includes architecture diagrams and a minimal
 `hello.layup`.
 
+### v0.2 development
+
+On the development branch, `diagram "Title" layout=auto { ... }` infers
+layers and rows from edges, including inside containers. Explicit rows and
+section boundaries retain control. Omit the option to preserve authored flow.
+Run `just preview-auto` to generate the first checkpoint's before/after gallery.
+This feature is not in the published v0.1.0 crates.
+
 ### Architecture
 
 Layup draws its own architecture diagram:

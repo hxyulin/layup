@@ -1,0 +1,12 @@
+// No authored rows: directed edges determine layers.
+diagram "Request processing" layout=auto {
+  note "Parallel services sit together; shared storage follows them."
+  node gateway "Gateway" { code "POST /requests" }
+  node auth "Authenticate" { code "verify(token)" }
+  node validate "Validate" { code "check(payload)" }
+  node store "Store" { code "save(request)" }
+  gateway -> auth
+  gateway -> validate
+  auth -> store
+  validate -> store
+}

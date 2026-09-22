@@ -1,6 +1,6 @@
 [package]
 name = "layup-cli"
-version = "0.1.0"
+version = "0.2.0-dev"
 description = "Command-line tool for authored diagrams rendered to SVG and interactive HTML"
 edition.workspace = true
 license.workspace = true
@@ -15,7 +15,7 @@ name = "layup"
 path = "src/main.rs"
 
 [dependencies]
-layup = { version = "0.1.0", path = "../layup" }
+layup = { version = "0.2.0-dev", path = "../layup" }
 clap = { version = "4", features = ["derive"] }
 
 [lints]

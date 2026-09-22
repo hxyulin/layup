@@ -1,6 +1,6 @@
 [package]
 name = "layup"
-version = "0.1.0"
+version = "0.2.0-dev"
 description = "Layout engine for authored diagrams rendered to SVG and interactive HTML"
 edition.workspace = true
 license.workspace = true

@@ -12,6 +12,7 @@
 //! `layout` (block layout with measured text) -> `route` (orthogonal edges)
 //! -> `svg` / `html` emitters. `check` reports layout problems.
 
+mod arrange;
 pub mod check;
 pub mod html;
 pub mod layout;

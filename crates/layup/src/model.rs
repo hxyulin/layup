@@ -18,6 +18,8 @@ pub struct Diagram {
     /// True when the author wrote `width=`; otherwise the model picks one.
     pub width_set: bool,
     pub preset: Preset,
+    /// Infer rows from edges when enabled; authored block flow otherwise.
+    pub auto_layout: bool,
     pub blocks: Vec<Block>,
     pub edges: Vec<Edge>,
     pub kinds: BTreeMap<String, NodeStyle>,
@@ -172,6 +174,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         width: 900.0,
         width_set: false,
         preset: Preset::Clean,
+        auto_layout: false,
         blocks: Vec::new(),
         edges: Vec::new(),
         kinds: BTreeMap::new(),
@@ -187,6 +190,13 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                     d.width_set = true;
                 }
                 Arg::Attr(k, v) if k == "title" => d.title = v.as_text(),
+                Arg::Attr(k, v) if k == "layout" => {
+                    d.auto_layout = match v.as_text().as_str() {
+                        "auto" => true,
+                        "manual" => false,
+                        _ => return Err(Error::at(root.line, "layout must be auto or manual")),
+                    };
+                }
                 Arg::Attr(k, v) if k == "preset" => {
                     d.preset = Preset::parse(&v.as_text()).ok_or_else(|| {
                         Error::at(
@@ -222,7 +232,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
     if d.preset == Preset::Clean {
         assign_auto_tones(&mut d.blocks);
         fill_default_gutters(&mut d.blocks);
-        auto_width(&mut d);
+
         auto_edge_tones(&mut d);
         if d.legend.is_none() && !b.legend_off && needs_legend(&d) {
             d.legend = Some(Legend {
@@ -246,6 +256,12 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                 ));
             }
         }
+    }
+    if d.auto_layout {
+        crate::arrange::arrange(&mut d.blocks, &d.edges);
+    }
+    if d.preset == Preset::Clean {
+        auto_width(&mut d);
     }
     Ok(d)
 }

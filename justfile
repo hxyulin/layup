@@ -12,7 +12,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup --strict
+    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/01-auto-layout/*.layup --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
@@ -36,3 +36,8 @@ png svg:
 # Regenerate the architecture diagram embedded in README.md.
 docs:
     cargo run -q -p layup-cli -- render docs/diagrams/architecture.layup --strict
+
+# Before/after gallery for v0.2 automatic placement (open the printed HTML path).
+preview-auto:
+    cargo build -p layup-cli
+    python3 tools/preview-auto-layout.py

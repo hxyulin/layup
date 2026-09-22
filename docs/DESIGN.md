@@ -167,6 +167,29 @@ style port shape=api hollow purple label="port"
 words are tones and flags; `role=` and `label=` set the container role
 and the legend label.
 
+### Automatic placement (v0.2 development)
+
+Add `layout=auto` to `diagram` to infer top-to-bottom layers from directed
+edges. The default remains `layout=manual`, preserving authored block flow.
+This is independent of the style `preset`.
+
+Within each consecutive run of sibling nodes, sources precede targets and
+peers share equal-width rows. Declaration order breaks ties; rows contain at
+most three nodes and wider layers wrap in that order. Disconnected nodes
+start in the first layer. Directed cycles share a layer; bidirectional and
+undirected edges do not impose a layer order. Self-edges do not affect placement.
+
+Containers and sections use the same rules recursively. Edges between their
+descendants order the containing siblings. Explicit rows retain their cells,
+weights and order; sections, dividers, text, gaps and rows are boundaries that
+automatic placement cannot cross. Edges across these boundaries still route,
+but do not override the authored structure. Existing width inference applies
+after placement: three columns can widen an unpinned canvas to 1400px.
+
+There is no direction option, crossing minimization, saved-position state, or
+automatic routing improvement in this checkpoint. Cycles and dense graphs may
+still need routing hints. Run `just preview-auto` for the review gallery.
+
 ### Edges
 
 ```
