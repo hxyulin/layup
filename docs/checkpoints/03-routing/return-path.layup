@@ -1,0 +1,8 @@
+diagram "A return path" {
+  node start "Start"
+  node work "Work"
+  node finish "Finish"
+  start -> work
+  work -> finish
+  finish -> start "retry"
+}

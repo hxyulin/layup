@@ -1,0 +1,6 @@
+diagram "Keep explicit ports" {
+  node source "Source"
+  node obstacle "Obstacle"
+  node target "Target"
+  source -> target from=right to=right "around"
+}

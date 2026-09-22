@@ -300,6 +300,23 @@ lexer → parser → model → layout → route → check → svg | html
   `<g class="edge k-KIND" data-from data-to>`.
 - **html** (`html.rs`) wraps the SVG in a page that adds interaction.
 
+### Automatic routing fallback (v0.2 development)
+
+Clear routes keep their existing geometry. For an obstructed, overlapping, or
+invalid-port route without `via`, the router now tries permitted node sides
+and searches an orthogonal grid around obstacles. It prefers shorter paths
+with fewer bends, keeps paths inside the existing canvas, and separates them
+from earlier edge segments. Explicit `from` / `to` sides remain constraints;
+explicit `via` paths retain their previous behavior.
+
+The fallback also handles self-loops and paths beside the content. It does
+not optimize all edges together: declaration order remains a tie-breaker,
+perpendicular crossings are allowed, and ancestor/descendant endpoints retain
+the original router. The search is capped at 40,000 grid intersections per
+candidate port pair. If it cannot find a route, the original route and its
+normal diagnostics remain. See `just preview-routing` for a comparison against
+the checkpoint-2 implementation using identical inputs.
+
 ## 4. Interactive output and iframes
 
 `layup render x.layup --html` produces a single HTML file with no

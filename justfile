@@ -46,3 +46,7 @@ preview-auto:
 preview-hints:
     cargo build -p layup-cli
     python3 tools/preview-layout-hints.py
+
+# Compare the checkpoint-2 router with the current one on identical diagrams.
+preview-routing:
+    python3 tools/preview-routing.py

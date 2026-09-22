@@ -10,6 +10,8 @@
 //! breaker. `via=right|left` wraps an edge around the outside of the
 //! content, in lanes the layout reserved for it.
 
+mod search;
+
 use std::collections::BTreeMap;
 
 use crate::Warning;
@@ -96,7 +98,17 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
                 };
                 route_outside(scene, ra, rb, side, k, total, &obstacles, &avoid)
             }
-            None => route_with_retries(&plan, &obstacles, &avoid),
+            None => {
+                let original = route_with_retries(&plan, &obstacles, &avoid);
+                if clear(&original, &obstacles)
+                    && !overlaps_taken(&original, &avoid)
+                    && search::valid_ports(&original, &plan, ra, rb)
+                {
+                    original
+                } else {
+                    search::fallback(scene, e, &plan, &obstacles, &avoid).unwrap_or(original)
+                }
+            }
         };
         for (i, seg) in points.windows(2).enumerate() {
             let (p, q) = (seg[0], seg[1]);

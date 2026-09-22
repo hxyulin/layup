@@ -1,0 +1,6 @@
+diagram "Skip a busy stage" {
+  node input "Input"
+  node busy "Independent work"
+  node output "Output"
+  input -> output "bypass"
+}
