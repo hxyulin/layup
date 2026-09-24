@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 422" width="900" height="422" role="img" aria-labelledby="layup-cdf96850-title layup-cdf96850-desc">
-  <title id="layup-cdf96850-title">A small web service</title>
-  <desc id="layup-cdf96850-desc">A layered design: request handling depends on application logic and storage.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 422" width="900" height="422" role="img" aria-labelledby="layup-170587d3-title layup-170587d3-desc">
+  <title id="layup-170587d3-title">A small web service</title>
+  <desc id="layup-170587d3-desc">A layered design: request handling depends on application logic and storage.</desc>
   <metadata>Copyright © 2017 IBM Corp. with Reserved Font Name &quot;Plex&quot;
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -121,13 +121,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
     .layup .bg-red{fill:var(--red-bg)}.layup .bd-red{stroke:var(--red-bd)}.layup .ink-red{fill:var(--red-edge)}.layup .ln-red{stroke:var(--red-edge)}.layup .mk-red{fill:var(--red-edge)}
   </style>
   <defs>
-    <marker id="layup-cdf96850-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
-    <marker id="layup-cdf96850-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
-    <marker id="layup-cdf96850-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
-    <marker id="layup-cdf96850-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
-    <marker id="layup-cdf96850-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
-    <marker id="layup-cdf96850-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
-    <marker id="layup-cdf96850-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
+    <marker id="layup-170587d3-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
+    <marker id="layup-170587d3-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
+    <marker id="layup-170587d3-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
+    <marker id="layup-170587d3-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
+    <marker id="layup-170587d3-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
+    <marker id="layup-170587d3-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
+    <marker id="layup-170587d3-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
   </defs>
   <rect class="bg" width="900" height="422"/>
   <rect class="frame" x="0.5" y="0.5" width="899" height="421"/>

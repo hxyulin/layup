@@ -105,13 +105,14 @@ const TEMPLATE: &str = r##"<!doctype html>
   stage.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
     drag = { x: e.clientX, y: e.clientY, vb: { ...vb }, moved: false };
-    stage.setPointerCapture(e.pointerId);
   });
   stage.addEventListener('pointermove', e => {
     if (!drag) return;
     const r = stage.getBoundingClientRect();
     const dx = (e.clientX - drag.x) / r.width * vb.w, dy = (e.clientY - drag.y) / r.height * vb.h;
-    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 3) { drag.moved = true; stage.classList.add('dragging'); }
+    // Capture only once dragging: a capture retargets pointerup to the stage,
+    // and a click without movement must reach the node it pins.
+    if (!drag.moved && Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 3) { drag.moved = true; stage.classList.add('dragging'); stage.setPointerCapture(e.pointerId); }
     vb = { ...vb, x: drag.vb.x - dx, y: drag.vb.y - dy };
     apply();
   });

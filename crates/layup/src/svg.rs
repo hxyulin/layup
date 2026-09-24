@@ -96,11 +96,17 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
 
     s.push_str("  <g class=\"content\">\n");
     let mut open: Option<usize> = None;
+    let close = |s: &mut String, open: Option<usize>| {
+        if let Some(i) = open {
+            if scene.nodes[i].href.is_some() {
+                s.push_str("    </a>\n");
+            }
+            s.push_str("    </g>\n");
+        }
+    };
     for p in &scene.items {
         if p.node != open {
-            if open.is_some() {
-                s.push_str("    </g>\n");
-            }
+            close(&mut s, open);
             if let Some(i) = p.node {
                 let n = &scene.nodes[i];
                 let _ = writeln!(
@@ -109,14 +115,15 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
                     esc(&n.kind),
                     esc(&n.id)
                 );
+                if let Some(href) = &n.href {
+                    let _ = writeln!(s, r#"    <a href="{}">"#, esc(href));
+                }
             }
             open = p.node;
         }
         item(&mut s, p, &id);
     }
-    if open.is_some() {
-        s.push_str("    </g>\n");
-    }
+    close(&mut s, open);
     s.push_str("  </g>\n");
 
     s.push_str("  <g class=\"edges\">\n");

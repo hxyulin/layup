@@ -15,7 +15,8 @@
     "./markdown-it": {
       "types": "./markdown-it.d.ts",
       "default": "./markdown-it.js"
-    }
+    },
+    "./client": "./client.js"
   },
   "files": [
     "*.js",

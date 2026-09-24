@@ -1,11 +1,14 @@
 # layup in VitePress
 
+Hover or click a node to highlight its edges. The button in the corner opens a
+full-window view with pan and zoom. The API node links to another page.
+
 A `layup` code block renders to an inline SVG when the site builds. It follows
 the site's light and dark toggle.
 
 ```layup
 diagram "Request path" {
-  node api "API" { code "GET /items" }
+  node api "API" href="./other" { code "GET /items" }
   node worker "Worker" { code "poll()" }
   node store "Store" { code "items.put()" }
 

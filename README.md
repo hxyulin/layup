@@ -23,6 +23,11 @@ Obstructed edges also try automatic ports and paths around nodes;
 Disconnected graphs now occupy separate regions, and automatic-layout colors
 stay tied to node IDs; `just preview-incremental` shows common edits before
 and after this change.
+SVGs embed only the glyphs they draw, and nodes accept `href=` links.
+`packages/layup` builds the engine to WebAssembly for Node and browsers, with
+a markdown-it plugin and a VitePress preset that render `layup` code blocks
+at build time; see [its README](packages/layup/README.md) and
+`examples/vitepress`.
 These features are not in the published v0.1.0 crates.
 
 ### Architecture

@@ -134,9 +134,11 @@ KIND [id] ["Title"] [tone] [flags] [key=value ...] [{ content }]
   `node`/`card`/`api` with nested children draws as a hollow container,
   so grouping needs no `package`/`group` vocabulary on day one.
 - Flags: `hollow filled center left mono sans`.
-- Attributes: `id= tone= role= tag= gutter= align=`; in automatic layout,
+- Attributes: `id= tone= role= tag= gutter= align= href=`; in automatic layout,
   also `below= same-layer= beside=`.
 - A title starting with `[word]` sets a tag drawn in bold blue.
+- `href="..."` makes the node a link. The URL is written as given; on a
+  VitePress site with a `base`, use relative links.
 
 Content lines:
 
@@ -374,8 +376,15 @@ The page speaks `postMessage` so a host can drive it:
 `ready`, has buttons that focus nodes, and prints selections.
 
 Static docs (mdBook, Docusaurus, GitHub README) can use the plain SVG
-inline or as an image; the SVG keeps the `data-` attributes, so a page
-that inlines it can add its own hover script with a few lines.
+inline or as an image. Element IDs carry a per-diagram prefix and the
+stylesheet is scoped under `.layup`, so several inline SVGs share a page.
+
+For markdown-it sites such as VitePress, `packages/layup` renders `layup`
+code blocks to inline SVG at build time. Its `layup/client` module adds, to
+every such diagram: hover and click highlighting of a node and its edges, and
+an expand button that opens a full-window view with the page's pan, zoom,
+pinch and double-click-to-fit. Handlers are delegated from the document, so
+diagrams that arrive through client-side navigation need no setup.
 
 ## 5. Layout rules worth knowing
 

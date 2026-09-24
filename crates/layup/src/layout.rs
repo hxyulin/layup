@@ -127,6 +127,7 @@ pub struct NodeRect {
     pub rect: Rect,
     pub parent: Option<usize>,
     pub tone: Tone,
+    pub href: Option<String>,
     pub line: usize,
 }
 
@@ -998,6 +999,7 @@ fn draw_node(
         rect,
         parent: ctx.parent,
         tone: n.style.tone,
+        href: n.href.clone(),
         line: n.line,
     });
     let (pad_x, rx, stroke_width) = match n.style.shape {

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 322" width="900" height="322" role="img" aria-labelledby="layup-68d3863f-title layup-68d3863f-desc">
-  <title id="layup-68d3863f-title">Request processing</title>
-  <desc id="layup-68d3863f-desc">Parallel services sit together; shared storage follows them.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 322" width="900" height="322" role="img" aria-labelledby="layup-b0e0ccb9-title layup-b0e0ccb9-desc">
+  <title id="layup-b0e0ccb9-title">Request processing</title>
+  <desc id="layup-b0e0ccb9-desc">Parallel services sit together; shared storage follows them.</desc>
   <metadata>Copyright © 2017 IBM Corp. with Reserved Font Name &quot;Plex&quot;
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -121,13 +121,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
     .layup .bg-red{fill:var(--red-bg)}.layup .bd-red{stroke:var(--red-bd)}.layup .ink-red{fill:var(--red-edge)}.layup .ln-red{stroke:var(--red-edge)}.layup .mk-red{fill:var(--red-edge)}
   </style>
   <defs>
-    <marker id="layup-68d3863f-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
-    <marker id="layup-68d3863f-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
-    <marker id="layup-68d3863f-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
-    <marker id="layup-68d3863f-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
-    <marker id="layup-68d3863f-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
-    <marker id="layup-68d3863f-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
-    <marker id="layup-68d3863f-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
+    <marker id="layup-b0e0ccb9-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
+    <marker id="layup-b0e0ccb9-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
+    <marker id="layup-b0e0ccb9-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
+    <marker id="layup-b0e0ccb9-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
+    <marker id="layup-b0e0ccb9-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
+    <marker id="layup-b0e0ccb9-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
+    <marker id="layup-b0e0ccb9-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
   </defs>
   <rect class="bg" width="900" height="322"/>
   <rect class="frame" x="0.5" y="0.5" width="899" height="321"/>
@@ -157,16 +157,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
   </g>
   <g class="edges">
     <g class="edge k-default" data-from="gateway" data-to="auth">
-      <path d="M239 148 L239 164" class="ln ln-purple" marker-end="url(#layup-68d3863f-m-purple)"/>
+      <path d="M239 148 L239 164" class="ln ln-purple" marker-end="url(#layup-b0e0ccb9-m-purple)"/>
     </g>
     <g class="edge k-default" data-from="gateway" data-to="validate">
-      <path d="M661 148 L661 164" class="ln ln-purple" marker-end="url(#layup-68d3863f-m-purple)"/>
+      <path d="M661 148 L661 164" class="ln ln-purple" marker-end="url(#layup-b0e0ccb9-m-purple)"/>
     </g>
     <g class="edge k-default" data-from="auth" data-to="store">
-      <path d="M239 223 L239 239" class="ln ln-yellow" marker-end="url(#layup-68d3863f-m-yellow)"/>
+      <path d="M239 223 L239 239" class="ln ln-yellow" marker-end="url(#layup-b0e0ccb9-m-yellow)"/>
     </g>
     <g class="edge k-default" data-from="validate" data-to="store">
-      <path d="M661 223 L661 239" class="ln ln-blue" marker-end="url(#layup-68d3863f-m-blue)"/>
+      <path d="M661 223 L661 239" class="ln ln-blue" marker-end="url(#layup-b0e0ccb9-m-blue)"/>
     </g>
   </g>
 </svg>

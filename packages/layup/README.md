@@ -47,4 +47,25 @@ and writes markup that survives Vue's template compiler, which would drop an
 SVG's `<style>` and interpolate `{{ }}`. For other markdown-it hosts use the
 default export; its `auto` theme follows `prefers-color-scheme`.
 
+## Interaction
+
+`layup/client` makes diagrams from the Markdown plugin interactive: hovering
+or clicking a node highlights it and its edges, and a button in the corner
+opens a full-window view with drag to pan, wheel or pinch to zoom, and
+double-click to fit. Without it, diagrams are static and the button stays
+hidden. In VitePress, import it from `.vitepress/theme/index.ts`:
+
+```ts
+import DefaultTheme from 'vitepress/theme';
+import 'layup/client';
+
+export default DefaultTheme;
+```
+
+The module does nothing during server rendering. Nodes with `href="..."` are
+links; VitePress routes them without a full page load. Write them relative to
+the page if the site sets a `base`. The client also works around a VitePress
+prefetch bug that throws on SVG links, by giving `SVGAElement` the `pathname`
+property that VitePress's prefetch code expects.
+
 `examples/vitepress` is a working site: `just vitepress`.

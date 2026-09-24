@@ -11,6 +11,7 @@ test('renders layup fences and leaves others alone', () => {
   assert.match(html, /<style>/);
   assert.match(html, /@media \(prefers-color-scheme: dark\)/);
   assert.match(html, /<code class="language-js">/);
+  assert.match(html, /<button type="button" class="layup-expand" hidden/);
 });
 
 test('vitepress output survives Vue compilation', () => {

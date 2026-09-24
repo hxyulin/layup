@@ -58,7 +58,7 @@ pub struct Legend {
 
 #[derive(Debug, Clone)]
 pub enum Block {
-    Node(Node),
+    Node(Box<Node>),
     Row(Row),
     Section(Section),
     Text(String),
@@ -111,6 +111,8 @@ pub struct Node {
     /// Bracketed prefix such as `re-exported` in `"[re-exported] CAN frame types"`.
     pub tag: Option<String>,
     pub role: Option<String>,
+    /// Link target; the rendered node is a hyperlink.
+    pub href: Option<String>,
     pub lines: Vec<Line>,
     pub children: Vec<Block>,
     pub gutter: Option<f64>,
@@ -425,7 +427,7 @@ impl Builder {
                     })
                     .unwrap_or(24.0),
             ),
-            kind if self.kinds.contains_key(kind) => Block::Node(self.node(it, d)?),
+            kind if self.kinds.contains_key(kind) => Block::Node(Box::new(self.node(it, d)?)),
             other => {
                 return Err(Error::at(
                     it.line,
@@ -451,6 +453,7 @@ impl Builder {
         let mut id = None;
         let mut title = None;
         let mut role = style.role.clone();
+        let mut href = None;
         let mut gutter = None;
         let mut tag = None;
         let mut hints = Vec::new();
@@ -502,6 +505,7 @@ impl Builder {
                     }
                     "role" => role = Some(v.as_text()),
                     "tag" => tag = Some(v.as_text()),
+                    "href" => href = Some(v.as_text()),
                     "gutter" => gutter = Some(num(v, it.line)?),
                     "align" => style.align = align_value(v, it.line)?,
                     _ => return Err(Error::at(it.line, format!("unknown node attribute `{k}`"))),
@@ -570,6 +574,7 @@ impl Builder {
             title,
             tag,
             role,
+            href,
             lines,
             children,
             gutter,

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 669" width="900" height="669" role="img" aria-labelledby="layup-91610db7-title layup-91610db7-desc">
-  <title id="layup-91610db7-title">Storage contracts</title>
-  <desc id="layup-91610db7-desc">An adapter implements a shared interface; the application selects that adapter.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" class="layup" viewBox="0 0 900 669" width="900" height="669" role="img" aria-labelledby="layup-5d5e29bd-title layup-5d5e29bd-desc">
+  <title id="layup-5d5e29bd-title">Storage contracts</title>
+  <desc id="layup-5d5e29bd-desc">An adapter implements a shared interface; the application selects that adapter.</desc>
   <metadata>Copyright © 2017 IBM Corp. with Reserved Font Name &quot;Plex&quot;
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
@@ -121,13 +121,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
     .layup .bg-red{fill:var(--red-bg)}.layup .bd-red{stroke:var(--red-bd)}.layup .ink-red{fill:var(--red-edge)}.layup .ln-red{stroke:var(--red-edge)}.layup .mk-red{fill:var(--red-edge)}
   </style>
   <defs>
-    <marker id="layup-91610db7-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
-    <marker id="layup-91610db7-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
-    <marker id="layup-91610db7-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
-    <marker id="layup-91610db7-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
-    <marker id="layup-91610db7-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
-    <marker id="layup-91610db7-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
-    <marker id="layup-91610db7-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
+    <marker id="layup-5d5e29bd-m-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-gray"/></marker>
+    <marker id="layup-5d5e29bd-m-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-blue"/></marker>
+    <marker id="layup-5d5e29bd-m-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-green"/></marker>
+    <marker id="layup-5d5e29bd-m-yellow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-yellow"/></marker>
+    <marker id="layup-5d5e29bd-m-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-purple"/></marker>
+    <marker id="layup-5d5e29bd-m-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-orange"/></marker>
+    <marker id="layup-5d5e29bd-m-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-red"/></marker>
   </defs>
   <rect class="bg" width="900" height="669"/>
   <rect class="frame" x="0.5" y="0.5" width="899" height="668"/>
@@ -140,9 +140,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
       <text class="t muted" x="695.98" y="40.5" font-size="12.5" font-weight="400" text-anchor="middle">concrete type</text>
       <rect class="box bg-blue bd-blue" x="764.51" y="22" width="95.49" height="28" rx="6" stroke-width="1.3"/>
       <text class="t muted" x="812.26" y="40.5" font-size="12.5" font-weight="400" text-anchor="middle">module-like</text>
-      <path class="ln ln-orange" d="M666.96 70 H698.96" marker-end="url(#layup-91610db7-m-orange)"/>
+      <path class="ln ln-orange" d="M666.96 70 H698.96" marker-end="url(#layup-5d5e29bd-m-orange)"/>
       <text class="t muted" x="708.96" y="74.5" font-size="12.5" font-weight="400">implements</text>
-      <path class="ln ln-blue" d="M791.86 70 H823.86" marker-end="url(#layup-91610db7-m-blue)"/>
+      <path class="ln ln-blue" d="M791.86 70 H823.86" marker-end="url(#layup-5d5e29bd-m-blue)"/>
       <text class="t muted" x="833.86" y="74.5" font-size="12.5" font-weight="400">uses</text>
     <g class="node k-package" data-id="storage-api">
       <rect class="box white bd-gray" x="40" y="94" width="820" height="159" rx="10" stroke-width="1.25"/>
@@ -182,14 +182,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.</metadata>
   </g>
   <g class="edges">
     <g class="edge k-impl" data-from="disk" data-to="store">
-      <path d="M450 345 L450 233" class="ln ln-orange" marker-end="url(#layup-91610db7-m-orange)"/>
+      <path d="M450 345 L450 233" class="ln ln-orange" marker-end="url(#layup-5d5e29bd-m-orange)"/>
       <g transform="rotate(-90 450 289)">
       <rect class="chip" x="431.17" y="278.5" width="37.67" height="21" rx="4"/>
       <text class="t chip-t ink-orange" x="450" y="293" text-anchor="middle">impl</text>
       </g>
     </g>
     <g class="edge k-uses" data-from="app" data-to="disk">
-      <path d="M450 541 L450 429" class="ln ln-blue" marker-end="url(#layup-91610db7-m-blue)"/>
+      <path d="M450 541 L450 429" class="ln ln-blue" marker-end="url(#layup-5d5e29bd-m-blue)"/>
       <g transform="rotate(-90 450 485)">
       <rect class="chip" x="430.67" y="474.5" width="38.66" height="21" rx="4"/>
       <text class="t chip-t ink-blue" x="450" y="489" text-anchor="middle">uses</text>
