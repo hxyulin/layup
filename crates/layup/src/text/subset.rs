@@ -18,7 +18,13 @@ const COPIED: [&[u8; 4]; 5] = [b"OS/2", b"cvt ", b"fpgm", b"prep", b"gasp"];
 /// Name IDs copied from the source font: copyright, version, license, license URL.
 const COPIED_NAMES: [u16; 4] = [0, 5, 13, 14];
 
-pub(super) fn subset(data: &[u8], chars: &BTreeSet<char>, family: &str, style: &str) -> Vec<u8> {
+/// Returns the font and the characters it maps.
+pub(super) fn subset(
+    data: &[u8],
+    chars: &BTreeSet<char>,
+    family: &str,
+    style: &str,
+) -> (Vec<u8>, Vec<u16>) {
     let face = Face::parse(data, 0).expect("bundled font must be valid");
     let raw = RawFace::parse(data, 0).expect("bundled font must be valid");
     let table = |tag: &[u8; 4]| {
@@ -117,7 +123,7 @@ pub(super) fn subset(data: &[u8], chars: &BTreeSet<char>, family: &str, style: &
             .iter()
             .filter_map(|tag| Some((**tag, raw.table(Tag::from_bytes(tag))?.to_vec()))),
     );
-    sfnt(tables)
+    (sfnt(tables), mapped.into_keys().collect())
 }
 
 /// Component glyph IDs of a composite glyph, with the byte offset of each ID.
@@ -295,7 +301,7 @@ mod tests {
         let text = "Hello, layup! é·→ {}\u{a0}";
         for data in [SANS, BOLD, MONO] {
             let original = Face::parse(data, 0).unwrap();
-            let out = subset(data, &chars(text), "Layup Sans", "Regular");
+            let (out, _) = subset(data, &chars(text), "Layup Sans", "Regular");
             let face = Face::parse(&out, 0).expect("subset parses");
             assert!(face.number_of_glyphs() < 40);
             assert_eq!(face.units_per_em(), original.units_per_em());
@@ -322,7 +328,7 @@ mod tests {
 
     #[test]
     fn renames_the_family_and_keeps_the_license() {
-        let out = subset(SANS, &chars("a"), "Layup Sans", "SemiBold");
+        let (out, _) = subset(SANS, &chars("a"), "Layup Sans", "SemiBold");
         let face = Face::parse(&out, 0).unwrap();
         let names: Vec<String> = face
             .names()
@@ -342,7 +348,7 @@ mod tests {
     #[test]
     fn keeps_composite_components() {
         // Accented letters in these fonts may be composites of base glyphs.
-        let out = subset(SANS, &chars("éÅ"), "Layup Sans", "Regular");
+        let (out, _) = subset(SANS, &chars("éÅ"), "Layup Sans", "Regular");
         let face = Face::parse(&out, 0).unwrap();
         for g in 0..face.number_of_glyphs() {
             let data = RawFace::parse(&out, 0).unwrap();

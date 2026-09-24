@@ -12,7 +12,28 @@ use crate::layout::{Anchor, Ink, Item, Placed, Rect, Scene, TextItem};
 use crate::style::{Tone, edge_color};
 use crate::text::Run;
 
+/// Rendering choices beyond the theme.
+#[derive(Debug, Clone, Copy)]
+pub struct Options<'a> {
+    pub theme: Theme,
+    /// For `Theme::Auto`: a selector for a host element whose presence
+    /// switches descendants to dark colors, such as `.dark` for VitePress,
+    /// in place of the `prefers-color-scheme` media query.
+    pub dark_selector: Option<&'a str>,
+}
+
 pub fn render(c: &Compiled, theme: Theme) -> String {
+    render_with(
+        c,
+        &Options {
+            theme,
+            dark_selector: None,
+        },
+    )
+}
+
+pub fn render_with(c: &Compiled, options: &Options) -> String {
+    let theme = options.theme;
     let scene = &c.scene;
     let id = id_prefix(c, theme);
     let mut s = String::new();
@@ -49,7 +70,7 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
             .join("\n"))
     );
     s.push_str("  <style>\n");
-    s.push_str(&stylesheet(&used_chars(scene)));
+    s.push_str(&stylesheet(&used_chars(scene), options.dark_selector));
     s.push_str("  </style>\n");
     s.push_str("  <defs>\n");
     for t in Tone::ALL {
@@ -395,35 +416,40 @@ fn vars(dark: bool) -> String {
 }
 
 /// The diagram stylesheet, embedding fonts subset to `chars`.
-pub fn stylesheet(chars: &BTreeSet<char>) -> String {
+pub fn stylesheet(chars: &BTreeSet<char>, dark_selector: Option<&str>) -> String {
     let mut css = crate::text::stylesheet(chars);
     let _ = writeln!(css, "    .layup{{{}}}", vars(false));
     let _ = writeln!(css, "    .layup.dark{{{}}}", vars(true));
-    let _ = writeln!(
-        css,
-        "    @media (prefers-color-scheme: dark){{.layup.auto{{{}}}}}",
-        vars(true)
-    );
+    let _ = match dark_selector {
+        Some(sel) => writeln!(css, "    :is({sel}) .layup.auto{{{}}}", vars(true)),
+        None => writeln!(
+            css,
+            "    @media (prefers-color-scheme: dark){{.layup.auto{{{}}}}}",
+            vars(true)
+        ),
+    };
+    // Rules are scoped under `.layup` so an inline SVG neither styles nor
+    // inherits from the host page's classes.
     css.push_str(
-        r#"    .t{font-family:'Layup Sans',sans-serif}
-    .m{font-family:'Layup Mono',monospace;font-weight:400}
-    .t,.m{font-kerning:none;font-variant-ligatures:none;font-synthesis:none}
-    .ink{fill:var(--ink)}.muted{fill:var(--muted)}.codeink{fill:var(--codeink)}
-    .tag{fill:var(--blue-edge);font-weight:650}
-    .bg{fill:var(--bg)}.frame{fill:none;stroke:var(--frame)}
-    .rule{stroke:var(--rule);stroke-width:1;fill:none}
-    .strip{fill:var(--strip)}
-    .box{stroke-width:1.25}.hollow{fill:none}.white{fill:var(--white)}
-    .ln{fill:none;stroke-width:1.8}
-    .chip{fill:var(--bg);stroke:var(--chipbd);stroke-width:.8}.chip.plain{stroke:none}
-    .chip-t{font-size:11.5px;font-weight:650}.chip-t.plain{font-size:12px;font-weight:400}
+        r#"    .layup .t{font-family:'Layup Sans',sans-serif}
+    .layup .m{font-family:'Layup Mono',monospace;font-weight:400}
+    .layup .t,.layup .m{font-kerning:none;font-variant-ligatures:none;font-synthesis:none}
+    .layup .ink{fill:var(--ink)}.layup .muted{fill:var(--muted)}.layup .codeink{fill:var(--codeink)}
+    .layup .tag{fill:var(--blue-edge);font-weight:650}
+    .layup .bg{fill:var(--bg)}.layup .frame{fill:none;stroke:var(--frame)}
+    .layup .rule{stroke:var(--rule);stroke-width:1;fill:none}
+    .layup .strip{fill:var(--strip)}
+    .layup .box{stroke-width:1.25}.layup .hollow{fill:none}.layup .white{fill:var(--white)}
+    .layup .ln{fill:none;stroke-width:1.8}
+    .layup .chip{fill:var(--bg);stroke:var(--chipbd);stroke-width:.8}.layup .chip.plain{stroke:none}
+    .layup .chip-t{font-size:11.5px;font-weight:650}.layup .chip-t.plain{font-size:12px;font-weight:400}
 "#,
     );
     for t in Tone::ALL {
         let n = t.name();
         let _ = writeln!(
             css,
-            "    .bg-{n}{{fill:var(--{n}-bg)}}.bd-{n}{{stroke:var(--{n}-bd)}}.ink-{n}{{fill:var(--{n}-edge)}}.ln-{n}{{stroke:var(--{n}-edge)}}.mk-{n}{{fill:var(--{n}-edge)}}"
+            "    .layup .bg-{n}{{fill:var(--{n}-bg)}}.layup .bd-{n}{{stroke:var(--{n}-bd)}}.layup .ink-{n}{{fill:var(--{n}-edge)}}.layup .ln-{n}{{stroke:var(--{n}-edge)}}.layup .mk-{n}{{fill:var(--{n}-edge)}}"
         );
     }
     css

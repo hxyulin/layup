@@ -11,10 +11,22 @@
       "types": "./index.d.ts",
       "node": "./node.js",
       "default": "./browser.js"
+    },
+    "./markdown-it": {
+      "types": "./markdown-it.d.ts",
+      "default": "./markdown-it.js"
     }
   },
-  "files": ["*.js", "*.d.ts", "*.css", "layup.wasm"],
+  "files": [
+    "*.js",
+    "*.d.ts",
+    "*.css",
+    "layup.wasm"
+  ],
   "scripts": {
     "test": "node --test"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.1.0"
   }
 }

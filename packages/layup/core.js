@@ -2,10 +2,11 @@
 // length-prefixed JSON result out, every buffer freed with layup_free.
 
 export class LayupError extends Error {
-  constructor(message, line) {
-    super(line == null ? message : `line ${line}: ${message}`);
+  constructor(reason, line) {
+    super(line == null ? reason : `line ${line}: ${reason}`);
     this.name = 'LayupError';
     this.line = line;
+    this.reason = reason;
   }
 }
 
@@ -20,9 +21,11 @@ export function wrap(instance) {
     return [ptr, bytes.length];
   };
 
-  function render(source, { theme = 'light', format = 'svg' } = {}) {
+  function render(source, { theme = 'light', format = 'svg', darkSelector } = {}) {
+    let options = `theme=${theme}\nformat=${format}`;
+    if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
     const [src, srcLen] = put(source);
-    const [opt, optLen] = put(`theme=${theme}\nformat=${format}`);
+    const [opt, optLen] = put(options);
     let out;
     try {
       out = layup_render(src, srcLen, opt, optLen);

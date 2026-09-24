@@ -12,11 +12,12 @@ use std::fmt::Write as _;
 
 use layup::Theme;
 
-/// Options are `key=value` lines: `theme` (`light`, `dark`, `auto`) and
-/// `format` (`svg`, `html`, `embed`).
+/// Options are `key=value` lines: `theme` (`light`, `dark`, `auto`),
+/// `format` (`svg`, `html`, `embed`) and `darkSelector` (SVG only).
 pub fn render(src: &str, options: &str) -> String {
     let mut theme = Theme::Light;
     let mut format = "svg";
+    let mut dark_selector = None;
     for (key, value) in options.lines().filter_map(|l| l.split_once('=')) {
         match key {
             "theme" => match Theme::parse(value) {
@@ -24,6 +25,7 @@ pub fn render(src: &str, options: &str) -> String {
                 None => return error(None, &format!("unknown theme {value:?}")),
             },
             "format" if ["svg", "html", "embed"].contains(&value) => format = value,
+            "darkSelector" => dark_selector = Some(value),
             _ => return error(None, &format!("unknown option {key}={value}")),
         }
     }
@@ -32,7 +34,13 @@ pub fn render(src: &str, options: &str) -> String {
         Err(e) => return error(e.line, &e.msg),
     };
     let output = match format {
-        "svg" => layup::svg::render(&compiled, theme),
+        "svg" => layup::svg::render_with(
+            &compiled,
+            &layup::svg::Options {
+                theme,
+                dark_selector,
+            },
+        ),
         _ => layup::html::render(&compiled, theme, format == "embed"),
     };
     let mut json = format!("{{\"output\":{},\"warnings\":[", string(&output));
@@ -122,6 +130,8 @@ mod tests {
         assert!(ok.contains(r#"class=\"layup dark\""#));
         assert!(render("diagram {", "").starts_with(r#"{"error":{"line":1,"#));
         assert!(render("", "theme=sepia").contains("unknown theme"));
+        let class = render(r#"diagram "Hi" {}"#, "theme=auto\ndarkSelector=.dark");
+        assert!(class.contains(":is(.dark) .layup.auto{") && !class.contains("@media"));
         assert_eq!(string("a\"\\\n\u{1}"), r#""a\"\\\n\u0001""#);
     }
 }

@@ -64,3 +64,7 @@ wasm:
 js-test: wasm
     cargo build -p layup-cli
     cd packages/layup && node --test
+
+# Run the VitePress example with the local package (http://localhost:5173).
+vitepress: wasm
+    cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev
