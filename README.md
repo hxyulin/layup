@@ -68,6 +68,7 @@ layup render diagram.layup --html             # interactive page
 layup render diagram.layup --html --embed     # no toolbar, for an <iframe>
 layup render - -o - < diagram.layup           # stdin to stdout
 layup check docs/**/*.layup --strict          # CI: warnings fail
+layup check docs/*.md                         # every ```layup block in Markdown
 layup build docs/                             # every .layup gets an .svg beside it
 ```
 

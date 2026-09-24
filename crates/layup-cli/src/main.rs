@@ -55,7 +55,7 @@ enum Cmd {
     },
     /// Parse and lay out a diagram, reporting overflow, crossings and other problems.
     Check {
-        /// Input `.layup` files.
+        /// Input `.layup` files, or Markdown files (`.md`) whose `layup` code blocks are checked.
         inputs: Vec<PathBuf>,
         /// Treat warnings as errors.
         #[arg(long)]
@@ -106,24 +106,19 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             let mut ok = true;
             for input in inputs {
                 let src = read(&input)?;
-                match layup::compile(&src) {
-                    Ok(c) => {
-                        report(&input, &c.warnings);
-                        if strict && !c.warnings.is_empty() {
-                            ok = false;
-                        }
-                        println!(
-                            "{}: {} warnings, {}x{}",
-                            input.display(),
-                            c.warnings.len(),
-                            c.scene.width,
-                            c.scene.height
-                        );
+                if input
+                    .extension()
+                    .is_some_and(|e| e == "md" || e == "markdown")
+                {
+                    let blocks = fences(&src);
+                    if blocks.is_empty() {
+                        println!("{}: no layup blocks", input.display());
                     }
-                    Err(e) => {
-                        eprintln!("{}: error: {e}", input.display());
-                        ok = false;
+                    for (line, block) in blocks {
+                        ok &= check_one(&input, Some(line), &block, strict);
                     }
+                } else {
+                    ok &= check_one(&input, None, &src, strict);
                 }
             }
             Ok(ok)
@@ -206,6 +201,74 @@ fn render_one(
     Ok(true)
 }
 
+/// Checks one diagram. `fence` is the Markdown line of the opening fence for
+/// a diagram from a code block; its diagnostics then name Markdown lines.
+fn check_one(input: &Path, fence: Option<usize>, src: &str, strict: bool) -> bool {
+    let name = input.display();
+    let at = |line: Option<usize>, msg: &str| match fence {
+        Some(f) => format!("{name}:{}: {msg}", f + line.unwrap_or(0)),
+        None => match line {
+            Some(l) => format!("{name}: line {l}: {msg}"),
+            None => format!("{name}: {msg}"),
+        },
+    };
+    match layup::compile(src) {
+        Ok(c) => {
+            for w in &c.warnings {
+                eprintln!("{}", at(w.line, &format!("warning: {}", w.msg)));
+            }
+            let label = fence.map_or(name.to_string(), |f| format!("{name}:{f}"));
+            println!(
+                "{label}: {} warnings, {}x{}",
+                c.warnings.len(),
+                c.scene.width,
+                c.scene.height
+            );
+            !(strict && !c.warnings.is_empty())
+        }
+        Err(e) => {
+            eprintln!("{}", at(e.line, &format!("error: {}", e.msg)));
+            false
+        }
+    }
+}
+
+/// `layup` code blocks in Markdown, with the 1-based line of each opening
+/// fence. Fences follow CommonMark: three or more backticks or tildes, closed
+/// by at least as many of the same character, so an example fence nested in a
+/// longer one is not a diagram.
+fn fences(src: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    let mut open: Option<(char, usize, bool, usize, String)> = None;
+    for (i, line) in src.lines().enumerate() {
+        let trimmed = line.trim_start();
+        let marker = trimmed.chars().next().filter(|c| *c == '`' || *c == '~');
+        let run = marker.map_or(0, |m| trimmed.chars().take_while(|c| *c == m).count());
+        match &mut open {
+            Some((c, len, layup, start, body)) => {
+                if marker == Some(*c) && run >= *len && trimmed[run..].trim().is_empty() {
+                    if *layup {
+                        out.push((*start, std::mem::take(body)));
+                    }
+                    open = None;
+                } else if *layup {
+                    body.push_str(line);
+                    body.push('\n');
+                }
+            }
+            None if run >= 3 => {
+                let info = trimmed[run..].trim();
+                let is_layup = info.split_whitespace().next() == Some("layup");
+                if marker == Some('~') || !info.contains('`') {
+                    open = Some((marker.unwrap_or('`'), run, is_layup, i + 1, String::new()));
+                }
+            }
+            None => {}
+        }
+    }
+    out
+}
+
 fn report(input: &Path, warnings: &[layup::Warning]) {
     for w in warnings {
         eprintln!("{}: warning: {w}", input.display());
@@ -236,4 +299,19 @@ fn collect(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fences;
+
+    #[test]
+    fn finds_layup_fences_but_not_nested_examples() {
+        let md = "# T\n\n```layup\ndiagram \"A\" {}\n```\n\n````md\n```layup\nnot a diagram\n```\n````\n\n  ~~~~layup extra\n  diagram \"B\" {}\n  ~~~~\n```js\nx\n```\n";
+        let found = fences(md);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0], (3, "diagram \"A\" {}\n".to_string()));
+        assert_eq!(found[1].0, 13);
+        assert!(found[1].1.contains("\"B\""));
+    }
 }

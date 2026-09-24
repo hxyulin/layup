@@ -7,6 +7,7 @@ cargo install layup-cli --version 0.1.0 --locked
 layup render diagram.layup
 layup render diagram.layup --html
 layup check diagram.layup --strict
+layup check guide.md --strict      # each ```layup block, at its Markdown line
 layup build docs/
 ```
 
