@@ -1,4 +1,4 @@
-// Interaction for diagrams rendered by layup/markdown-it: hovering or
+// Interaction for diagrams rendered by @hxyulin/layup/markdown-it: hovering or
 // clicking a node highlights it and its edges, and the expand button opens
 // a full-window view with pan and zoom. Handlers are delegated from the
 // document, so diagrams added by client-side navigation need no setup.

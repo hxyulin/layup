@@ -8,8 +8,8 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "layup": "file:../../packages/layup",
-    "vitepress": "^1.6.0",
-    "playwright": "^1.55.0"
+    "@hxyulin/layup": "file:../../packages/layup",
+    "playwright": "^1.55.0",
+    "vitepress": "^1.6.0"
   }
 }

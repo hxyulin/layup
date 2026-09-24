@@ -1,10 +1,22 @@
 {
-  "name": "layup",
-  "version": "0.2.0-dev",
+  "name": "@hxyulin/layup",
+  "version": "0.2.0",
   "description": "Authored-layout diagrams rendered to SVG, compiled to WebAssembly",
+  "keywords": [
+    "diagram",
+    "svg",
+    "architecture",
+    "markdown-it",
+    "vitepress",
+    "wasm"
+  ],
   "license": "MIT OR Apache-2.0",
-  "repository": "github:hxyulin/layup",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hxyulin/layup.git",
+    "directory": "packages/layup"
+  },
+  "homepage": "https://github.com/hxyulin/layup/tree/main/packages/layup#readme",
   "type": "module",
   "exports": {
     ".": {
@@ -21,11 +33,17 @@
   "files": [
     "*.js",
     "*.d.ts",
-    "*.css",
-    "layup.wasm"
+    "layup.wasm",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "OFL.txt"
   ],
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "prepack": "cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown && cp ../../target/wasm32-unknown-unknown/wasm/layup_wasm.wasm layup.wasm"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "markdown-it": "^14.1.0"

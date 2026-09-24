@@ -1,6 +1,6 @@
 [package]
 name = "layup-wasm"
-version = "0.2.0-dev"
+version = "0.2.0"
 description = "WebAssembly build of the layup layout engine for the layup npm package"
 edition.workspace = true
 license.workspace = true

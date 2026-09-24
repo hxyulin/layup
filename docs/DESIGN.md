@@ -172,7 +172,7 @@ style port shape=api hollow purple label="port"
 words are tones and flags; `role=` and `label=` set the container role
 and the legend label.
 
-### Automatic placement (v0.2 development)
+### Automatic placement
 
 Add `layout=auto` to `diagram` to infer top-to-bottom layers from directed
 edges. The default remains `layout=manual`, preserving authored block flow.
@@ -191,11 +191,10 @@ automatic placement cannot cross. Edges across these boundaries still route,
 but do not override the authored structure. Existing width inference applies
 after placement: three columns can widen an unpinned canvas to 1400px.
 
-There is no direction option, crossing minimization, saved-position state, or
-automatic routing improvement in this checkpoint. Cycles and dense graphs may
-still need routing hints. Run `just preview-auto` for the review gallery.
+There is no direction option, crossing minimization, or saved-position state.
+Cycles and dense graphs may still need routing hints. Run `just preview-auto` for the review gallery.
 
-### Predictable edits (v0.2 development)
+### Predictable edits
 
 Automatic placement is computed afresh, with no saved position state:
 
@@ -221,7 +220,7 @@ boundaries when identity and grouping matter. No position cache is required.
 
 Run `just preview-incremental` to compare edits under checkpoints 3 and 4.
 
-### Layout hints (v0.2 development)
+### Layout hints
 
 With `layout=auto`, node attributes constrain placement without adding edges:
 
@@ -331,14 +330,14 @@ lexer → parser → model → layout → route → check → svg | html
   `<g class="edge k-KIND" data-from data-to>`.
 - **html** (`html.rs`) wraps the SVG in a page that adds interaction.
 
-### Automatic routing fallback (v0.2 development)
+### Automatic routing fallback
 
 Clear routes keep their existing geometry. For an obstructed, overlapping, or
-invalid-port route without `via`, the router now tries permitted node sides
+invalid-port route without `via`, the router tries permitted node sides
 and searches an orthogonal grid around obstacles. It prefers shorter paths
 with fewer bends, keeps paths inside the existing canvas, and separates them
 from earlier edge segments. Explicit `from` / `to` sides remain constraints;
-explicit `via` paths retain their previous behavior.
+explicit `via` paths keep their reserved outside lanes.
 
 The fallback also handles self-loops and paths beside the content. It does
 not optimize all edges together: declaration order remains a tie-breaker,
@@ -380,7 +379,7 @@ inline or as an image. Element IDs carry a per-diagram prefix and the
 stylesheet is scoped under `.layup`, so several inline SVGs share a page.
 
 For markdown-it sites such as VitePress, `packages/layup` renders `layup`
-code blocks to inline SVG at build time. Its `layup/client` module adds, to
+code blocks to inline SVG at build time. Its `@hxyulin/layup/client` module adds, to
 every such diagram: hover and click highlighting of a node and its edges, and
 an expand button that opens a full-window view with the page's pan, zoom,
 pinch and double-click-to-fit, plus keys: `+` `-` zoom, `0` or `F` fit,

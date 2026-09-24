@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitepress';
-import { vitepress as layup } from 'layup/markdown-it';
+import { vitepress as layup } from '@hxyulin/layup/markdown-it';
 
 export default defineConfig({
   title: 'layup in VitePress',

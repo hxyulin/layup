@@ -1,4 +1,4 @@
 import DefaultTheme from 'vitepress/theme';
-import 'layup/client';
+import '@hxyulin/layup/client';
 
 export default DefaultTheme;

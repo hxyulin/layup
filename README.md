@@ -10,25 +10,14 @@ See [the language and design reference](https://github.com/hxyulin/layup/blob/ma
 reference and the iframe protocol. The `examples/` directory includes architecture diagrams and a minimal
 `hello.layup`.
 
-### v0.2 development
+### New in 0.2
 
-On the development branch, `diagram "Title" layout=auto { ... }` infers
-layers and rows from edges, including inside containers. Explicit rows and
-section boundaries retain control. Omit the option to preserve authored flow.
-Run `just preview-auto` to generate the first checkpoint's before/after gallery.
-Add `below=id`, `same-layer=id`, or `beside=id` on nodes for more control
-without writing rows; `just preview-hints` generates the second checkpoint.
-Obstructed edges also try automatic ports and paths around nodes;
-`just preview-routing` compares the old and new routers.
-Disconnected graphs now occupy separate regions, and automatic-layout colors
-stay tied to node IDs; `just preview-incremental` shows common edits before
-and after this change.
-SVGs embed only the glyphs they draw, and nodes accept `href=` links.
-`packages/layup` builds the engine to WebAssembly for Node and browsers, with
-a markdown-it plugin and a VitePress preset that render `layup` code blocks
-at build time; see [its README](packages/layup/README.md) and
-`examples/vitepress`.
-These features are not in the published v0.1.0 crates.
+Opt-in automatic layout (`layout=auto`) with placement hints, routing around
+obstacles, node links, SVGs about a fifteenth of their former size, `layup
+check` for Markdown, and a WebAssembly package with a VitePress integration
+(the [`@hxyulin/layup`](https://github.com/hxyulin/layup/blob/main/packages/layup/README.md) npm package and
+`examples/vitepress`). The [changelog](https://github.com/hxyulin/layup/blob/main/CHANGELOG.md) lists everything,
+including API changes.
 
 ### Architecture
 
@@ -47,7 +36,7 @@ The `layup` crate is the layout engine. The `layup-cli` crate provides the
 `layup` command.
 
 ```sh
-cargo install layup-cli --version 0.1.0 --locked
+cargo install layup-cli --version 0.2.0 --locked
 ```
 
 Or build and install from a source checkout:
@@ -92,9 +81,9 @@ diagram "Hello layup" {
 }
 ```
 
-More examples demonstrate [service layers](examples/service-layers.layup),
-a [job pipeline](examples/job-pipeline.layup), and
-[storage contracts](examples/storage-contracts.layup). These are fictional
+More examples demonstrate [service layers](https://github.com/hxyulin/layup/blob/main/examples/service-layers.layup),
+a [job pipeline](https://github.com/hxyulin/layup/blob/main/examples/job-pipeline.layup), and
+[storage contracts](https://github.com/hxyulin/layup/blob/main/examples/storage-contracts.layup). These are fictional
 systems illustrating layout features, not claims about a real project's architecture.
 
 ### Embedding
@@ -144,7 +133,7 @@ yet supported by the layout engine.
 
 ```toml
 [dependencies]
-layup = "0.1.0"
+layup = "0.2.0"
 ```
 
 ```rust
@@ -164,10 +153,8 @@ license, source revision, and checksums.
 ### Release checks
 
 ```sh
-just check
-cargo publish -p layup --dry-run
-# After layup 0.1.0 is available on crates.io:
-cargo publish -p layup-cli --dry-run
+just check && just js-test && just vitepress-test
+cargo publish -p layup -p layup-cli --dry-run
 ```
 
 Publish `layup` (the engine, fonts, and renderers) first, then `layup-cli`

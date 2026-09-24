@@ -1,5 +1,5 @@
 // Checks the built site in Chromium: hydration, fonts, theming, and the
-// layup/client interactions. Run `npx vitepress build` first; `just
+// @hxyulin/layup/client interactions. Run `npx vitepress build` first; `just
 // vitepress-test` does both.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';

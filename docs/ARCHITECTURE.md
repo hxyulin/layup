@@ -1,11 +1,18 @@
 # Architecture
 
-Layup has two Cargo packages: `layup-cli` provides the `layup` binary in
-[`main.rs`](../crates/layup-cli/src/main.rs), and `layup` provides the layout
-engine and renderers in [`lib.rs`](../crates/layup/src/lib.rs).
+Layup has two published Cargo packages: `layup-cli` provides the `layup`
+binary in [`main.rs`](../crates/layup-cli/src/main.rs), and `layup` provides
+the layout engine and renderers in [`lib.rs`](../crates/layup/src/lib.rs).
 `layup-cli` depends on `layup`; the engine does not depend on the CLI or Clap. The CLI handles files, arguments,
 diagnostics, and exit codes. The library compiles text into a diagram and
 scene, then exposes SVG and HTML renderers.
+
+For the web, [`layup-wasm`](../crates/layup-wasm/src/lib.rs) wraps the engine
+in a small C ABI that returns JSON, and the
+[`@hxyulin/layup`](../packages/layup/README.md) npm package loads it in Node
+or a browser. That package adds the markdown-it plugin and VitePress preset,
+which render code blocks at build time, and `client.js`, which adds
+interaction to the rendered diagrams.
 
 ![Layup's compilation and rendering pipeline](diagrams/architecture.svg)
 
@@ -65,6 +72,9 @@ for upstream revision, checksums, and the separate SIL OFL license.
 | SVG serialization | `svg.rs` |
 | Browser interaction and embedding | `html.rs` |
 | Commands and file handling | `main.rs` |
+| WebAssembly interface | `crates/layup-wasm/src/lib.rs`, `packages/layup/core.js` |
+| Markdown and VitePress | `packages/layup/markdown-it.js` |
+| In-page interaction | `packages/layup/client.js` |
 
 The [design reference](DESIGN.md) covers language syntax, routing details,
 and the iframe protocol. The Rust code is MIT OR Apache-2.0; bundled fonts

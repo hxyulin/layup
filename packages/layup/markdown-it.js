@@ -39,7 +39,7 @@ export default function layup(md, options = {}) {
   };
 }
 
-// Shown by layup/client, which provides the expanded view.
+// Shown by @hxyulin/layup/client, which provides the expanded view.
 const EXPAND = '<button type="button" class="layup-expand" hidden aria-label="Expand diagram" title="Expand"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M10 2h4v4M6 14H2v-4M14 2 9.5 6.5M2 14l4.5-4.5"/></svg></button>';
 
 /** For VitePress: follows its `.dark` class and survives Vue compilation. */

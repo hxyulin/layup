@@ -1,17 +1,14 @@
-# layup (npm)
+# @hxyulin/layup
 
 The layup layout engine compiled to WebAssembly. It produces the same SVG and
 HTML as the `layup` CLI, byte for byte.
 
-Build the engine into this directory first:
-
 ```sh
-just wasm       # packages/layup/layup.wasm
-just js-test    # also compares output with the CLI
+npm install --save-dev @hxyulin/layup
 ```
 
 ```js
-import { load } from 'layup';
+import { load } from '@hxyulin/layup';
 
 const layup = await load();              // Node: also `loadSync()`
 const { output, warnings } = layup.render(source, { theme: 'auto' });
@@ -26,7 +23,7 @@ you pass another URL.
 
 ## Markdown and VitePress
 
-`layup/markdown-it` renders ```` ```layup ```` fences to inline SVG when the
+`@hxyulin/layup/markdown-it` renders ```` ```layup ```` fences to inline SVG when the
 Markdown is built, so pages need no runtime to show diagrams. Diagnostics are
 printed with the Markdown file and line; `strict: true` fails the build
 instead. `layup check guide.md` reports the same problems from the CLI
@@ -37,7 +34,7 @@ For VitePress, use the `vitepress` preset in `.vitepress/config.mts`:
 
 ```ts
 import { defineConfig } from 'vitepress';
-import { vitepress as layup } from 'layup/markdown-it';
+import { vitepress as layup } from '@hxyulin/layup/markdown-it';
 
 export default defineConfig({
   markdown: { config: (md) => md.use(layup) },
@@ -51,7 +48,7 @@ default export; its `auto` theme follows `prefers-color-scheme`.
 
 ## Interaction
 
-`layup/client` makes diagrams from the Markdown plugin interactive: hovering
+`@hxyulin/layup/client` makes diagrams from the Markdown plugin interactive: hovering
 or clicking a node highlights it and its edges, and a button in the corner
 opens a full-window view with drag to pan, wheel or pinch to zoom, and
 double-click to fit. In that view, `+` and `-` zoom, `0` or `F` fits, arrow
@@ -60,7 +57,7 @@ hidden. In VitePress, import it from `.vitepress/theme/index.ts`:
 
 ```ts
 import DefaultTheme from 'vitepress/theme';
-import 'layup/client';
+import '@hxyulin/layup/client';
 
 export default DefaultTheme;
 ```
@@ -75,3 +72,14 @@ vuejs/vitepress#5442, which is not yet released.
 `examples/vitepress` is a working site: `just vitepress`. `just
 vitepress-test` builds it and checks hydration, fonts, theming and these
 interactions in headless Chromium.
+
+## Development
+
+In a checkout of the repository, `just wasm` builds `layup.wasm` into this
+directory and `just js-test` compares the package's output with the CLI.
+`npm pack` and `npm publish` rebuild the WebAssembly first.
+
+## License
+
+MIT OR Apache-2.0. `layup.wasm` embeds IBM Plex fonts, licensed under the SIL
+Open Font License 1.1 (`OFL.txt`).
