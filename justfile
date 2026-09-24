@@ -12,7 +12,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup --strict
+    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup examples/vitepress/*.md --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
@@ -63,8 +63,12 @@ wasm:
 # Test the npm package against the CLI.
 js-test: wasm
     cargo build -p layup-cli
-    cd packages/layup && node --test
+    cd packages/layup && npm install --no-audit --no-fund && node --test
 
 # Run the VitePress example with the local package (http://localhost:5173).
 vitepress: wasm
     cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev
+
+# Build the VitePress example and test it in Chromium (downloads Chromium once).
+vitepress-test: wasm
+    cd examples/vitepress && npm install --no-audit --no-fund && npx playwright install chromium && npx vitepress build && node --test

@@ -31,3 +31,13 @@ diagram "Storage contracts — ünïcödé" {
   app -uses-> store labeled
 }
 ```
+
+Adding `source` to the fence shows the diagram's source below it:
+
+```layup source
+diagram "Cache" {
+  node reader "Reader"
+  node cache "Cache"
+  reader -> cache "reads"
+}
+```
