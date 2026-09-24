@@ -125,8 +125,11 @@ reads advances directly from those same font files, with no system-font
 lookup, generated metrics tables, or platform safety factor. Kerning and
 optional ligatures are disabled in the SVG to match advance-based measurement.
 
-Each output includes the font data and its SIL Open Font License notice, which
-makes files larger but allows offline viewing. Use a browser or SVG renderer
+Each output embeds only the glyphs it draws, about 12 KB per face for a typical
+diagram, together with the SIL Open Font License notice, so it views offline.
+The OFL reserves the Plex name for unmodified fonts, so the embedded subsets
+are named Layup Sans and Layup Mono. Element IDs carry a per-diagram prefix,
+so several SVGs can be inlined in one page. Use a browser or SVG renderer
 that supports embedded web fonts. Glyphs outside the bundled fonts use the
 viewer's fallback fonts and estimated widths; complex-script shaping is not
 yet supported by the layout engine.

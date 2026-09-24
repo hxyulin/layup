@@ -3,6 +3,7 @@
 //! `auto` theme's media query) can restyle it, and every node and edge
 //! carries `data-` attributes for interactive hosts.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use crate::Compiled;
@@ -13,6 +14,7 @@ use crate::text::Run;
 
 pub fn render(c: &Compiled, theme: Theme) -> String {
     let scene = &c.scene;
+    let id = id_prefix(c, theme);
     let mut s = String::new();
     let class = match theme {
         Theme::Light => "layup",
@@ -21,13 +23,13 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
     };
     let _ = writeln!(
         s,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="layup-title layup-desc">"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc">"#,
         w = num(scene.width),
         h = num(scene.height)
     );
     let _ = writeln!(
         s,
-        "  <title id=\"layup-title\">{}</title>",
+        "  <title id=\"{id}title\">{}</title>",
         esc(&c.diagram.title)
     );
     let desc = c
@@ -36,7 +38,7 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
         .clone()
         .or_else(|| c.diagram.note.clone())
         .unwrap_or_default();
-    let _ = writeln!(s, "  <desc id=\"layup-desc\">{}</desc>", esc(&desc));
+    let _ = writeln!(s, "  <desc id=\"{id}desc\">{}</desc>", esc(&desc));
     let _ = writeln!(
         s,
         "  <metadata>{}</metadata>",
@@ -47,13 +49,13 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
             .join("\n"))
     );
     s.push_str("  <style>\n");
-    s.push_str(&stylesheet());
+    s.push_str(&stylesheet(&used_chars(scene)));
     s.push_str("  </style>\n");
     s.push_str("  <defs>\n");
     for t in Tone::ALL {
         let _ = writeln!(
             s,
-            r#"    <marker id="m-{n}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-{n}"/></marker>"#,
+            r#"    <marker id="{id}m-{n}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-{n}"/></marker>"#,
             n = t.name()
         );
     }
@@ -89,7 +91,7 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
             }
             open = p.node;
         }
-        item(&mut s, p, scene);
+        item(&mut s, p, &id);
     }
     if open.is_some() {
         s.push_str("    </g>\n");
@@ -120,10 +122,10 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
             attrs.push_str(r#" stroke-dasharray="7 5""#);
         }
         if e.head_end {
-            let _ = write!(attrs, r#" marker-end="url(#m-{})""#, e.tone.name());
+            let _ = write!(attrs, r#" marker-end="url(#{id}m-{})""#, e.tone.name());
         }
         if e.head_start {
-            let _ = write!(attrs, r#" marker-start="url(#m-{})""#, e.tone.name());
+            let _ = write!(attrs, r#" marker-start="url(#{id}m-{})""#, e.tone.name());
         }
         let _ = writeln!(s, r#"      <path d="{d}" {attrs}/>"#);
         if let Some(chip) = &e.chip {
@@ -133,7 +135,7 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
                     item: chip.clone(),
                     node: None,
                 },
-                scene,
+                &id,
             );
         }
         s.push_str("    </g>\n");
@@ -143,7 +145,35 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
     s
 }
 
-fn item(s: &mut String, p: &Placed, _scene: &Scene) {
+/// Element IDs must be unique when several diagrams share a page, so they
+/// carry a prefix derived from the rendered content. Identical output gives
+/// identical IDs, whose definitions are then interchangeable.
+fn id_prefix(c: &Compiled, theme: Theme) -> String {
+    let key = format!(
+        "{theme:?}{:?}{:?}{:?}",
+        c.diagram.title, c.diagram.desc, c.scene
+    );
+    let hash = key.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+        (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
+    });
+    format!("layup-{:08x}-", hash as u32)
+}
+
+/// Every character drawn, for subsetting the embedded fonts.
+fn used_chars(scene: &Scene) -> BTreeSet<char> {
+    let chips = scene.edges.iter().filter_map(|e| e.chip.as_ref());
+    let mut chars: BTreeSet<char> = [' ', '\u{a0}'].into();
+    for item in scene.items.iter().map(|p| &p.item).chain(chips) {
+        match item {
+            Item::Text(t) => chars.extend(t.runs.iter().flat_map(|r| r.text.chars())),
+            Item::Chip { text, .. } => chars.extend(text.chars()),
+            _ => {}
+        }
+    }
+    chars
+}
+
+fn item(s: &mut String, p: &Placed, id: &str) {
     match &p.item {
         Item::Box {
             rect,
@@ -257,7 +287,7 @@ fn item(s: &mut String, p: &Placed, _scene: &Scene) {
             };
             let _ = writeln!(
                 s,
-                r#"      <path class="ln ln-{n}" d="M{} {} H{}"{dash} marker-end="url(#m-{n})"/>"#,
+                r#"      <path class="ln ln-{n}" d="M{} {} H{}"{dash} marker-end="url(#{id}m-{n})"/>"#,
                 num(*x),
                 num(*y),
                 num(x + 32.0),
@@ -364,8 +394,9 @@ fn vars(dark: bool) -> String {
     v
 }
 
-pub fn stylesheet() -> String {
-    let mut css = crate::text::stylesheet().to_owned();
+/// The diagram stylesheet, embedding fonts subset to `chars`.
+pub fn stylesheet(chars: &BTreeSet<char>) -> String {
+    let mut css = crate::text::stylesheet(chars);
     let _ = writeln!(css, "    .layup{{{}}}", vars(false));
     let _ = writeln!(css, "    .layup.dark{{{}}}", vars(true));
     let _ = writeln!(

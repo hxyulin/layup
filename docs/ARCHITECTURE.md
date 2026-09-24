@@ -45,7 +45,8 @@ wraps that SVG with pan, zoom, selection, theme controls, and iframe messaging.
 Neither renderer needs a network connection or installed fonts.
 
 The font bytes used for measurement and embedding have one source in
-`text/fonts.rs`. Parsed font faces and base64 CSS are cached for reuse. SVG
+`text/fonts.rs`. Parsed font faces are cached for reuse. Each SVG embeds
+subsets that `text/subset.rs` cuts to the characters the scene draws. SVG
 turns off kerning and optional ligatures to match advance-based measurement.
 Missing glyphs still depend on viewer fallback fonts, and complex-script
 shaping is not yet modeled. See [the font provenance](../crates/layup/fonts/README.md)

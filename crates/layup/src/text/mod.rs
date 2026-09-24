@@ -4,6 +4,7 @@
 //! and system fallback fonts are not measured.
 
 mod fonts;
+mod subset;
 pub(crate) use fonts::stylesheet;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

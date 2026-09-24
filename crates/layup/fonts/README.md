@@ -1,7 +1,10 @@
 # Bundled fonts
 
 Source: https://github.com/IBM/plex/tree/78cd4223d8de9fcb78cba84eadecb269c56093c5
-Unmodified IBM Plex fonts, licensed under SIL OFL 1.1 (see OFL.txt).
+Unmodified IBM Plex fonts, licensed under SIL OFL 1.1 (see OFL.txt). Rendered
+output embeds subsets of these fonts renamed Layup Sans and Layup Mono, since
+the OFL reserves the name "Plex" for unmodified versions; each SVG carries the
+copyright and license notice.
 
 SHA-256:
 
