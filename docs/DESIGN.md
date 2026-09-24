@@ -383,7 +383,8 @@ For markdown-it sites such as VitePress, `packages/layup` renders `layup`
 code blocks to inline SVG at build time. Its `layup/client` module adds, to
 every such diagram: hover and click highlighting of a node and its edges, and
 an expand button that opens a full-window view with the page's pan, zoom,
-pinch and double-click-to-fit. Handlers are delegated from the document, so
+pinch and double-click-to-fit, plus keys: `+` `-` zoom, `0` or `F` fit,
+arrows pan, Esc closes. Handlers are delegated from the document, so
 diagrams that arrive through client-side navigation need no setup.
 
 ## 5. Layout rules worth knowing

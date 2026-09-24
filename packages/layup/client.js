@@ -116,10 +116,18 @@ function openViewer(source) {
     if (act === 'fit') view.fit();
     if (act === 'close') dialog.close();
   });
+  // Esc closes the dialog natively.
+  const keys = { '+': () => view.zoom(0.8), '=': () => view.zoom(0.8), '-': () => view.zoom(1.25), '0': view.fit, f: view.fit, ArrowLeft: () => view.pan(-0.1, 0), ArrowRight: () => view.pan(0.1, 0), ArrowUp: () => view.pan(0, -0.1), ArrowDown: () => view.pan(0, 0.1) };
+  dialog.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || !keys[e.key]) return;
+    e.preventDefault();
+    keys[e.key]();
+  });
 }
 
 // Pan and zoom by rewriting the viewBox: drag or one finger pans, the wheel,
 // a trackpad pinch or two fingers zoom about the pointer, double-click fits.
+// The returned controls serve the toolbar and keyboard.
 function panZoom(stage, svg) {
   const [, , W, H] = svg.getAttribute('viewBox').split(/\s+/).map(Number);
   let vb = { x: 0, y: 0, w: W, h: H };
@@ -197,5 +205,13 @@ function panZoom(stage, svg) {
   stage.addEventListener('pointerdown', () => delete svg.dataset.dragged, { capture: true });
 
   fit();
-  return { fit };
+  const r = () => stage.getBoundingClientRect();
+  return {
+    fit,
+    zoom: (k) => zoomAt(r().left + r().width / 2, r().top + r().height / 2, k),
+    pan: (fx, fy) => {
+      vb = { ...vb, x: vb.x + fx * vb.w, y: vb.y + fy * vb.h };
+      apply();
+    },
+  };
 }

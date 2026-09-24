@@ -8,7 +8,14 @@ export default function layup(md, options = {}) {
 
   md.renderer.rules.fence = (tokens, idx, opts, env, self) => {
     const token = tokens[idx];
-    if (token.info.trim().split(/\s+/)[0] !== 'layup') return fallback(tokens, idx, opts, env, self);
+    const [lang, ...flags] = token.info.trim().split(/\s+/);
+    if (lang !== 'layup') return fallback(tokens, idx, opts, env, self);
+    // ```layup source: the diagram, then its source as an ordinary code block.
+    const source = () => {
+      if (!flags.includes('source')) return '';
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(token)), token, { info: 'text' });
+      return fallback([copy], 0, opts, env, self);
+    };
     // Diagnostics name the Markdown line: the fence opens on map[0] (0-based).
     const where = (line) => `${env?.relativePath ?? env?.path ?? 'markdown'}:${(token.map?.[0] ?? 0) + 1 + (line ?? 0)}`;
     let svg;
@@ -28,7 +35,7 @@ export default function layup(md, options = {}) {
       return `<pre class="layup-error">${md.utils.escapeHtml(message)}</pre>\n`;
     }
     svg = svg.replace('<svg ', '<svg style="max-width:100%;height:auto" ');
-    return `<div class="layup-diagram">${vue ? forVue(svg) : svg}${EXPAND}</div>\n`;
+    return `<div class="layup-diagram">${vue ? forVue(svg) : svg}${EXPAND}</div>\n${source()}`;
   };
 }
 

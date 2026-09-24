@@ -33,3 +33,11 @@ test('reports errors at the Markdown line', () => {
     console.error = original;
   }
 });
+
+test('shows the source after the diagram when asked', () => {
+  const html = new MarkdownIt().use(layup).render('```layup source\ndiagram "T" { node a }\n```\n');
+  const diagram = html.indexOf('<div class="layup-diagram">');
+  const code = html.indexOf('<pre><code class="language-text">diagram &quot;T&quot; { node a }');
+  assert.ok(diagram >= 0 && code > diagram, html);
+  assert.doesNotMatch(new MarkdownIt().use(layup).render('```layup\ndiagram "T" {}\n```\n'), /<pre>/);
+});

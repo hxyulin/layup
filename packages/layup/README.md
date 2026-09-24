@@ -29,7 +29,9 @@ you pass another URL.
 `layup/markdown-it` renders ```` ```layup ```` fences to inline SVG when the
 Markdown is built, so pages need no runtime to show diagrams. Diagnostics are
 printed with the Markdown file and line; `strict: true` fails the build
-instead.
+instead. `layup check guide.md` reports the same problems from the CLI
+without building the site. A ```` ```layup source ```` fence also shows its
+source as a code block below the diagram.
 
 For VitePress, use the `vitepress` preset in `.vitepress/config.mts`:
 
@@ -52,7 +54,8 @@ default export; its `auto` theme follows `prefers-color-scheme`.
 `layup/client` makes diagrams from the Markdown plugin interactive: hovering
 or clicking a node highlights it and its edges, and a button in the corner
 opens a full-window view with drag to pan, wheel or pinch to zoom, and
-double-click to fit. Without it, diagrams are static and the button stays
+double-click to fit. In that view, `+` and `-` zoom, `0` or `F` fits, arrow
+keys pan and Esc closes. Without it, diagrams are static and the button stays
 hidden. In VitePress, import it from `.vitepress/theme/index.ts`:
 
 ```ts
@@ -69,4 +72,6 @@ prefetch bug that throws on SVG links, by giving `SVGAElement` the `pathname`
 property that VitePress's prefetch code expects. The bug is fixed upstream in
 vuejs/vitepress#5442, which is not yet released.
 
-`examples/vitepress` is a working site: `just vitepress`.
+`examples/vitepress` is a working site: `just vitepress`. `just
+vitepress-test` builds it and checks hydration, fonts, theming and these
+interactions in headless Chromium.

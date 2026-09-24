@@ -11,7 +11,10 @@ export interface LayupMarkdownOptions {
   strict?: boolean;
 }
 
-/** markdown-it plugin rendering ```layup fences to inline SVG. */
+/**
+ * markdown-it plugin rendering ```layup fences to inline SVG. A
+ * ```layup source fence also shows its source as a code block.
+ */
 export default function layup(md: any, options?: LayupMarkdownOptions): void;
 
 /** The plugin with VitePress defaults: `darkSelector: '.dark'`, `vue: true`. */
