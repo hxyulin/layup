@@ -30,8 +30,10 @@ if (typeof document !== 'undefined' && !document.getElementById('layup-client'))
 
 function install() {
   // VitePress's link prefetch reads `pathname` from every in-site <a>,
-  // which SVG links lack (vitepress 1.6 and 2.0-alpha); without it, each
-  // node link throws once when scrolled into view.
+  // which SVG links lack, so each node link throws once when scrolled into
+  // view. Fixed upstream by vuejs/vitepress#5442, which is not in 1.6.4 or
+  // 2.0.0-alpha.20; remove this once the supported releases include it. A
+  // fixed VitePress no longer reads the property, so the shim is inert there.
   if (typeof SVGAElement !== 'undefined' && !('pathname' in SVGAElement.prototype)) {
     Object.defineProperty(SVGAElement.prototype, 'pathname', {
       configurable: true,

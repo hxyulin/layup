@@ -66,6 +66,7 @@ The module does nothing during server rendering. Nodes with `href="..."` are
 links; VitePress routes them without a full page load. Write them relative to
 the page if the site sets a `base`. The client also works around a VitePress
 prefetch bug that throws on SVG links, by giving `SVGAElement` the `pathname`
-property that VitePress's prefetch code expects.
+property that VitePress's prefetch code expects. The bug is fixed upstream in
+vuejs/vitepress#5442, which is not yet released.
 
 `examples/vitepress` is a working site: `just vitepress`.
