@@ -133,6 +133,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "layup-wasm"
+version = "0.2.0-dev"
+dependencies = [
+ "layup",
+]
+
+[[package]]
 name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

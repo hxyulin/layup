@@ -1,0 +1,20 @@
+{
+  "name": "layup",
+  "version": "0.2.0-dev",
+  "description": "Authored-layout diagrams rendered to SVG, compiled to WebAssembly",
+  "license": "MIT OR Apache-2.0",
+  "repository": "github:hxyulin/layup",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "node": "./node.js",
+      "default": "./browser.js"
+    }
+  },
+  "files": ["*.js", "*.d.ts", "*.css", "layup.wasm"],
+  "scripts": {
+    "test": "node --test"
+  }
+}

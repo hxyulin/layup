@@ -1,0 +1,17 @@
+[package]
+name = "layup-wasm"
+version = "0.2.0-dev"
+description = "WebAssembly build of the layup layout engine for the layup npm package"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+layup = { path = "../layup" }
+
+[lints]
+workspace = true

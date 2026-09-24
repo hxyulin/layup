@@ -1,2 +1,4 @@
 target/
 out/
+packages/layup/layup.wasm
+node_modules/

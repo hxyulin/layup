@@ -54,3 +54,13 @@ preview-routing:
 # Compare common edits under the checkpoint-3 and current layout policies.
 preview-incremental:
     python3 tools/preview-incremental.py
+
+# Build the WebAssembly engine into the npm package.
+wasm:
+    cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown
+    cp target/wasm32-unknown-unknown/wasm/layup_wasm.wasm packages/layup/layup.wasm
+
+# Test the npm package against the CLI.
+js-test: wasm
+    cargo build -p layup-cli
+    cd packages/layup && node --test
