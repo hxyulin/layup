@@ -11,6 +11,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+base64 = "0.22"
 layup = { path = "../layup" }
 
 [lints]

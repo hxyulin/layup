@@ -114,11 +114,11 @@ pub fn lex(src: &str) -> Result<Vec<Token>, Error> {
 }
 
 fn is_ident_start(c: char) -> bool {
-    c.is_alphabetic() || c == '_'
+    unicode_ident::is_xid_start(c) || c == '_'
 }
 
 fn is_ident_char(c: char) -> bool {
-    c.is_alphanumeric() || matches!(c, '_' | '.' | ':' | '/')
+    unicode_ident::is_xid_continue(c) || matches!(c, '_' | '.' | ':' | '/')
 }
 
 fn ident_continues(chars: &[char], i: usize) -> bool {

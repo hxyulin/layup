@@ -1,0 +1,15 @@
+diagram "International text · 國際文字" width=1100 layout=auto direction=right {
+  note "CJK wrapping, Arabic shaping, Hebrew labels, and isolated inline code."
+  node input "資料輸入" {
+    sub "這是一段沒有空格的中文說明，應該在合適的位置換行。"
+    sub "日本語の句読点も正しく配置します。"
+  }
+  node process "معالجة الطلب" {
+    sub "يرسل الطلب إلى `GET /items` ثم يعيد النتيجة."
+  }
+  node output "תוצאה" {
+    sub "한국어 문자도 표시합니다。𠮷"
+  }
+  input -> process
+  process -> output
+}

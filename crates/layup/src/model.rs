@@ -20,6 +20,10 @@ pub struct Diagram {
     pub preset: Preset,
     /// Infer rows from edges when enabled; authored block flow otherwise.
     pub auto_layout: bool,
+    /// Flow of inferred layers; authored rows retain their physical order.
+    pub direction: Direction,
+    /// Base direction of labels, independently of graph flow.
+    pub text_direction: crate::text::Direction,
     pub blocks: Vec<Block>,
     pub edges: Vec<Edge>,
     pub kinds: BTreeMap<String, NodeStyle>,
@@ -62,8 +66,34 @@ pub enum Block {
     Row(Row),
     Section(Section),
     Text(String),
-    Divider { text: Option<String>, tone: Tone },
+    Divider {
+        text: Option<String>,
+        tone: Tone,
+    },
     Gap(f64),
+    /// Inferred layers in a non-default graph direction.
+    Flow {
+        direction: Direction,
+        layers: Vec<Vec<Block>>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Direction {
+    #[default]
+    Down,
+    Up,
+    Right,
+    Left,
+}
+
+impl Direction {
+    pub fn horizontal(self) -> bool {
+        matches!(self, Self::Right | Self::Left)
+    }
+    pub fn reversed(self) -> bool {
+        matches!(self, Self::Up | Self::Left)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -113,6 +143,7 @@ pub struct Node {
     pub role: Option<String>,
     /// Link target; the rendered node is a hyperlink.
     pub href: Option<String>,
+    pub text_direction: Option<crate::text::Direction>,
     pub lines: Vec<Line>,
     pub children: Vec<Block>,
     pub gutter: Option<f64>,
@@ -191,6 +222,8 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         width_set: false,
         preset: Preset::Clean,
         auto_layout: false,
+        direction: Direction::Down,
+        text_direction: crate::text::Direction::Auto,
         blocks: Vec::new(),
         edges: Vec::new(),
         kinds: BTreeMap::new(),
@@ -212,6 +245,26 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                         "manual" => false,
                         _ => return Err(Error::at(root.line, "layout must be auto or manual")),
                     };
+                }
+                Arg::Attr(k, v) if k == "direction" => {
+                    d.direction = match v.as_text().as_str() {
+                        "down" | "TB" | "TD" => Direction::Down,
+                        "up" | "BT" => Direction::Up,
+                        "right" | "LR" => Direction::Right,
+                        "left" | "RL" => Direction::Left,
+                        _ => {
+                            return Err(Error::at(
+                                root.line,
+                                "direction must be down, up, right or left",
+                            ));
+                        }
+                    };
+                }
+                Arg::Attr(k, v) if k == "text-direction" => {
+                    d.text_direction =
+                        crate::text::Direction::parse(&v.as_text()).ok_or_else(|| {
+                            Error::at(root.line, "text-direction must be auto, ltr or rtl")
+                        })?;
                 }
                 Arg::Attr(k, v) if k == "preset" => {
                     d.preset = Preset::parse(&v.as_text()).ok_or_else(|| {
@@ -274,8 +327,13 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         }
     }
     crate::arrange::validate_mode(&d.blocks, d.auto_layout)?;
+    if !d.auto_layout && d.direction != Direction::Down {
+        return Err(Error::new(
+            "direction requires layout=auto; authored rows and blocks keep their order",
+        ));
+    }
     if d.auto_layout {
-        crate::arrange::arrange(&mut d.blocks, &d.edges)?;
+        crate::arrange::arrange(&mut d.blocks, &d.edges, d.direction)?;
     }
     if d.preset == Preset::Clean {
         auto_width(&mut d);
@@ -454,6 +512,7 @@ impl Builder {
         let mut title = None;
         let mut role = style.role.clone();
         let mut href = None;
+        let mut text_direction = None;
         let mut gutter = None;
         let mut tag = None;
         let mut hints = Vec::new();
@@ -485,9 +544,9 @@ impl Builder {
                     return Err(Error::at(it.line, "numbers are not valid node arguments"));
                 }
                 Arg::Attr(k, v) => match k.as_str() {
-                    "below" | "same-layer" | "beside" => hints.push(LayoutHint {
+                    "below" | "after" | "same-layer" | "beside" => hints.push(LayoutHint {
                         kind: match k.as_str() {
-                            "below" => HintKind::Below,
+                            "below" | "after" => HintKind::Below,
                             "same-layer" => HintKind::SameLayer,
                             _ => HintKind::Beside,
                         },
@@ -506,6 +565,12 @@ impl Builder {
                     "role" => role = Some(v.as_text()),
                     "tag" => tag = Some(v.as_text()),
                     "href" => href = Some(v.as_text()),
+                    "text-direction" => {
+                        text_direction =
+                            Some(crate::text::Direction::parse(&v.as_text()).ok_or_else(|| {
+                                Error::at(it.line, "text-direction must be auto, ltr or rtl")
+                            })?)
+                    }
                     "gutter" => gutter = Some(num(v, it.line)?),
                     "align" => style.align = align_value(v, it.line)?,
                     _ => return Err(Error::at(it.line, format!("unknown node attribute `{k}`"))),
@@ -575,6 +640,7 @@ impl Builder {
             tag,
             role,
             href,
+            text_direction,
             lines,
             children,
             gutter,
@@ -914,6 +980,14 @@ fn auto_width(d: &mut Diagram) {
                     }
                 }
                 Block::Section(s) => walk(&s.children, depth, wide, deep),
+                Block::Flow { direction, layers } => {
+                    if direction.horizontal() {
+                        *wide = (*wide).max(layers.len());
+                    }
+                    for layer in layers {
+                        walk(layer, depth, wide, deep);
+                    }
+                }
                 _ => {}
             }
         }
@@ -1077,7 +1151,9 @@ fn tone_value(v: &Value, line: usize) -> Result<Tone, Error> {
 
 fn align_value(v: &Value, line: usize) -> Result<Align, Error> {
     match v.as_text().as_str() {
+        "start" => Ok(Align::Start),
         "left" => Ok(Align::Left),
+        "right" => Ok(Align::Right),
         "center" => Ok(Align::Center),
         other => Err(Error::at(line, format!("unknown alignment `{other}`"))),
     }

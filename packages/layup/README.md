@@ -83,3 +83,25 @@ directory and `just js-test` compares the package's output with the CLI.
 
 MIT OR Apache-2.0. `layup.wasm` embeds IBM Plex fonts, licensed under the SIL
 Open Font License 1.1 (`OFL.txt`).
+
+### International text and user fonts
+
+Graph flow (`direction=down|up|right|left`) and label direction
+(`text-direction=auto|ltr|rtl`) are independent source-language settings.
+CJK uses Unicode wrapping and system fallback by default; no CJK font is
+bundled. For reproducible CJK measurement, pass font bytes explicitly:
+
+```js
+const bytes = new Uint8Array(await (await fetch('/fonts/CJK-Regular.ttf')).arrayBuffer());
+const { output } = layup.render(source, { fonts: [bytes], theme: 'auto' });
+```
+
+In Node, `readFileSync('/path/to/CJK-Regular.ttf')` also provides a suitable
+`Uint8Array`. Fonts are fallbacks after the bundled Latin, Arabic and Hebrew
+faces, and are measured and embedded intact when used. Large supplied fonts
+increase output size. Font options apply only to that render. For inline SVG
+using system fonts, `--layup-font-fallback` selects the CSS family; measurements
+remain estimates unless font bytes are supplied.
+
+The markdown-it and VitePress plugins accept the same `fonts` array in their
+plugin options, for example `md.use(vitepress, { fonts: [fontBytes] })`.

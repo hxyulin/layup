@@ -2,13 +2,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Error;
-use crate::model::{Block, Edge, HintKind, Row};
+use crate::model::{Block, Direction, Edge, HintKind, Row};
 
 /// Only consecutive sibling nodes are rearranged. Explicit rows, sections,
 /// dividers and prose are boundaries; their contents are handled recursively.
-pub(crate) fn arrange(blocks: &mut Vec<Block>, edges: &[Edge]) -> Result<(), Error> {
+pub(crate) fn arrange(
+    blocks: &mut Vec<Block>,
+    edges: &[Edge],
+    direction: Direction,
+) -> Result<(), Error> {
     for block in blocks.iter_mut() {
-        descend(block, edges)?;
+        descend(block, edges, direction)?;
     }
     let mut out = Vec::new();
     let mut run = Vec::new();
@@ -16,19 +20,19 @@ pub(crate) fn arrange(blocks: &mut Vec<Block>, edges: &[Edge]) -> Result<(), Err
         if matches!(block, Block::Node(_)) {
             run.push(block);
         } else {
-            out.extend(layer(std::mem::take(&mut run), edges)?);
+            out.extend(layer(std::mem::take(&mut run), edges, direction)?);
             out.push(block);
         }
     }
-    out.extend(layer(run, edges)?);
+    out.extend(layer(run, edges, direction)?);
     *blocks = out;
     Ok(())
 }
 
-fn descend(block: &mut Block, edges: &[Edge]) -> Result<(), Error> {
+fn descend(block: &mut Block, edges: &[Edge], direction: Direction) -> Result<(), Error> {
     match block {
-        Block::Node(n) => arrange(&mut n.children, edges)?,
-        Block::Section(s) => arrange(&mut s.children, edges)?,
+        Block::Node(n) => arrange(&mut n.children, edges, direction)?,
+        Block::Section(s) => arrange(&mut s.children, edges, direction)?,
         Block::Row(r) => {
             for cell in r.cells.iter_mut().flatten() {
                 if let Block::Node(n) = cell
@@ -39,7 +43,7 @@ fn descend(block: &mut Block, edges: &[Edge]) -> Result<(), Error> {
                         "layout hints cannot reposition explicit row cells",
                     ));
                 }
-                descend(cell, edges)?;
+                descend(cell, edges, direction)?;
             }
         }
         _ => {}
@@ -66,11 +70,16 @@ fn owners(block: &Block, owner: usize, ids: &mut BTreeMap<String, usize>) {
                 owners(child, owner, ids);
             }
         }
+        Block::Flow { layers, .. } => {
+            for child in layers.iter().flatten() {
+                owners(child, owner, ids);
+            }
+        }
         _ => {}
     }
 }
 
-fn layer(blocks: Vec<Block>, edges: &[Edge]) -> Result<Vec<Block>, Error> {
+fn layer(blocks: Vec<Block>, edges: &[Edge], direction: Direction) -> Result<Vec<Block>, Error> {
     let n = blocks.len();
     if n == 0 {
         return Ok(blocks);
@@ -243,7 +252,40 @@ fn layer(blocks: Vec<Block>, edges: &[Edge]) -> Result<Vec<Block>, Error> {
     }
     let mut slots: Vec<_> = blocks.into_iter().map(Some).collect();
     let mut result = Vec::new();
-    for groups in levels.into_values() {
+    let mut flow_layers = Vec::new();
+    let mut last_island = None;
+    for ((island, _rank), groups) in levels {
+        if direction != Direction::Down && last_island.is_some_and(|prev| prev != island) {
+            result.push(Block::Flow {
+                direction,
+                layers: std::mem::take(&mut flow_layers),
+            });
+        }
+        last_island = Some(island);
+        if direction != Direction::Down {
+            // Peers occupy the cross axis; dependency ranks occupy the flow axis.
+            if direction.horizontal() {
+                flow_layers.push(
+                    groups
+                        .into_iter()
+                        .flatten()
+                        .map(|i| slots[i].take().unwrap())
+                        .collect(),
+                );
+            } else {
+                let mut peers = Vec::new();
+                let mut row = Vec::new();
+                for group in groups {
+                    if !row.is_empty() && row.len() + group.len() > 3 {
+                        emit_row(&mut peers, std::mem::take(&mut row));
+                    }
+                    row.extend(group.into_iter().map(|i| slots[i].take()));
+                }
+                emit_row(&mut peers, row);
+                flow_layers.push(peers);
+            }
+            continue;
+        }
         let mut row = Vec::new();
         for group in groups {
             if !row.is_empty() && row.len() + group.len() > 3 {
@@ -252,6 +294,12 @@ fn layer(blocks: Vec<Block>, edges: &[Edge]) -> Result<Vec<Block>, Error> {
             row.extend(group.into_iter().map(|i| slots[i].take()));
         }
         emit_row(&mut result, row);
+    }
+    if !flow_layers.is_empty() {
+        result.push(Block::Flow {
+            direction,
+            layers: flow_layers,
+        });
     }
     Ok(result)
 }

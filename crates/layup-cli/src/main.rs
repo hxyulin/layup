@@ -10,6 +10,9 @@ use clap::{Parser, Subcommand, ValueEnum};
     about = "Authored-layout diagrams rendered to SVG and interactive HTML"
 )]
 struct Cli {
+    /// Fallback OpenType/TrueType font to measure and embed. Repeat for multiple fonts.
+    #[arg(long = "font", global = true)]
+    fonts: Vec<PathBuf>,
     #[command(subcommand)]
     cmd: Cmd,
 }
@@ -87,6 +90,13 @@ fn main() -> ExitCode {
 }
 
 fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut fonts = layup::text::Fonts::new();
+    for path in &cli.fonts {
+        let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        fonts
+            .add_fallback(bytes)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+    }
     match cli.cmd {
         Cmd::Render {
             input,
@@ -99,7 +109,16 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             let src = read(&input)?;
             let out =
                 output.unwrap_or_else(|| input.with_extension(if html { "html" } else { "svg" }));
-            let ok = render_one(&input, &src, &out, html, theme.into(), embed, strict)?;
+            let ok = render_one(
+                &input,
+                &src,
+                &out,
+                html,
+                theme.into(),
+                embed,
+                strict,
+                &fonts,
+            )?;
             Ok(ok)
         }
         Cmd::Check { inputs, strict } => {
@@ -115,10 +134,10 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                         println!("{}: no layup blocks", input.display());
                     }
                     for (line, block) in blocks {
-                        ok &= check_one(&input, Some(line), &block, strict);
+                        ok &= check_one(&input, Some(line), &block, strict, &fonts);
                     }
                 } else {
-                    ok &= check_one(&input, None, &src, strict);
+                    ok &= check_one(&input, None, &src, strict, &fonts);
                 }
             }
             Ok(ok)
@@ -143,6 +162,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                     theme.into(),
                     false,
                     strict,
+                    &fonts,
                 )?;
                 if html {
                     ok &= render_one(
@@ -153,6 +173,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                         theme.into(),
                         false,
                         strict,
+                        &fonts,
                     )?;
                 }
             }
@@ -170,8 +191,9 @@ fn render_one(
     theme: layup::Theme,
     embed: bool,
     strict: bool,
+    fonts: &layup::text::Fonts,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let compiled = match layup::compile(src) {
+    let compiled = match layup::compile_with_fonts(src, fonts) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("{}: error: {e}", input.display());
@@ -203,7 +225,13 @@ fn render_one(
 
 /// Checks one diagram. `fence` is the Markdown line of the opening fence for
 /// a diagram from a code block; its diagnostics then name Markdown lines.
-fn check_one(input: &Path, fence: Option<usize>, src: &str, strict: bool) -> bool {
+fn check_one(
+    input: &Path,
+    fence: Option<usize>,
+    src: &str,
+    strict: bool,
+    fonts: &layup::text::Fonts,
+) -> bool {
     let name = input.display();
     let at = |line: Option<usize>, msg: &str| match fence {
         Some(f) => format!("{name}:{}: {msg}", f + line.unwrap_or(0)),
@@ -212,7 +240,7 @@ fn check_one(input: &Path, fence: Option<usize>, src: &str, strict: bool) -> boo
             None => format!("{name}: {msg}"),
         },
     };
-    match layup::compile(src) {
+    match layup::compile_with_fonts(src, fonts) {
         Ok(c) => {
             for w in &c.warnings {
                 eprintln!("{}", at(w.line, &format!("warning: {}", w.msg)));

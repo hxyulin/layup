@@ -10,14 +10,17 @@
 
 use std::fmt::Write as _;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use layup::Theme;
 
 /// Options are `key=value` lines: `theme` (`light`, `dark`, `auto`),
-/// `format` (`svg`, `html`, `embed`) and `darkSelector` (SVG only).
+/// `format` (`svg`, `html`, `embed`), `darkSelector` (SVG only), and repeated
+/// `font` entries holding base64-encoded fallback OpenType/TrueType bytes.
 pub fn render(src: &str, options: &str) -> String {
     let mut theme = Theme::Light;
     let mut format = "svg";
     let mut dark_selector = None;
+    let mut fonts = layup::text::Fonts::new();
     for (key, value) in options.lines().filter_map(|l| l.split_once('=')) {
         match key {
             "theme" => match Theme::parse(value) {
@@ -26,10 +29,24 @@ pub fn render(src: &str, options: &str) -> String {
             },
             "format" if ["svg", "html", "embed"].contains(&value) => format = value,
             "darkSelector" => dark_selector = Some(value),
+            "font" => {
+                let bytes = match STANDARD.decode(value) {
+                    Ok(bytes) => bytes,
+                    Err(_) => {
+                        return error(
+                            None,
+                            "font must be base64-encoded OpenType or TrueType bytes",
+                        );
+                    }
+                };
+                if let Err(e) = fonts.add_fallback(bytes) {
+                    return error(None, &e.msg);
+                }
+            }
             _ => return error(None, &format!("unknown option {key}={value}")),
         }
     }
-    let compiled = match layup::compile(src) {
+    let compiled = match layup::compile_with_fonts(src, &fonts) {
         Ok(c) => c,
         Err(e) => return error(e.line, &e.msg),
     };

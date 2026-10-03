@@ -1,6 +1,8 @@
 import type { Theme } from './index.js';
 
 export interface LayupMarkdownOptions {
+  /** Optional fallback OpenType/TrueType bytes, measured and embedded in each diagram that uses them. */
+  fonts?: readonly Uint8Array[];
   /** Default `auto`. */
   theme?: Theme;
   /** Follow a host class such as `.dark` instead of `prefers-color-scheme`. */

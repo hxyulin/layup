@@ -105,7 +105,10 @@ pub enum Shape {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Align {
+    /// Align with the resolved text direction.
+    Start,
     Left,
+    Right,
     Center,
 }
 
@@ -133,7 +136,7 @@ pub fn presets() -> BTreeMap<String, NodeStyle> {
         tone: Tone::Gray,
         auto: true,
         hollow: false,
-        align: Align::Left,
+        align: Align::Start,
         mono: false,
         role: None,
         label: None,

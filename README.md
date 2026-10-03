@@ -112,22 +112,69 @@ just examples    # render examples/*.layup to examples/*.svg and out/*.html
 just docs        # regenerate the architecture diagram
 ```
 
+### Direction and international text
+
+Automatic graphs accept `direction=down|up|right|left` (default `down`).
+Labels have a separate `text-direction=auto|ltr|rtl`, on the diagram or an
+individual node. Node overrides also apply to their descendants. Automatic
+text direction follows the paragraph's first strong character; code spans
+are isolated LTR runs. Default node alignment follows the resolved text
+direction; `align=left|right|center|start` overrides it.
+
+```text
+diagram "معالجة الطلبات" layout=auto direction=left text-direction=rtl {
+  node request "طلب جديد"
+  node worker "المعالجة" { sub "يستخدم العامل `GET /items` لقراءة البيانات." }
+  node result "النتيجة"
+  request -> worker
+  worker -> result
+}
+```
+
+Authored rows and section order stay fixed. Within automatic regions, ranks
+follow the selected direction and peers occupy the perpendicular axis.
+`after=` is a direction-neutral alias of `below=`; `same-layer=` and `beside=`
+constrain peers. See `examples/directions.layup`, `examples/international.layup`,
+and `examples/right-to-left.layup`. The [next-capabilities roadmap](docs/ROADMAP.md)
+outlines decision nodes, state machines, and output formats.
+
 ### Fonts and measurement
 
-IBM Plex Sans (regular and semibold) and IBM Plex Mono are bundled in the
-library and embedded in each SVG, including SVGs inside HTML output. Layout
-reads advances directly from those same font files, with no system-font
-lookup, generated metrics tables, or platform safety factor. Kerning and
-optional ligatures are disabled in the SVG to match advance-based measurement.
+IBM Plex Sans (regular and semibold), Mono, Arabic, and Hebrew are bundled.
+Latin output embeds small glyph subsets. Arabic/Hebrew faces are embedded
+only when used and remain intact to preserve shaping. Text measurement uses
+Rustybuzz shaping with the same font bytes. Kerning and optional ligatures
+are disabled in both measurement and SVG; required script shaping remains.
 
-Each output embeds only the glyphs it draws, about 12 KB per face for a typical
-diagram, together with the SIL Open Font License notice, so it views offline.
-The OFL reserves the Plex name for unmodified fonts, so the embedded subsets
-are named Layup Sans and Layup Mono. Element IDs carry a per-diagram prefix,
-so several SVGs can be inlined in one page. Use a browser or SVG renderer
-that supports embedded web fonts. Glyphs outside the bundled fonts use the
-viewer's fallback fonts and estimated widths; complex-script shaping is not
-yet supported by the layout engine.
+CJK prose wraps at Unicode line-break opportunities, including punctuation
+rules, without requiring spaces. **No CJK font is bundled.** By default the
+viewer supplies the glyphs and layout estimates their widths. System-font
+appearance and exact wrapping can vary between viewers. An inline host can
+choose a family with `.layup { --layup-font-fallback: "Noto Sans CJK SC", sans-serif; }`.
+This CSS choice changes rendering, not the engine's width estimates.
+
+For measured, reproducible fallback text, supply a standalone OpenType or
+TrueType face. Fonts are tried in order after the bundled faces, measured,
+and embedded unmodified when needed:
+
+```sh
+layup render examples/international.layup --font /path/to/CJK-Regular.ttf
+layup check examples/international.layup --font /path/to/CJK-Regular.ttf --strict
+```
+
+Repeat `--font` for additional fallback faces. The Rust API accepts
+`text::Fonts` with `add_fallback(bytes)`, then `compile_with_fonts(source, &fonts)`.
+The JavaScript package accepts `render(source, { fonts: [fontBytes] })`, with
+`Uint8Array` values. Supplied faces retain their shaping tables and are
+embedded whole, so a large CJK font can make an output substantially larger.
+Standalone static faces are recommended; weight/variation selection is not
+currently configurable.
+
+Bundled font subsets are named Layup Sans and Layup Mono under the SIL OFL.
+Each SVG carries the bundled-font license notice. Element IDs and supplied
+font-family names include content hashes so diagrams can share a page.
+Characters outside the available fonts still use viewer fallback and
+estimated widths; non-CJK missing glyphs produce diagnostics.
 
 ### Rust library
 
@@ -154,6 +201,7 @@ license, source revision, and checksums.
 
 ```sh
 just check && just js-test && just vitepress-test
+just international-test # Chromium metrics and multilingual preview
 cargo publish -p layup -p layup-cli --dry-run
 ```
 

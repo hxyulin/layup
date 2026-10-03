@@ -1,0 +1,10 @@
+diagram "Horizontal branching" width=1100 layout=auto direction=right {
+  node result "Result"
+  node approve "Approve"
+  node request "Request"
+  node reject "Reject"
+  request -> approve
+  request -> reject
+  approve -> result
+  reject -> result
+}

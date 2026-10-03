@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import MarkdownIt from 'markdown-it';
+import { readFileSync } from 'node:fs';
 import layup, { vitepress } from '../markdown-it.js';
 
 const doc = 'Intro\n\n```layup\ndiagram "T" {\n  node a "A {{ b }}"\n}\n```\n\n```js\nlet x\n```\n';
@@ -40,4 +41,11 @@ test('shows the source after the diagram when asked', () => {
   const code = html.indexOf('<pre><code class="language-text">diagram &quot;T&quot; { node a }');
   assert.ok(diagram >= 0 && code > diagram, html);
   assert.doesNotMatch(new MarkdownIt().use(layup).render('```layup\ndiagram "T" {}\n```\n'), /<pre>/);
+});
+
+
+test('passes supplied fallback fonts through the Markdown plugin', () => {
+  const font = readFileSync(new URL('../../../crates/layup/tests/fonts/Fallback.ttf', import.meta.url));
+  const html = new MarkdownIt().use(layup, { fonts: [font], strict: true }).render('```layup\ndiagram "中" { node n "中中中" }\n```');
+  assert.match(html, /font-family:'Layup User /);
 });

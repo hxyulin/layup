@@ -5,9 +5,11 @@
 //! Text is wrapped with measured widths so nothing is ever placed by hand.
 
 use crate::Warning;
-use crate::model::{Block, Diagram, Legend, Line, Node, Row, Section};
+use crate::model::{Block, Diagram, Direction, Legend, Line, Node, Row, Section};
 use crate::style::{Align, ArrowColor, NodeStyle, Shape, Tone};
-use crate::text::{Font, Run, runs, runs_width, width, wrap};
+use crate::text::{
+    Font, Fonts, Run, runs, runs_width_with_fonts, width_with_fonts, wrap_with_fonts,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -58,11 +60,20 @@ pub enum Anchor {
     End,
 }
 
+fn logical_start(x: f64, w: f64, direction: crate::text::Direction, text: &str) -> (f64, Anchor) {
+    if direction.resolve(text) == crate::text::Direction::Rtl {
+        (x + w, Anchor::End)
+    } else {
+        (x, Anchor::Start)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TextItem {
     pub x: f64,
     pub y: f64,
     pub anchor: Anchor,
+    pub direction: crate::text::Direction,
     pub runs: Vec<Run>,
     pub size: f64,
     pub weight: u16,
@@ -148,6 +159,7 @@ pub struct EdgePath {
 
 #[derive(Debug, Clone)]
 pub struct Scene {
+    pub fonts: Fonts,
     pub width: f64,
     pub height: f64,
     pub margin: f64,
@@ -234,6 +246,10 @@ struct MLine {
 }
 
 enum L<'a> {
+    Flow {
+        cells: Vec<(L<'a>, f64, f64, f64, f64)>,
+        h: f64,
+    },
     Node {
         node: &'a Node,
         lines: Vec<MLine>,
@@ -270,7 +286,8 @@ enum L<'a> {
 fn height(l: &L) -> f64 {
     match l {
         L::Node { natural, .. } => *natural,
-        L::Row { h, .. }
+        L::Flow { h, .. }
+        | L::Row { h, .. }
         | L::Section { h, .. }
         | L::Text { h, .. }
         | L::Divider { h, .. }
@@ -283,9 +300,14 @@ struct Ctx<'a> {
     scene: Scene,
     warnings: &'a mut Vec<Warning>,
     parent: Option<usize>,
+    text_direction: crate::text::Direction,
 }
 
 pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
+    layout_with_fonts(d, warnings, &Fonts::default())
+}
+
+pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts) -> Scene {
     let m = metrics(d.width);
     let lanes = |side| d.edges.iter().filter(|e| e.via == Some(side)).count() as f64;
     let reserve = |n: f64| {
@@ -303,6 +325,7 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
     let content_w = d.width - 2.0 * m.margin - left_reserve - right_reserve;
     let mut ctx = Ctx {
         scene: Scene {
+            fonts: fonts.clone(),
             width: d.width,
             height: 0.0,
             margin: m.margin,
@@ -315,15 +338,23 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
         },
         warnings,
         parent: None,
+        text_direction: d.text_direction,
     };
 
     // Header.
     let mut y = m.margin;
-    let title_w = width(&d.title, Font::SansBold, m.h1, 0.0);
+    let title_w = ctx.width(&d.title, Font::SansBold, m.h1, 0.0);
+    let (title_x, title_anchor) = logical_start(
+        m.margin,
+        d.width - 2.0 * m.margin,
+        d.text_direction,
+        &d.title,
+    );
     ctx.push(Item::Text(TextItem {
-        x: m.margin,
+        x: title_x,
         y,
-        anchor: Anchor::Start,
+        anchor: title_anchor,
+        direction: crate::text::Direction::Auto,
         runs: runs(&d.title),
         size: m.h1,
         weight: 680,
@@ -334,12 +365,16 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
     let mut header_bottom = y;
     if let Some(note) = &d.note {
         y += m.h2 + 8.0;
-        let lines = wrap(note, Font::Sans, m.h2, content_w - title_w.min(0.0));
+        let lines = ctx.wrap(note, Font::Sans, m.h2, content_w - title_w.min(0.0));
+        let direction = d.text_direction.resolve(note);
+        let (note_x, note_anchor) =
+            logical_start(m.margin, d.width - 2.0 * m.margin, direction, note);
         for l in lines {
             ctx.push(Item::Text(TextItem {
-                x: m.margin,
+                x: note_x,
                 y,
-                anchor: Anchor::Start,
+                anchor: note_anchor,
+                direction,
                 runs: l,
                 size: m.h2,
                 weight: 400,
@@ -355,7 +390,10 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
     }
 
     // Legend: beside the title when it fits, otherwise as the first block.
-    let legend = d.legend.as_ref().map(|l| legend_entries(d, l));
+    let legend = d
+        .legend
+        .as_ref()
+        .map(|l| legend_entries(d, l, &ctx.scene.fonts));
     let mut legend_block = None;
     if let Some((entries, bottom)) = legend {
         let total_w = |ids: &[usize]| {
@@ -382,7 +420,11 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
                 if ids.is_empty() {
                     continue;
                 }
-                let mut x = d.width - m.margin - total_w(&ids);
+                let mut x = if title_anchor == Anchor::End {
+                    m.margin
+                } else {
+                    d.width - m.margin - total_w(&ids)
+                };
                 for i in ids {
                     draw_legend_entry(&mut ctx, &entries[i], x, ly);
                     x += entries[i].w + 16.0;
@@ -443,12 +485,32 @@ fn gap_before(l: &L, first: bool) -> f64 {
 }
 
 impl Ctx<'_> {
-    fn push(&mut self, item: Item) {
+    fn width(&self, s: &str, font: Font, size: f64, spacing: f64) -> f64 {
+        width_with_fonts(s, font, size, spacing, &self.scene.fonts)
+    }
+    fn runs_width(&self, runs: &[Run], font: Font, size: f64) -> f64 {
+        runs_width_with_fonts(runs, font, size, &self.scene.fonts)
+    }
+    fn wrap(&self, s: &str, font: Font, size: f64, max: f64) -> Vec<Vec<Run>> {
+        wrap_with_fonts(s, font, size, max, &self.scene.fonts)
+    }
+
+    fn prepare_text(&self, item: &mut Item) {
+        if let Item::Text(t) = item {
+            let plain: String = t.runs.iter().map(|r| r.text.as_str()).collect();
+            if t.direction == crate::text::Direction::Auto {
+                t.direction = self.text_direction.resolve(&plain);
+            }
+        }
+    }
+    fn push(&mut self, mut item: Item) {
+        self.prepare_text(&mut item);
         let node = self.parent;
         self.scene.items.push(Placed { item, node });
     }
 
-    fn push_for(&mut self, node: usize, item: Item) {
+    fn push_for(&mut self, node: usize, mut item: Item) {
+        self.prepare_text(&mut item);
         self.scene.items.push(Placed {
             item,
             node: Some(node),
@@ -464,6 +526,7 @@ fn measure<'a>(ctx: &mut Ctx, b: &'a Block, w: f64) -> L<'a> {
     match b {
         Block::Node(n) => measure_node(ctx, n, w),
         Block::Row(r) => measure_row(ctx, r, w),
+        Block::Flow { direction, layers } => measure_flow(ctx, *direction, layers, w),
         Block::Section(s) => {
             let children: Vec<(L, f64)> = s
                 .children
@@ -496,6 +559,52 @@ fn measure<'a>(ctx: &mut Ctx, b: &'a Block, w: f64) -> L<'a> {
         },
         Block::Gap(g) => L::Gap(*g),
     }
+}
+
+fn measure_flow<'a>(
+    ctx: &mut Ctx,
+    direction: Direction,
+    layers: &'a [Vec<Block>],
+    w: f64,
+) -> L<'a> {
+    const GUTTER: f64 = 24.0;
+    let mut cells = Vec::new();
+    let mut total_h: f64 = 0.0;
+    if direction.horizontal() {
+        let count = layers.len().max(1);
+        let cw = (w - GUTTER * count.saturating_sub(1) as f64) / count as f64;
+        for (rank, peers) in layers.iter().enumerate() {
+            let column = if direction.reversed() {
+                count - rank - 1
+            } else {
+                rank
+            };
+            let mut y = 0.0;
+            for peer in peers {
+                let l = measure(ctx, peer, cw);
+                let h = height(&l);
+                cells.push((l, column as f64 * (cw + GUTTER), y, cw, h));
+                y += h + GUTTER;
+            }
+            total_h = total_h.max((y - GUTTER).max(0.0));
+        }
+    } else {
+        let order: Vec<_> = if direction.reversed() {
+            layers.iter().rev().collect()
+        } else {
+            layers.iter().collect()
+        };
+        for peers in order {
+            for peer in peers {
+                let l = measure(ctx, peer, w);
+                let h = height(&l);
+                cells.push((l, 0.0, total_h, w, h));
+                total_h += h + BLOCK_GAP;
+            }
+        }
+        total_h = (total_h - BLOCK_GAP).max(0.0);
+    }
+    L::Flow { cells, h: total_h }
 }
 
 fn measure_row<'a>(ctx: &mut Ctx, r: &'a Row, w: f64) -> L<'a> {
@@ -587,7 +696,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
                     let tag_w = n
                         .tag
                         .as_ref()
-                        .map(|t| width(&format!("[{t}] "), Font::SansBold, 15.0, 0.0))
+                        .map(|t| ctx.width(&format!("[{t}] "), Font::SansBold, 15.0, 0.0))
                         .unwrap_or(0.0);
                     let wrapped = wrap_checked(ctx, &head, font, 15.0, inner_w - tag_w, line_no);
                     lines.push(MLine {
@@ -670,7 +779,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
                 let tag_w = n
                     .tag
                     .as_ref()
-                    .map(|t| width(&format!("[{t}] "), Font::SansBold, 12.5, 0.0))
+                    .map(|t| ctx.width(&format!("[{t}] "), Font::SansBold, 12.5, 0.0))
                     .unwrap_or(0.0);
                 let wrapped = wrap_checked(ctx, t, Font::SansBold, 12.5, inner_w - tag_w, line_no);
                 lines.push(MLine {
@@ -812,12 +921,12 @@ fn wrap_slack(
     };
     let lines = if font == Font::Mono {
         // Code is never re-flowed inside words; wrap at spaces only.
-        wrap(&format!("`{}`", text.replace('`', "")), sans, size, max_w)
+        ctx.wrap(&format!("`{}`", text.replace('`', "")), sans, size, max_w)
     } else {
-        wrap(text, sans, size, max_w)
+        ctx.wrap(text, sans, size, max_w)
     };
     for l in &lines {
-        let w = runs_width(l, sans, size);
+        let w = ctx.runs_width(l, sans, size);
         if w > max_w + slack + 0.5 {
             let s: String = l.iter().map(|r| r.text.as_str()).collect();
             ctx.warn(
@@ -835,6 +944,11 @@ fn wrap_slack(
 
 fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
     match l {
+        L::Flow { cells, .. } => {
+            for (l, dx, dy, cw, ch) in cells {
+                draw(ctx, l, x + dx, y + dy, *cw, *ch);
+            }
+        }
         L::Node {
             node,
             lines,
@@ -864,17 +978,19 @@ fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
             let mut cy = y;
             if section.band {
                 let label = section.label.to_uppercase();
-                let tw = width(&label, Font::SansBold, 11.5, 0.07);
+                let tw = ctx.width(&label, Font::SansBold, 11.5, 0.07);
+                let (tx, anchor) = logical_start(x, w, ctx.text_direction, &label);
                 ctx.scene.keepout.push(Rect {
-                    x,
+                    x: if anchor == Anchor::End { tx - tw } else { tx },
                     y: y + 2.0,
                     w: tw,
                     h: 16.0,
                 });
                 ctx.push(Item::Text(TextItem {
-                    x,
+                    x: tx,
                     y: y + 14.0,
-                    anchor: Anchor::Start,
+                    anchor,
+                    direction: crate::text::Direction::Auto,
                     runs: runs(&label),
                     size: 11.5,
                     weight: 640,
@@ -884,9 +1000,10 @@ fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
                 }));
                 cy += 22.0;
             } else {
-                let tw = width(&section.label, Font::SansBold, 12.5, 0.08);
+                let tw = ctx.width(&section.label, Font::SansBold, 12.5, 0.08);
+                let (tx, anchor) = logical_start(x, w, ctx.text_direction, &section.label);
                 ctx.scene.keepout.push(Rect {
-                    x,
+                    x: if anchor == Anchor::End { tx - tw } else { tx },
                     y: y + 12.0,
                     w: tw,
                     h: 17.0,
@@ -900,9 +1017,10 @@ fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
                     dashed: false,
                 });
                 ctx.push(Item::Text(TextItem {
-                    x,
+                    x: tx,
                     y: y + 25.0,
-                    anchor: Anchor::Start,
+                    anchor,
+                    direction: crate::text::Direction::Auto,
                     runs: runs(&section.label),
                     size: 12.5,
                     weight: 680,
@@ -920,11 +1038,15 @@ fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
         }
         L::Text { lines, .. } => {
             let mut ty = y + 14.0;
+            let paragraph: String = lines.iter().flatten().map(|r| r.text.as_str()).collect();
+            let direction = ctx.text_direction.resolve(&paragraph);
+            let (tx, anchor) = logical_start(x, w, direction, &paragraph);
             for line in lines {
                 ctx.push(Item::Text(TextItem {
-                    x,
+                    x: tx,
                     y: ty,
-                    anchor: Anchor::Start,
+                    anchor,
+                    direction,
                     runs: line.clone(),
                     size: 12.5,
                     weight: 400,
@@ -946,7 +1068,7 @@ fn draw(ctx: &mut Ctx, l: &L, x: f64, y: f64, w: f64, h: f64) {
                 dashed: true,
             });
             if let Some(t) = text {
-                let tw = width(t, Font::Sans, 12.0, 0.0) + 32.0;
+                let tw = ctx.width(t, Font::Sans, 12.0, 0.0) + 32.0;
                 let rect = Rect {
                     x: x + w / 2.0 - tw / 2.0,
                     y: my - 11.0,
@@ -991,6 +1113,8 @@ fn draw_node(
     w: f64,
     h: f64,
 ) {
+    let saved_direction = ctx.text_direction;
+    ctx.text_direction = n.text_direction.unwrap_or(saved_direction);
     let rect = Rect { x, y, w, h };
     let idx = ctx.scene.nodes.len();
     ctx.scene.nodes.push(NodeRect {
@@ -1051,12 +1175,14 @@ fn draw_node(
                     code: n.style.mono,
                     tag: false,
                 });
+                let (tx, anchor) = logical_start(x + 25.0, w - 50.0, ctx.text_direction, t);
                 ctx.push_for(
                     idx,
                     Item::Text(TextItem {
-                        x: x + 25.0,
+                        x: tx,
                         y: y + 36.0,
-                        anchor: Anchor::Start,
+                        anchor,
+                        direction: crate::text::Direction::Auto,
                         runs: rs,
                         size: 18.0,
                         weight: 680,
@@ -1071,12 +1197,10 @@ fn draw_node(
         Shape::Card | Shape::Container | Shape::Api => cursor += 10.0,
     }
     let inner_w = w - 2.0 * pad_x;
-    let (tx, anchor) = match n.style.align {
-        Align::Left => (x + pad_x, Anchor::Start),
-        Align::Center => (x + w / 2.0, Anchor::Middle),
-    };
     for ml in lines {
         cursor += ml.before;
+        let paragraph: String = ml.lines.iter().flatten().map(|r| r.text.as_str()).collect();
+        let direction = ctx.text_direction.resolve(&paragraph);
         for (i, line) in ml.lines.iter().enumerate() {
             let mut rs = line.clone();
             if i == 0
@@ -1084,12 +1208,20 @@ fn draw_node(
             {
                 rs.insert(0, Run::tag(format!("[{tag}] ")));
             }
+            let rtl = direction == crate::text::Direction::Rtl;
+            let (tx, anchor) = match n.style.align {
+                Align::Start if rtl => (x + w - pad_x, Anchor::End),
+                Align::Start | Align::Left => (x + pad_x, Anchor::Start),
+                Align::Right => (x + w - pad_x, Anchor::End),
+                Align::Center => (x + w / 2.0, Anchor::Middle),
+            };
             ctx.push_for(
                 idx,
                 Item::Text(TextItem {
                     x: tx,
                     y: cursor + ml.ascent,
                     anchor,
+                    direction,
                     runs: rs,
                     size: ml.size,
                     weight: ml.weight,
@@ -1118,6 +1250,7 @@ fn draw_node(
         }
         ctx.parent = saved;
     }
+    ctx.text_direction = saved_direction;
 }
 
 #[derive(Debug, Clone)]
@@ -1129,7 +1262,7 @@ pub struct LegendEntry {
     pub w: f64,
 }
 
-fn legend_entries(d: &Diagram, l: &Legend) -> (Vec<LegendEntry>, bool) {
+fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, bool) {
     let mut used_kinds: Vec<String> = Vec::new();
     let mut used_arrows: Vec<(String, Tone, Vec<String>)> = Vec::new();
     fn walk(b: &Block, out: &mut Vec<String>) {
@@ -1142,6 +1275,7 @@ fn legend_entries(d: &Diagram, l: &Legend) -> (Vec<LegendEntry>, bool) {
             }
             Block::Row(r) => r.cells.iter().flatten().for_each(|c| walk(c, out)),
             Block::Section(s) => s.children.iter().for_each(|c| walk(c, out)),
+            Block::Flow { layers, .. } => layers.iter().flatten().for_each(|c| walk(c, out)),
             _ => {}
         }
     }
@@ -1156,6 +1290,7 @@ fn legend_entries(d: &Diagram, l: &Legend) -> (Vec<LegendEntry>, bool) {
             }
             Block::Row(r) => r.cells.iter().flatten().find_map(|c| find(c, id)),
             Block::Section(s) => s.children.iter().find_map(|c| find(c, id)),
+            Block::Flow { layers, .. } => layers.iter().flatten().find_map(|c| find(c, id)),
             _ => None,
         }
     }
@@ -1197,7 +1332,7 @@ fn legend_entries(d: &Diagram, l: &Legend) -> (Vec<LegendEntry>, bool) {
             continue;
         };
         let Some(label) = &style.label else { continue };
-        let w = width(label, Font::Sans, 12.5, 0.0) + 28.0;
+        let w = width_with_fonts(label, Font::Sans, 12.5, 0.0, fonts) + 28.0;
         entries.push(LegendEntry {
             label: label.clone(),
             kind: Some((style.tone, style.hollow, style.shape == Shape::Package)),
@@ -1240,7 +1375,7 @@ fn legend_entries(d: &Diagram, l: &Legend) -> (Vec<LegendEntry>, bool) {
         } else {
             base
         };
-        let w = width(&label, Font::Sans, 12.5, 0.0) + 42.0;
+        let w = width_with_fonts(&label, Font::Sans, 12.5, 0.0, fonts) + 42.0;
         entries.push(LegendEntry {
             label,
             kind: None,
@@ -1293,6 +1428,7 @@ fn draw_legend_entry(ctx: &mut Ctx, e: &LegendEntry, x: f64, y: f64) {
             x: x + e.w / 2.0,
             y: y + 18.5,
             anchor: Anchor::Middle,
+            direction: crate::text::Direction::Auto,
             runs: runs(&e.label),
             size: 12.5,
             weight: 400,
@@ -1311,6 +1447,7 @@ fn draw_legend_entry(ctx: &mut Ctx, e: &LegendEntry, x: f64, y: f64) {
             x: x + 42.0,
             y: y + 18.5,
             anchor: Anchor::Start,
+            direction: crate::text::Direction::Auto,
             runs: runs(&e.label),
             size: 12.5,
             weight: 400,

@@ -1,11 +1,110 @@
 //! Text measurement from the same bundled fonts embedded in SVG output.
-//! Uses unkerned glyph advances; SVG disables kerning and optional ligatures.
-//! Missing glyphs use a conservative fallback estimate. Complex-script shaping
-//! and system fallback fonts are not measured.
+//! Shapes Unicode text with the same bundled fonts used in SVG output.
+//! Kerning and optional ligatures stay disabled for consistent Latin metrics.
 
 mod fonts;
 mod subset;
 pub(crate) use fonts::stylesheet;
+use std::sync::Arc;
+use unicode_bidi::{BidiInfo, Direction as BidiDirection};
+use unicode_script::{Script, UnicodeScript};
+use unicode_segmentation::UnicodeSegmentation;
+
+/// Optional user fonts, tried after the bundled Latin, Arabic and Hebrew faces.
+/// Font bytes are shared with compiled scenes and embedded without modification.
+#[derive(Clone, Default)]
+pub struct Fonts {
+    pub(crate) fallbacks: Vec<Arc<[u8]>>,
+}
+
+impl std::fmt::Debug for Fonts {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Fonts")
+            .field(
+                "fallbacks",
+                &self
+                    .fallbacks
+                    .iter()
+                    .map(|bytes| (font_family(bytes), bytes.len()))
+                    .collect::<Vec<_>>(),
+            )
+            .finish()
+    }
+}
+
+pub(crate) fn font_family(bytes: &[u8]) -> String {
+    let hash = bytes.iter().fold(0xcbf29ce484222325u64, |h, byte| {
+        (h ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+    });
+    format!("Layup User {hash:x}")
+}
+
+impl Fonts {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn add_fallback(&mut self, bytes: impl Into<Arc<[u8]>>) -> Result<(), crate::Error> {
+        let bytes = bytes.into();
+        if bytes.starts_with(b"ttcf") {
+            return Err(crate::Error::new(
+                "font collections are not supported; provide a standalone OpenType or TrueType face",
+            ));
+        }
+        rustybuzz::Face::from_slice(&bytes, 0).ok_or_else(|| {
+            crate::Error::new("fallback font must be a valid OpenType or TrueType font")
+        })?;
+        self.fallbacks.push(bytes);
+        Ok(())
+    }
+    fn faces(&self) -> Vec<rustybuzz::Face<'_>> {
+        self.fallbacks
+            .iter()
+            .map(|bytes| rustybuzz::Face::from_slice(bytes, 0).expect("validated fallback font"))
+            .collect()
+    }
+}
+
+/// CJK uses conventional em-width estimates when no user font covers it.
+pub fn is_cjk(c: char) -> bool {
+    matches!(c as u32, 0x1100..=0x11ff | 0x2e80..=0xa4cf | 0xa960..=0xa97f | 0xac00..=0xd7ff | 0xf900..=0xfaff | 0xfe10..=0xfe1f | 0xfe30..=0xfe4f | 0xff01..=0xff60 | 0xffe0..=0xffe6 | 0x1b000..=0x1b2ff | 0x20000..=0x323af)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Direction {
+    #[default]
+    Auto,
+    Ltr,
+    Rtl,
+}
+
+impl Direction {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "auto" => Some(Self::Auto),
+            "ltr" => Some(Self::Ltr),
+            "rtl" => Some(Self::Rtl),
+            _ => None,
+        }
+    }
+    pub fn resolve(self, text: &str) -> Self {
+        if self == Self::Auto {
+            if unicode_bidi::get_base_direction(text) == BidiDirection::Rtl {
+                Self::Rtl
+            } else {
+                Self::Ltr
+            }
+        } else {
+            self
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::Ltr => "ltr",
+            Self::Rtl => "rtl",
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Font {
@@ -14,19 +113,112 @@ pub enum Font {
     Mono,
 }
 
-/// Width in px, including letter spacing, from the bundled font's advances.
+/// Whether a character is covered by a bundled face or is a layout control.
+pub fn supports(c: char, font: Font) -> bool {
+    fonts::supported(font, c)
+}
+
+pub fn supports_with_fonts(c: char, font: Font, supplied: &Fonts) -> bool {
+    supports(c, font)
+        || supplied
+            .faces()
+            .iter()
+            .any(|face| face.glyph_index(c).is_some())
+}
+
+/// Width in px, including letter spacing, shaped with bundled faces.
 pub fn width(s: &str, font: Font, size: f64, letter_spacing_em: f64) -> f64 {
-    let face = fonts::face(font);
-    let units: f64 = s
-        .chars()
-        .map(|c| {
-            face.glyph_index(c)
-                .and_then(|g| face.glyph_hor_advance(g))
-                .map(|w| f64::from(w) / f64::from(face.units_per_em()))
-                .unwrap_or(if c as u32 >= 0x2e80 { 1.0 } else { 0.6 })
-        })
+    width_with_fonts(s, font, size, letter_spacing_em, &Fonts::default())
+}
+
+pub fn width_with_fonts(
+    s: &str,
+    font: Font,
+    size: f64,
+    letter_spacing_em: f64,
+    supplied: &Fonts,
+) -> f64 {
+    let custom = supplied.faces();
+    let select = |c| {
+        let primary = fonts::select(font, c);
+        if fonts::shaping_face(primary).glyph_index(c).is_some() {
+            return primary;
+        }
+        custom
+            .iter()
+            .position(|face| face.glyph_index(c).is_some())
+            .map_or(primary, |i| fonts::FaceId(7 + i))
+    };
+    let bidi = BidiInfo::new(s, None);
+    let mut units = 0.0;
+    for para in &bidi.paragraphs {
+        let (levels, ranges) = bidi.visual_runs(para, para.range.clone());
+        for range in ranges {
+            let rtl = levels[range.start].is_rtl();
+            let part = &s[range];
+            let mut start = 0;
+            let mut selected = select(part.chars().next().unwrap());
+            let mut script = Script::Common;
+            for (i, c) in part.char_indices() {
+                let next_font = select(c);
+                let next_script = c.script();
+                let strong = !matches!(next_script, Script::Common | Script::Inherited);
+                if i > start
+                    && (selected != next_font
+                        || (strong && script != Script::Common && script != next_script))
+                {
+                    let face = if selected.0 < 7 {
+                        fonts::shaping_face(selected)
+                    } else {
+                        &custom[selected.0 - 7]
+                    };
+                    units += shaped_width(&part[start..i], face, rtl);
+                    start = i;
+                    script = Script::Common;
+                }
+                selected = next_font;
+                if strong {
+                    script = next_script;
+                }
+            }
+            let face = if selected.0 < 7 {
+                fonts::shaping_face(selected)
+            } else {
+                &custom[selected.0 - 7]
+            };
+            units += shaped_width(&part[start..], face, rtl);
+        }
+    }
+    (units + letter_spacing_em * s.graphemes(true).count() as f64) * size
+}
+
+fn shaped_width(s: &str, face: &rustybuzz::Face<'_>, rtl: bool) -> f64 {
+    let mut buffer = rustybuzz::UnicodeBuffer::new();
+    buffer.push_str(s);
+    buffer.set_direction(if rtl {
+        rustybuzz::Direction::RightToLeft
+    } else {
+        rustybuzz::Direction::LeftToRight
+    });
+    buffer.guess_segment_properties();
+    let features = ["kern=0", "liga=0", "clig=0"].map(|s| s.parse().unwrap());
+    let shaped = rustybuzz::shape(face, &features, buffer);
+    let mut advance: f64 = shaped
+        .glyph_positions()
+        .iter()
+        .map(|p| f64::from(p.x_advance))
         .sum();
-    (units + letter_spacing_em * s.chars().count() as f64) * size
+    // Unknown glyphs remain visible with viewer fallback, but their metrics
+    // cannot be deterministic. Report them separately at compilation time.
+    for (info, pos) in shaped.glyph_infos().iter().zip(shaped.glyph_positions()) {
+        if info.glyph_id == 0 {
+            let c = s[info.cluster as usize..].chars().next().unwrap();
+            advance += (if c as u32 >= 0x2e80 { 1.0 } else { 0.6 })
+                * f64::from(face.units_per_em())
+                - f64::from(pos.x_advance);
+        }
+    }
+    advance / f64::from(face.units_per_em())
 }
 
 /// A run of text in a single font; a line is a sequence of runs.
@@ -65,7 +257,7 @@ pub fn runs(s: &str) -> Vec<Run> {
         }
         if !part.is_empty() {
             out.push(Run {
-                text: part.to_string(),
+                text: part.replace('\t', " "),
                 code,
                 tag: false,
             });
@@ -81,76 +273,106 @@ pub fn runs(s: &str) -> Vec<Run> {
 }
 
 pub fn runs_width(runs: &[Run], sans: Font, size: f64) -> f64 {
+    runs_width_with_fonts(runs, sans, size, &Fonts::default())
+}
+
+pub fn runs_width_with_fonts(runs: &[Run], sans: Font, size: f64, supplied: &Fonts) -> f64 {
     runs.iter()
-        .map(|r| width(&r.text, if r.code { Font::Mono } else { sans }, size, 0.0))
+        .map(|r| {
+            width_with_fonts(
+                &r.text,
+                if r.code { Font::Mono } else { sans },
+                size,
+                0.0,
+                supplied,
+            )
+        })
         .sum()
 }
 
-/// Greedy word wrap that keeps backtick spans intact and prefers to break at
-/// ` · ` separators before breaking between words.
+/// Greedy Unicode line wrapping. Backtick spans remain unbreakable; CJK
+/// punctuation, nonbreaking spaces and grapheme clusters follow UAX #14.
 pub fn wrap(s: &str, sans: Font, size: f64, max_width: f64) -> Vec<Vec<Run>> {
-    let words = split_words(s);
-    let mut lines: Vec<Vec<Run>> = Vec::new();
-    let mut current: Vec<Run> = Vec::new();
-    let mut current_w = 0.0;
-    let space_w = width(" ", sans, size, 0.0);
-    for w in words {
-        let ww = runs_width(&w, sans, size);
-        let extra = if current.is_empty() { ww } else { space_w + ww };
-        if !current.is_empty() && current_w + extra > max_width {
-            lines.push(std::mem::take(&mut current));
-            current_w = 0.0;
+    wrap_with_fonts(s, sans, size, max_width, &Fonts::default())
+}
+
+pub fn wrap_with_fonts(
+    s: &str,
+    sans: Font,
+    size: f64,
+    max_width: f64,
+    supplied: &Fonts,
+) -> Vec<Vec<Run>> {
+    let runs = runs(s);
+    let plain: String = runs.iter().map(|r| r.text.as_str()).collect();
+    let mut at = 0;
+    let spans: Vec<_> = runs
+        .iter()
+        .map(|r| {
+            let start = at;
+            at += r.text.len();
+            (start..at, r)
+        })
+        .collect();
+    let mut lines = Vec::new();
+    let (mut start, mut previous) = (0, 0);
+    for (end, opportunity) in unicode_linebreak::linebreaks(&plain) {
+        let mandatory = opportunity == unicode_linebreak::BreakOpportunity::Mandatory;
+        if !mandatory
+            && spans
+                .iter()
+                .any(|(range, run)| run.code && range.start < end && end < range.end)
+        {
+            continue;
         }
-        if !current.is_empty() {
-            push_run(&mut current, Run::sans(" "));
-            current_w += space_w;
+        let candidate = slice_runs(&plain, &spans, start, end);
+        if previous > start && runs_width_with_fonts(&candidate, sans, size, supplied) > max_width {
+            lines.push(slice_runs(&plain, &spans, start, previous));
+            start = previous;
         }
-        for r in w {
-            push_run(&mut current, r);
+        previous = end;
+        if mandatory {
+            let line = slice_runs(&plain, &spans, start, end);
+            if !line.is_empty() || end < plain.len() || plain[start..end].contains('\n') {
+                lines.push(line);
+            }
+            start = end;
         }
-        current_w += ww;
-    }
-    if !current.is_empty() {
-        lines.push(current);
     }
     lines
+}
+
+fn slice_runs(
+    plain: &str,
+    spans: &[(std::ops::Range<usize>, &Run)],
+    start: usize,
+    end: usize,
+) -> Vec<Run> {
+    let trim = |c: char| c.is_whitespace() && !matches!(c, '\u{a0}' | '\u{202f}');
+    let piece = plain[start..end].trim_matches(trim);
+    let start = start + plain[start..end].len() - plain[start..end].trim_start_matches(trim).len();
+    let end = start + piece.len();
+    let mut line = Vec::new();
+    for (range, run) in spans {
+        let (a, b) = (start.max(range.start), end.min(range.end));
+        if a < b {
+            let mut r = (*run).clone();
+            r.text = plain[a..b].to_string();
+            push_run(&mut line, r);
+        }
+    }
+    line
 }
 
 fn push_run(line: &mut Vec<Run>, r: Run) {
     if let Some(last) = line.last_mut()
         && last.code == r.code
+        && last.tag == r.tag
     {
         last.text.push_str(&r.text);
         return;
     }
     line.push(r);
-}
-
-/// Words as run lists. A backtick span is a single unbreakable word together
-/// with any punctuation glued to it.
-fn split_words(s: &str) -> Vec<Vec<Run>> {
-    let mut words: Vec<Vec<Run>> = Vec::new();
-    let mut current: Vec<Run> = Vec::new();
-    for run in runs(s) {
-        if run.code {
-            current.push(run);
-            continue;
-        }
-        let mut first = true;
-        for piece in run.text.split(' ') {
-            if !first && !current.is_empty() {
-                words.push(std::mem::take(&mut current));
-            }
-            first = false;
-            if !piece.is_empty() {
-                current.push(Run::sans(piece));
-            }
-        }
-    }
-    if !current.is_empty() {
-        words.push(current);
-    }
-    words
 }
 
 #[cfg(test)]

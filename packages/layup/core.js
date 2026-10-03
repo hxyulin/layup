@@ -21,9 +21,16 @@ export function wrap(instance) {
     return [ptr, bytes.length];
   };
 
-  function render(source, { theme = 'light', format = 'svg', darkSelector } = {}) {
+  function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [] } = {}) {
     let options = `theme=${theme}\nformat=${format}`;
     if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
+    for (const font of fonts) {
+      if (!(font instanceof Uint8Array)) throw new TypeError('fonts must contain Uint8Array font bytes');
+      // Bound each spread operation so large CJK fonts do not exhaust the stack.
+      let binary = '';
+      for (let i = 0; i < font.length; i += 8192) binary += String.fromCharCode(...font.subarray(i, i + 8192));
+      options += `\nfont=${btoa(binary)}`;
+    }
     const [src, srcLen] = put(source);
     const [opt, optLen] = put(options);
     let out;

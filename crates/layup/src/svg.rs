@@ -10,7 +10,7 @@ use crate::Compiled;
 use crate::Theme;
 use crate::layout::{Anchor, Ink, Item, Placed, Rect, Scene, TextItem};
 use crate::style::{Tone, edge_color};
-use crate::text::Run;
+use crate::text::{Direction, Run};
 
 /// Rendering choices beyond the theme.
 #[derive(Debug, Clone, Copy)]
@@ -44,7 +44,7 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     };
     let _ = writeln!(
         s,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc">"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" direction="ltr" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc">"#,
         w = num(scene.width),
         h = num(scene.height)
     );
@@ -70,7 +70,11 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
             .join("\n"))
     );
     s.push_str("  <style>\n");
-    s.push_str(&stylesheet(&used_chars(scene), options.dark_selector));
+    s.push_str(&stylesheet_with_fonts(
+        &used_chars(scene),
+        options.dark_selector,
+        &scene.fonts,
+    ));
     s.push_str("  </style>\n");
     s.push_str("  <defs>\n");
     for t in Tone::ALL {
@@ -121,7 +125,7 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
             }
             open = p.node;
         }
-        item(&mut s, p, &id);
+        item(&mut s, p, &id, c.diagram.text_direction);
     }
     close(&mut s, open);
     s.push_str("  </g>\n");
@@ -164,6 +168,7 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
                     node: None,
                 },
                 &id,
+                c.diagram.text_direction,
             );
         }
         s.push_str("    </g>\n");
@@ -201,7 +206,7 @@ fn used_chars(scene: &Scene) -> BTreeSet<char> {
     chars
 }
 
-fn item(s: &mut String, p: &Placed, id: &str) {
+fn item(s: &mut String, p: &Placed, id: &str, direction: Direction) {
     match &p.item {
         Item::Box {
             rect,
@@ -297,10 +302,11 @@ fn item(s: &mut String, p: &Placed, id: &str) {
             );
             let _ = writeln!(
                 s,
-                r#"      <text class="{tclass} ink-{}" x="{}" y="{}" text-anchor="middle">{}</text>"#,
+                r#"      <text class="{tclass} ink-{}" x="{}" y="{}" text-anchor="middle" direction="{}" unicode-bidi="isolate">{}</text>"#,
                 tone.name(),
                 num(cx),
                 num(cy + 4.0),
+                direction.resolve(label).name(),
                 esc(label)
             );
             if *rotate {
@@ -326,10 +332,11 @@ fn item(s: &mut String, p: &Placed, id: &str) {
 }
 
 fn text(s: &mut String, t: &TextItem) {
-    let anchor = match t.anchor {
-        Anchor::Start => "",
-        Anchor::Middle => r#" text-anchor="middle""#,
-        Anchor::End => r#" text-anchor="end""#,
+    // Scene anchors are physical; SVG start/end depend on text direction.
+    let anchor = match (t.anchor, t.direction == Direction::Rtl) {
+        (Anchor::Start, false) | (Anchor::End, true) => "",
+        (Anchor::Middle, _) => r#" text-anchor="middle""#,
+        (Anchor::End, false) | (Anchor::Start, true) => r#" text-anchor="end""#,
     };
     let ink = match t.ink {
         Ink::Text => "ink".to_string(),
@@ -345,11 +352,12 @@ fn text(s: &mut String, t: &TextItem) {
     };
     let _ = write!(
         s,
-        r#"      <text class="{font} {ink}" x="{}" y="{}" font-size="{}" font-weight="{}"{anchor}{spacing}>"#,
+        r#"      <text class="{font} {ink}" x="{}" y="{}" font-size="{}" font-weight="{}" direction="{}" unicode-bidi="isolate"{anchor}{spacing}>"#,
         num(t.x),
         num(t.y),
         num(t.size),
-        t.weight
+        t.weight,
+        t.direction.name()
     );
     for r in &t.runs {
         run(s, r, t.mono);
@@ -362,7 +370,10 @@ fn run(s: &mut String, r: &Run, base_mono: bool) {
     if r.tag {
         let _ = write!(s, r#"<tspan class="tag">{body}</tspan>"#);
     } else if r.code && !base_mono {
-        let _ = write!(s, r#"<tspan class="m">{body}</tspan>"#);
+        let _ = write!(
+            s,
+            r#"<tspan class="m" direction="ltr" unicode-bidi="isolate">{body}</tspan>"#
+        );
     } else if !r.code && base_mono {
         let _ = write!(s, r#"<tspan class="t">{body}</tspan>"#);
     } else {
@@ -424,7 +435,15 @@ fn vars(dark: bool) -> String {
 
 /// The diagram stylesheet, embedding fonts subset to `chars`.
 pub fn stylesheet(chars: &BTreeSet<char>, dark_selector: Option<&str>) -> String {
-    let mut css = crate::text::stylesheet(chars);
+    stylesheet_with_fonts(chars, dark_selector, &crate::text::Fonts::default())
+}
+
+fn stylesheet_with_fonts(
+    chars: &BTreeSet<char>,
+    dark_selector: Option<&str>,
+    fonts: &crate::text::Fonts,
+) -> String {
+    let mut css = crate::text::stylesheet(chars, fonts);
     let _ = writeln!(css, "    .layup{{{}}}", vars(false));
     let _ = writeln!(css, "    .layup.dark{{{}}}", vars(true));
     let _ = match dark_selector {
@@ -438,8 +457,8 @@ pub fn stylesheet(chars: &BTreeSet<char>, dark_selector: Option<&str>) -> String
     // Rules are scoped under `.layup` so an inline SVG neither styles nor
     // inherits from the host page's classes.
     css.push_str(
-        r#"    .layup .t{font-family:'Layup Sans',sans-serif}
-    .layup .m{font-family:'Layup Mono',monospace;font-weight:400}
+        r#"    .layup .t{font-family:'Layup Sans','Layup Arabic','Layup Hebrew',var(--layup-font-fallback,sans-serif)}
+    .layup .m{font-family:'Layup Mono','Layup Arabic','Layup Hebrew',var(--layup-font-fallback,monospace);font-weight:400}
     .layup .t,.layup .m{font-kerning:none;font-variant-ligatures:none;font-synthesis:none}
     .layup .ink{fill:var(--ink)}.layup .muted{fill:var(--muted)}.layup .codeink{fill:var(--codeink)}
     .layup .tag{fill:var(--blue-edge);font-weight:650}
@@ -452,6 +471,17 @@ pub fn stylesheet(chars: &BTreeSet<char>, dark_selector: Option<&str>) -> String
     .layup .chip-t{font-size:11.5px;font-weight:650}.layup .chip-t.plain{font-size:12px;font-weight:400}
 "#,
     );
+    let families: String = fonts
+        .fallbacks
+        .iter()
+        .map(|bytes| format!(",'{}'", crate::text::font_family(bytes)))
+        .collect();
+    if !families.is_empty() {
+        css = css.replace(
+            ",var(--layup-font-fallback,",
+            &format!("{families},var(--layup-font-fallback,"),
+        );
+    }
     for t in Tone::ALL {
         let n = t.name();
         let _ = writeln!(

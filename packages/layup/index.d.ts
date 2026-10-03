@@ -1,6 +1,8 @@
 export type Theme = 'light' | 'dark' | 'auto';
 
 export interface RenderOptions {
+  /** Optional fallback OpenType/TrueType font bytes, used for exact measurement and embedded in output. */
+  fonts?: readonly Uint8Array[];
   theme?: Theme;
   /** `svg`, a standalone interactive `html` page, or `embed` (HTML without toolbar, for an iframe). */
   format?: 'svg' | 'html' | 'embed';

@@ -56,10 +56,9 @@ edges that share a line (two dashed lines on top of each other look
 solid). Layup runs those checks on every render and `--strict` turns
 them into errors.
 
-What Mermaid does better, and layup deliberately does not attempt: fully
-automatic layout for arbitrary graphs, sequence and state diagrams,
-in-browser rendering from a fenced block. Layup is for diagrams you
-compose on purpose.
+What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs, sequence diagrams, and
+state-machine semantics. Decision nodes and state diagrams are outlined in
+[the roadmap](ROADMAP.md).
 
 ## 2. The source language
 
@@ -94,6 +93,8 @@ diagram "Title" width=1950 {
 | Item | Meaning |
 | --- | --- |
 | `diagram "Title" [width=N] [preset=clean\|manual] { ... }` | Title is required. Width defaults to 900, or 1400 when a row has 3+ cells or nodes nest 3 deep. Wide diagrams (≥ 1400) get larger margins and type. `preset=manual` selects explicit-only behavior (fixed gray cards, 12px gutters, no auto legend/width); `clean` is the default. |
+| `direction=down\|up\|right\|left` | Flow of inferred ranks; requires `layout=auto` for a non-default direction. |
+| `text-direction=auto\|ltr\|rtl` | Base direction of labels, independent of graph flow; also accepted on nodes and inherited by their children. |
 | `note "..."` | Subtitle under the title. |
 | `desc "..."` | Long description for the SVG `<desc>` (screen readers, search). |
 | `legend [bottom] [off] [kind ...]` | A legend built from the node and arrow kinds that actually appear. Under `clean` it is added automatically when a typed edge is used; it sits top-right beside the title when it fits, otherwise as a block at the top or, with `bottom`, at the end. `legend off` suppresses even the automatic one. Listing kinds restricts it. |
@@ -134,8 +135,11 @@ KIND [id] ["Title"] [tone] [flags] [key=value ...] [{ content }]
   `node`/`card`/`api` with nested children draws as a hollow container,
   so grouping needs no `package`/`group` vocabulary on day one.
 - Flags: `hollow filled center left mono sans`.
-- Attributes: `id= tone= role= tag= gutter= align= href=`; in automatic layout,
-  also `below= same-layer= beside=`.
+- `align=start` (default for cards) follows text direction; `left`, `right`,
+  and `center` set physical alignment. `text-direction=auto|ltr|rtl` overrides
+  the inherited label direction.
+- Attributes: `id= tone= role= tag= gutter= align= href= text-direction=`; in automatic layout,
+  also `below= after= same-layer= beside=`.
 - A title starting with `[word]` sets a tag drawn in bold blue.
 - `href="..."` makes the node a link. The URL is written as given; on a
   VitePress site with a `base`, use relative links.
@@ -174,8 +178,9 @@ and the legend label.
 
 ### Automatic placement
 
-Add `layout=auto` to `diagram` to infer top-to-bottom layers from directed
-edges. The default remains `layout=manual`, preserving authored block flow.
+Add `layout=auto` to `diagram` to infer layers from directed edges.
+`direction=down|up|right|left` selects their physical flow (default `down`);
+`TB`/`TD`, `BT`, `LR`, and `RL` are accepted aliases. The default remains `layout=manual`, preserving authored block flow.
 This is independent of the style `preset`.
 
 Within each consecutive run of sibling nodes, sources precede targets and
@@ -191,7 +196,11 @@ automatic placement cannot cross. Edges across these boundaries still route,
 but do not override the authored structure. Existing width inference applies
 after placement: three columns can widen an unpinned canvas to 1400px.
 
-There is no direction option, crossing minimization, or saved-position state.
+There is no crossing minimization or saved-position state. In horizontal
+flow, ranks split the region width equally and peers stack vertically. In
+upward flow, ranks reverse and retain the downward row-wrapping policy.
+Disconnected regions retain their authored order in every direction. Long
+horizontal chains may need an explicit larger `width=`.
 Cycles and dense graphs may still need routing hints. Run `just preview-auto` for the review gallery.
 
 ### Predictable edits
@@ -302,8 +311,8 @@ lexer → parser → model → layout → route → check → svg | html
   nodes with resolved styles, edges with resolved kinds, legend. It
   assigns ids and reports unknown words with line numbers.
 - **layout** (`layout.rs`) measures every block bottom-up with real
-  font metrics (advances read directly from bundled IBM Plex Sans and Mono
-  files, also embedded in SVG output; kerning and optional ligatures disabled), then draws top-down: block flow, rows by
+  font metrics (shaped against bundled IBM Plex and supplied fallback
+  faces, also embedded in SVG output; kerning and optional ligatures disabled), then draws top-down: block flow, rows by
   weight, containers padding their children, bands and sections adding
   their labels. It records node rectangles and "keep-out" boxes (section
   titles, divider captions) for the router and warns when a line does
@@ -400,3 +409,18 @@ diagrams that arrive through client-side navigation need no setup.
   the warning names the node it crosses, and the fix is a `via=`, a
   pinned side, or rearranging the row. That is deliberate: the diagram
   is a document, and the writer decides its shape.
+
+## International text and fallback fonts
+
+Labels use Unicode paragraph-direction detection and SVG bidi isolation.
+Code spans retain LTR isolation within RTL prose. CJK wrapping follows UAX #14;
+inline code is kept intact, and explicit newlines create separate lines.
+
+Text is shaped against bundled Latin/Arabic/Hebrew faces or explicit fallback
+font bytes. CJK has no bundled font: the default viewer fallback uses width
+estimates, and `--layup-font-fallback` can select the viewer's family. Exact
+fallback measurement requires `--font` (CLI), `text::Fonts` and
+`compile_with_fonts` (Rust), or the `fonts` render option (JavaScript).
+User faces are embedded whole with their shaping tables. Latin subsets retain
+a full-Unicode format 12 cmap; combining-mark text keeps the original face
+to preserve shaping. See README for the output-size and font-selection limits.

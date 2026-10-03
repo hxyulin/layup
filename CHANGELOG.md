@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Automatic graph flow in all four directions, separate from `text-direction=auto|ltr|rtl`.
+- Unicode line breaking for CJK, hard newlines, and nonbreaking spaces; combining-mark and Arabic/Hebrew shaping.
+- RTL alignment and bidi isolation for mixed prose/code labels.
+- System CJK fonts by default, optional supplied fallback font bytes in Rust, CLI, and JavaScript/WASM.
+- Unicode identifier continuation, full-Unicode font-subset cmaps, and multilingual regression/browser checks.
+- Roadmap for decision geometry, state machine semantics, and scene/export formats.
+
 ## 0.2.0
 
 ### Layout

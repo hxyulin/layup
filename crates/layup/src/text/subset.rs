@@ -5,7 +5,7 @@
 //! `loca` and `glyf`. Layout tables (GSUB, GPOS, GDEF) are dropped because
 //! measurement uses unkerned advances and SVG output disables features. The
 //! `name` table is rewritten under the output family: the OFL reserves the
-//! upstream name for modified versions. Only BMP characters are mapped.
+//! upstream name for modified versions. The cmap covers the full Unicode range.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -24,7 +24,7 @@ pub(super) fn subset(
     chars: &BTreeSet<char>,
     family: &str,
     style: &str,
-) -> (Vec<u8>, Vec<u16>) {
+) -> (Vec<u8>, Vec<u32>) {
     let face = Face::parse(data, 0).expect("bundled font must be valid");
     let raw = RawFace::parse(data, 0).expect("bundled font must be valid");
     let table = |tag: &[u8; 4]| {
@@ -51,10 +51,9 @@ pub(super) fn subset(
     };
 
     // Keep .notdef, the mapped glyphs, and every composite's components.
-    let mapped: BTreeMap<u16, u16> = chars
+    let mapped: BTreeMap<u32, u16> = chars
         .iter()
-        .filter(|&&c| (c as u32) < 0x10000)
-        .filter_map(|&c| Some((c as u16, face.glyph_index(c)?.0)))
+        .filter_map(|&c| Some((c as u32, face.glyph_index(c)?.0)))
         .collect();
     let mut keep: BTreeSet<u16> = mapped.values().copied().chain([0]).collect();
     let mut todo: Vec<u16> = keep.iter().copied().collect();
@@ -149,34 +148,24 @@ fn components(g: &[u8]) -> Vec<(usize, u16)> {
     }
 }
 
-/// A Windows Unicode BMP `cmap` with one format 4 segment per character.
-fn cmap(map: impl Iterator<Item = (u16, u16)>) -> Vec<u8> {
-    let mut segments: Vec<(u16, u16)> = map.map(|(c, g)| (c, g.wrapping_sub(c))).collect();
-    segments.push((0xffff, 1));
-    let n = segments.len() as u16;
-    let mut sub = Vec::new();
-    for v in [4, 16 + 8 * n, 0, 2 * n] {
-        sub.extend(v.to_be_bytes());
-    }
-    sub.extend(search_fields(n, 2));
-    segments
-        .iter()
-        .for_each(|(c, _)| sub.extend(c.to_be_bytes()));
-    sub.extend(0u16.to_be_bytes());
-    segments
-        .iter()
-        .for_each(|(c, _)| sub.extend(c.to_be_bytes()));
-    segments
-        .iter()
-        .for_each(|(_, d)| sub.extend(d.to_be_bytes()));
-    segments.iter().for_each(|_| sub.extend(0u16.to_be_bytes()));
-
+/// A Windows full-Unicode cmap with one format 12 group per character.
+fn cmap(map: impl Iterator<Item = (u32, u16)>) -> Vec<u8> {
+    let entries: Vec<_> = map.collect();
     let mut out = Vec::new();
-    for v in [0u16, 1, 3, 1] {
+    for v in [0u16, 1, 3, 10] {
         out.extend(v.to_be_bytes());
     }
     out.extend(12u32.to_be_bytes());
-    out.extend(sub);
+    out.extend(12u16.to_be_bytes());
+    out.extend(0u16.to_be_bytes());
+    out.extend((16 + entries.len() as u32 * 12).to_be_bytes());
+    out.extend(0u32.to_be_bytes());
+    out.extend((entries.len() as u32).to_be_bytes());
+    for (c, g) in entries {
+        out.extend(c.to_be_bytes());
+        out.extend(c.to_be_bytes());
+        out.extend(u32::from(g).to_be_bytes());
+    }
     out
 }
 

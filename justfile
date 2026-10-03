@@ -65,6 +65,12 @@ js-test: wasm
     cargo build -p layup-cli
     cd packages/layup && npm install --no-audit --no-fund && node --test
 
+# Browser checks and a multilingual preview using system CJK fallback and a synthetic user-font fixture.
+international-test:
+    cargo build -p layup-cli
+    cargo run -q -p layup --example verify-international
+    node tools/verify-international.mjs
+
 # Run the VitePress example with the local package (http://localhost:5173).
 vitepress: wasm
     cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev

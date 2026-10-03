@@ -18,7 +18,7 @@ use crate::Warning;
 use crate::layout::{EdgePath, Item, Rect, Scene};
 use crate::model::{Diagram, Edge, Side};
 use crate::style::{ArrowColor, Tone};
-use crate::text::{Font, width};
+use crate::text::{Font, width_with_fonts};
 
 const CLEARANCE: f64 = 4.0;
 const SPREAD: f64 = 20.0;
@@ -684,7 +684,7 @@ fn place_chip(
         .map(|(i, s)| (i, (s[1].0 - s[0].0).abs() + (s[1].1 - s[0].1).abs()))
         .max_by(|x, y| x.1.partial_cmp(&y.1).unwrap())?;
     let (p, q) = (points[i], points[i + 1]);
-    let w = width(text, Font::SansBold, 11.5, 0.0) + 14.0;
+    let w = width_with_fonts(text, Font::SansBold, 11.5, 0.0, &scene.fonts) + 14.0;
     let h = 21.0;
     let horizontal = (p.1 - q.1).abs() < 0.5;
     let (rotate, bordered, beside) = if horizontal {

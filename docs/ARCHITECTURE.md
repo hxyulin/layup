@@ -31,8 +31,8 @@ validates documentation diagrams and examples with warnings treated as errors.
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
    legend.
 3. **Lay out blocks.** `layout.rs` measures text, wraps prose, and places the
-   authored rows and containers. `text/` reads glyph advances directly from
-   the bundled IBM Plex font files. Layout records node rectangles and
+   authored rows and containers. `text/` shapes labels against bundled IBM Plex faces or supplied
+   fallback font bytes. Layout records node rectangles and
    reserved areas that routing must avoid.
 4. **Route edges.** `route.rs` chooses orthogonal paths, spreads ports, and
    places labels around nodes and reserved areas.
@@ -49,15 +49,18 @@ Library callers can inspect `Compiled::warnings` and choose their own policy.
 `svg::render` serializes the compiled scene into an SVG with theme variables,
 semantic node and edge attributes, and embedded font data. `html::render`
 wraps that SVG with pan, zoom, selection, theme controls, and iframe messaging.
-Neither renderer needs a network connection or installed fonts.
+Neither renderer needs a network connection. CJK uses viewer fonts by
+default; explicitly supplied fallback faces are embedded for offline use.
 
 The font bytes used for measurement and embedding have one source in
-`text/fonts.rs`. Parsed font faces are cached for reuse. Each SVG embeds
-subsets that `text/subset.rs` cuts to the characters the scene draws. SVG
-turns off kerning and optional ligatures to match advance-based measurement.
-Missing glyphs still depend on viewer fallback fonts, and complex-script
-shaping is not yet modeled. See [the font provenance](../crates/layup/fonts/README.md)
-for upstream revision, checksums, and the separate SIL OFL license.
+`text/fonts.rs` and the optional `text::Fonts` supplied at compilation.
+Bundled parsed faces are cached for reuse. Latin SVG fonts are subset to the
+characters drawn; Arabic/Hebrew and user faces retain their shaping tables.
+SVG and Rustybuzz both disable kerning and optional ligatures.
+CJK uses system fonts and width estimates by default. Supplying a fallback
+face enables measured CJK output without bundling that font in the library.
+See [the font provenance](../crates/layup/fonts/README.md) for upstream
+revisions, checksums, and the separate SIL OFL license.
 
 ## Where to make changes
 

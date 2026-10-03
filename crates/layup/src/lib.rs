@@ -109,11 +109,58 @@ pub struct Compiled {
 }
 
 pub fn compile(src: &str) -> Result<Compiled, Error> {
+    compile_with_fonts(src, &text::Fonts::default())
+}
+
+/// Compile with optional fallback font bytes used for measurement and output.
+pub fn compile_with_fonts(src: &str, fonts: &text::Fonts) -> Result<Compiled, Error> {
     let diagram = model::build(src)?;
     let mut warnings = Vec::new();
-    let mut scene = layout::layout(&diagram, &mut warnings);
+    let mut scene = layout::layout_with_fonts(&diagram, &mut warnings, fonts);
     route::route_all(&diagram, &mut scene, &mut warnings);
     check::check(&scene, &mut warnings);
+    let mut missing = std::collections::BTreeSet::new();
+    for placed in &scene.items {
+        if let layout::Item::Text(t) = &placed.item {
+            for run in &t.runs {
+                let font = if run.code {
+                    text::Font::Mono
+                } else if t.weight >= 600 {
+                    text::Font::SansBold
+                } else {
+                    text::Font::Sans
+                };
+                for c in run.text.chars() {
+                    if !text::is_cjk(c)
+                        && !text::supports_with_fonts(c, font, fonts)
+                        && missing.insert(c)
+                    {
+                        warnings.push(Warning {
+                            line: placed.node.map(|i| scene.nodes[i].line),
+                            msg: format!("character U+{:04X} `{c}` is outside the bundled fonts; viewer fallback metrics are estimated", c as u32),
+                        });
+                    }
+                }
+            }
+        }
+    }
+    for chip in scene
+        .items
+        .iter()
+        .map(|p| &p.item)
+        .chain(scene.edges.iter().filter_map(|e| e.chip.as_ref()))
+    {
+        if let layout::Item::Chip { text: label, .. } = chip {
+            for c in label.chars() {
+                if !text::is_cjk(c)
+                    && !text::supports_with_fonts(c, text::Font::Sans, fonts)
+                    && missing.insert(c)
+                {
+                    warnings.push(Warning { line: None, msg: format!("character U+{:04X} `{c}` is outside the bundled fonts; viewer fallback metrics are estimated", c as u32) });
+                }
+            }
+        }
+    }
     Ok(Compiled {
         diagram,
         scene,

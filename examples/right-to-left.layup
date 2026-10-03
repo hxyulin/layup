@@ -1,0 +1,8 @@
+diagram "معالجة الطلبات" width=1100 layout=auto direction=left text-direction=rtl {
+  note "يسير الرسم من اليمين إلى اليسار، ويظل الرمز البرمجي معزولاً."
+  node request "طلب جديد" { sub "يستقبل النظام الطلب ويبدأ المعالجة." }
+  node worker "المعالجة" { sub "يستخدم العامل `GET /items` لقراءة البيانات." }
+  node result "النتيجة" { sub "يعيد النظام النتيجة إلى المستخدم." }
+  request -> worker
+  worker -> result
+}

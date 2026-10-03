@@ -24,3 +24,16 @@ test('reports warnings and errors with lines', () => {
 test('renders html', () => {
   assert.match(loadSync().render('diagram "T" { node a }', { format: 'embed' }).output, /^<!doctype html>/);
 });
+
+test('user fonts match CLI measurement and embedding without leaking across renders', () => {
+  const path = new URL('crates/layup/tests/fonts/Fallback.ttf', root);
+  const source = 'diagram "中" { node n "中中中" }';
+  const font = readFileSync(path);
+  const cli = execFileSync(new URL('target/debug/layup', root).pathname, ['render', '-', '-o', '-', '--font', path.pathname], { input: source }).toString();
+  const engine = loadSync();
+  assert.equal(engine.render(source, { fonts: [font] }).output, cli);
+  assert.match(cli, /font-family:'Layup User /);
+  assert.doesNotMatch(engine.render(source).output, /font-family:'Layup User /);
+  assert.throws(() => engine.render(source, { fonts: [new Uint8Array([0, 1, 2])] }), LayupError);
+  assert.throws(() => engine.render(source, { fonts: ['bad'] }), TypeError);
+});
