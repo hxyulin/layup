@@ -10,11 +10,12 @@ presentation controls.
 In a separate project that installs the package from npm:
 
 ```sh
-pnpm add -D @hxyulin/layup vitepress
+pnpm add -D @hxyulin/layup@0.3.0 vitepress
 ```
 
-For current checkout features, use the local workspace package as this site
-does. Its WASM binary is rebuilt from Rust before the docs build.
+The npm package includes its WASM binary and supports the examples below.
+This repository uses the workspace package and rebuilds that binary from Rust
+before its docs build.
 
 ```ts
 // .vitepress/config.mts

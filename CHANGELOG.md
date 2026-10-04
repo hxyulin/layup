@@ -4,6 +4,7 @@
 
 ### Installation and documentation
 
+- Published `@hxyulin/layup@0.3.0` on npm with the compiled WASM engine, TypeScript declarations, Markdown/VitePress integration and interaction client.
 - Published CLI and Rust engine on crates.io; cargo-binstall metadata and GitHub release archives for Linux x86_64/ARM64, macOS Intel/Apple Silicon and Windows x86_64, with SHA-256 checksums and bundled-font licenses.
 - Themed README showcase, light/dark logo variants, consistent SVG toolbar icons and touch controls; contributor guidance, CODEOWNERS, issue/PR templates and actionlint/repository checks.
 - A compact source canvas for the slide pipeline example; resizable playground pane widths and shared height with pointer/keyboard controls. Example/share links and browser history update reused editors, and source edits recover when the selected view is removed.

@@ -132,6 +132,13 @@ and [output formats](https://hxyulin.github.io/layup/guide/formats.html).
 <details>
 <summary><strong>Use the Rust/JavaScript APIs or run the docs locally</strong></summary>
 
+Install the JavaScript/WASM package, including its compiled engine:
+
+```sh
+pnpm add @hxyulin/layup@0.3.0
+# Or: npm install @hxyulin/layup@0.3.0
+```
+
 The [API guide](https://hxyulin.github.io/layup/reference/api.html) covers Rust,
 Node.js and browser WASM. The
 [Markdown guide](https://hxyulin.github.io/layup/guide/markdown.html) covers

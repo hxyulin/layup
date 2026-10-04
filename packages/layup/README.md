@@ -4,7 +4,8 @@ The layup layout engine compiled to WebAssembly. It produces the same SVG and
 HTML as the `layup` CLI, byte for byte.
 
 ```sh
-npm install --save-dev @hxyulin/layup
+pnpm add @hxyulin/layup@0.3.0
+# Or: npm install @hxyulin/layup@0.3.0
 ```
 
 ```js
@@ -31,10 +32,10 @@ recoverable syntax errors and checking valid documents for semantic, layout
 and authoring issues. Diagnostics and render errors include `column`, UTF-8
 byte `span`, `code`, `help` and `related` locations. Columns count one-based
 Unicode scalars. `LayupError` keeps its `line`, `reason` and message format.
-See [the language-tools guide](../../docs/LANGUAGE-TOOLS.md) for rules and
+See [the language-tools guide](https://hxyulin.github.io/layup/guide/tooling.html) for rules and
 source-position conventions.
 
-The development checkout also exposes a versioned scene API:
+Version 0.3 also exposes a versioned scene API:
 
 ```js
 const scene = layup.compile(source, { view: 'detail', fonts: [] });
@@ -47,8 +48,11 @@ source spans, font identifiers, warnings, selected views, optional sequence
 metadata, slide transforms and presentation steps. Geometry stays in the
 original scene coordinate system; `scene.viewport.slide` supplies the
 separate fit transform. Font bytes are not exported. See the
-[scene contract and presentation guide](../../docs/PRESENTATION.md) for the
-complete schema and [sequence reference](../../docs/SEQUENCE.md) for the DSL.
+[scene contract and presentation guide](https://hxyulin.github.io/layup/guide/formats.html) for the
+complete schema and [sequence reference](https://hxyulin.github.io/layup/diagrams/sequences.html) for the DSL.
+
+The npm package includes the compiled engine; users do not need Rust or a
+WASM build step to install it.
 
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
@@ -120,7 +124,7 @@ directory and `just js-test` compares the package's output with the CLI.
 Repository development uses pnpm: run `pnpm install --frozen-lockfile` from
 the root. `pnpm docs:dev` starts the documentation and live browser editor;
 `pnpm --filter @hxyulin/layup test` runs package tests against the current
-WASM binary. See [the site development guide](../../docs/site/contributing.md).
+WASM binary. See [the site development guide](https://hxyulin.github.io/layup/contributing.html).
 
 ## License
 

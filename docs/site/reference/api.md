@@ -62,11 +62,16 @@ For types and exhaustive drawing contracts, build Rust docs with
 
 ## JavaScript and WASM
 
-The playground and the examples below use the current workspace adapter.
-The npm package is still at v0.2.0; build the repository's WASM package to use
-v0.3.0 features such as `compile`, `lint`, `format` and named views. See
-[local setup](/contributing#run-locally). The Rust crates and CLI are available
-as v0.3.0 on crates.io.
+Install the published JavaScript/WASM package:
+
+```sh
+pnpm add @hxyulin/layup@0.3.0
+# Or: npm install @hxyulin/layup@0.3.0
+```
+
+The package includes the compiled engine, so installation does not require
+Rust. Version 0.3.0 includes `compile`, `lint`, `format`, named views and the
+same diagram features as the CLI and playground.
 
 ```js
 import { load } from '@hxyulin/layup';

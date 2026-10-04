@@ -131,6 +131,16 @@ binary path. Verify `cargo binstall layup-cli --version VERSION` with
 check cannot silently fall back to a source build. Linux release builds use
 Ubuntu 22.04 for a glibc 2.35 baseline.
 
+For npm, run `just js-test` and `just vitepress-test`, then create a tarball
+with `pnpm --filter @hxyulin/layup pack --pack-destination "$PWD/out/npm"`
+from the repository root.
+The prepack step rebuilds WASM from the locked Rust dependencies and synchronizes
+the presentation controller. Inspect the tarball for the WASM engine, adapters,
+types, shared icons and licenses; install it into a fresh project and exercise
+the Node and browser entry points before publishing that exact tarball with
+`npm publish ./out/npm/hxyulin-layup-VERSION.tgz --access public --tag latest`.
+Verify a fresh registry installation and update the npm install instructions.
+
 ## Licensing
 
 Contributions use the repository's dual MIT/Apache-2.0 licensing. Retain third
