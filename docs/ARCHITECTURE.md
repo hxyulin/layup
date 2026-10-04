@@ -22,20 +22,26 @@ validates documentation diagrams and examples with warnings treated as errors.
 
 ## Compilation
 
-`compile(source)` returns `Compiled { diagram, scene, warnings }`, or an
+`compile(source)` returns `Compiled` with the diagram, scene, warnings,
+optional slide/sequence metadata, presentation plan and view selection, or an
 `Error` for invalid input. It does not read files or write output.
+`compile_with_options` adds named-view selection and supplied fonts.
 
 1. **Read syntax.** `lexer.rs` tokenizes the source; `parser.rs` builds generic
    items and edge statements. Syntax is separate from node-kind semantics.
    Tokens and syntax nodes carry UTF-8 byte spans and scalar columns. The
    recovering parser collects sibling errors; compilation uses strict parsing.
-2. **Resolve semantics.** `model.rs` builds a typed `Diagram`, resolves styles
+2. **Resolve semantics.** `views.rs` selects and filters a shared model while
+   preserving source spans and semantic IDs. `presentation.rs` extracts step
+   definitions and `slides.rs` extracts viewport options. `model.rs` builds a typed `Diagram`, resolves styles
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
    legend. `machine.rs` adds opt-in scoped-machine validation and unreachable
    state warnings, including composite initial paths. Each scope projects
    descendant transitions onto its immediate members; traversal removes back edges only from placement
    constraints, preserving all original transitions for routing.
-3. **Lay out blocks.** `sizing.rs` computes font-aware preferred widths and
+3. **Lay out blocks.** `sequence.rs` places event-ordered messages, measured
+   participant headers, notes and fragments for sequence mode. Other diagrams
+   use `sizing.rs`, which computes font-aware preferred widths and
    grows unpinned automatic canvases. `layout.rs` measures text, wraps prose, and places the
    authored rows and containers. `text/` shapes labels against bundled IBM Plex faces or supplied
    fallback font bytes. Compact decision trees reserve subtree lanes in any
@@ -49,7 +55,9 @@ validates documentation diagrams and examples with warnings treated as errors.
    Decision captions search all route segments and avoid endpoint fills.
 5. **Check the scene.** `check.rs` adds scene-level diagnostics, including
    overlapping edge segments and labels on nodes. These join warnings already
-   produced during layout and routing.
+   produced during layout and routing. Presentation references resolve against
+   the finished scene, and slide fitting adds a separate uniform transform
+   with readability diagnostics. Scene geometry remains unchanged.
 
 Warnings are separate from compilation errors. The CLI's `--strict` option
 turns warnings into failure and prevents that diagram from being rendered.
@@ -68,6 +76,14 @@ semantic node and edge attributes, and embedded font data. `html::render`
 wraps that SVG with pan, zoom, selection, theme controls, and iframe messaging.
 Neither renderer needs a network connection. CJK uses viewer fonts by
 default; explicitly supplied fallback faces are embedded for offline use.
+
+`scene::export` serializes version-1 drawing data with source spans,
+hierarchy, IDs, outlines, text runs, views, sequence metadata, slide fitting
+and presentation plans. The CLI's `compile` command and JavaScript's
+`compile` method expose that same contract. JSON carries font identifiers;
+SVG carries the font payloads. A canonical `presentation.js` controller
+serves both standalone HTML and the npm client's inline/fullscreen views.
+See [the presentation guide](PRESENTATION.md) for coordinates and controls.
 
 The font bytes used for measurement and embedding have one source in
 `text/fonts.rs` and the optional `text::Fonts` supplied at compilation.

@@ -13,6 +13,9 @@ struct Cli {
     /// Fallback OpenType/TrueType font to measure and embed. Repeat for multiple fonts.
     #[arg(long = "font", global = true)]
     fonts: Vec<PathBuf>,
+    /// Select a named view from a reusable model document.
+    #[arg(long, global = true)]
+    view: Option<String>,
     #[command(subcommand)]
     cmd: Cmd,
 }
@@ -53,6 +56,17 @@ enum Cmd {
         #[arg(long)]
         embed: bool,
         /// Treat warnings as errors.
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Compile a diagram to versioned scene JSON, writing stdout by default.
+    Compile {
+        /// Input `.layup` file, or `-` for stdin.
+        input: PathBuf,
+        /// Output JSON path; defaults to stdout. `-` also writes stdout.
+        #[arg(short, long, default_value = "-")]
+        output: PathBuf,
+        /// Treat warnings as errors; do not write output when strict checks fail.
         #[arg(long)]
         strict: bool,
     },
@@ -121,6 +135,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             .add_fallback(bytes)
             .map_err(|e| format!("{}: {e}", path.display()))?;
     }
+    let options = layup::CompileOptions { view: cli.view };
     match cli.cmd {
         Cmd::Render {
             input,
@@ -142,8 +157,42 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                 embed,
                 strict,
                 &fonts,
+                &options,
             )?;
             Ok(ok)
+        }
+        Cmd::Compile {
+            input,
+            output,
+            strict,
+        } => {
+            let source = read(&input)?;
+            let compiled = match layup::compile_with_options(&source, &options, &fonts) {
+                Ok(compiled) => compiled,
+                Err(error) => {
+                    eprintln!(
+                        "{}",
+                        layup::diagnostic::Diagnostic::from_error(&error).display(
+                            &source,
+                            &input.display().to_string(),
+                            0
+                        )
+                    );
+                    return Ok(false);
+                }
+            };
+            report(&input, &source, 0, &compiled.warnings);
+            if strict && !compiled.warnings.is_empty() {
+                return Ok(false);
+            }
+            let scene = layup::scene::export(&compiled)?;
+            if output.as_os_str() == "-" {
+                println!("{scene}");
+            } else {
+                std::fs::write(&output, scene).map_err(|e| format!("{}: {e}", output.display()))?;
+                eprintln!("wrote {}", output.display());
+            }
+            Ok(true)
         }
         Cmd::Check { inputs, strict } => {
             let mut ok = true;
@@ -158,10 +207,10 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                         println!("{}: no layup blocks", input.display());
                     }
                     for (line, block) in blocks {
-                        ok &= check_one(&input, Some(line), &block, strict, &fonts);
+                        ok &= check_one(&input, Some(line), &block, strict, &fonts, &options);
                     }
                 } else {
-                    ok &= check_one(&input, None, &src, strict, &fonts);
+                    ok &= check_one(&input, None, &src, strict, &fonts, &options);
                 }
             }
             Ok(ok)
@@ -170,7 +219,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             inputs,
             json,
             strict,
-        } => lint_files(&inputs, json, strict, &fonts),
+        } => lint_files(&inputs, json, strict, &fonts, &options),
         Cmd::Fmt {
             inputs,
             check,
@@ -197,6 +246,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                     false,
                     strict,
                     &fonts,
+                    &options,
                 )?;
                 if html {
                     ok &= render_one(
@@ -208,6 +258,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                         false,
                         strict,
                         &fonts,
+                        &options,
                     )?;
                 }
             }
@@ -226,8 +277,9 @@ fn render_one(
     embed: bool,
     strict: bool,
     fonts: &layup::text::Fonts,
+    options: &layup::CompileOptions,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let compiled = match layup::compile_with_fonts(src, fonts) {
+    let compiled = match layup::compile_with_options(src, options, fonts) {
         Ok(c) => c,
         Err(e) => {
             eprintln!(
@@ -257,8 +309,8 @@ fn render_one(
         eprintln!(
             "wrote {} ({}x{})",
             out.display(),
-            compiled.scene.width,
-            compiled.scene.height
+            compiled.viewport().0,
+            compiled.viewport().1
         );
     }
     Ok(true)
@@ -272,17 +324,18 @@ fn check_one(
     src: &str,
     strict: bool,
     fonts: &layup::text::Fonts,
+    options: &layup::CompileOptions,
 ) -> bool {
     let name = input.display();
-    match layup::compile_with_fonts(src, fonts) {
+    match layup::compile_with_options(src, options, fonts) {
         Ok(c) => {
             report(input, src, fence.unwrap_or(0), &c.warnings);
             let label = fence.map_or(name.to_string(), |f| format!("{name}:{f}"));
             println!(
                 "{label}: {} warnings, {}x{}",
                 c.warnings.len(),
-                c.scene.width,
-                c.scene.height
+                c.viewport().0,
+                c.viewport().1
             );
             !(strict && !c.warnings.is_empty())
         }
@@ -371,6 +424,7 @@ fn lint_files(
     json: bool,
     strict: bool,
     fonts: &layup::text::Fonts,
+    options: &layup::CompileOptions,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let mut ok = true;
     let mut output = Vec::new();
@@ -385,7 +439,7 @@ fn lint_files(
             vec![(0, source.clone())]
         };
         for (offset, block) in blocks {
-            let diagnostics = layup::lint::lint_with_fonts(&block, fonts);
+            let diagnostics = layup::lint::lint_with_options(&block, options, fonts);
             for mut d in diagnostics {
                 ok &= d.severity != layup::diagnostic::Severity::Error && !strict;
                 if json {

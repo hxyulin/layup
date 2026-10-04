@@ -56,7 +56,7 @@ edges that share a line (two dashed lines on top of each other look
 solid). Layup runs those checks on every render and `--strict` turns
 them into errors.
 
-What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs, sequence diagrams, and
+What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs and
 full UML state-machine semantics. Decision trees use measured subtree extents; state machines
 have scoped initial markers, composite states, and cycle placement. Parallel
 states and simulation are future work in [the roadmap](ROADMAP.md).
@@ -97,11 +97,17 @@ diagram "Title" width=1950 {
 
 ### Diagram header
 
+The development checkout also supports [sequence diagrams](SEQUENCE.md),
+[slide sizing, reveal steps, shared models/views and scene export](PRESENTATION.md).
+These guides extend the graph-oriented reference below.
+
 | Item | Meaning |
 | --- | --- |
 | `diagram "Title" [width=N] [preset=clean\|manual] { ... }` | Title is required. Authored layout defaults to 900, or 1400 for wide/deep structures. Automatic layout under `clean` uses font-aware preferred widths, with a 900px minimum and no 1400px ceiling. Explicit widths are retained. Wide diagrams (≥ 1400) get larger margins and type. `preset=manual` selects explicit-only behavior (fixed gray cards, 12px gutters, no auto legend/width); `clean` is the default. |
 | `direction=down\|up\|right\|left` | Flow of inferred ranks; requires `layout=auto` for a non-default direction. |
 | `text-direction=auto\|ltr\|rtl` | Base direction of labels, independent of graph flow; also accepted on nodes and inherited by their children. |
+| `mode=graph\|state-machine\|sequence` | Graph is the default. Machine mode adds scoped semantic validation; sequence mode preserves event chronology. |
+| `slide=wide\|standard\|"WIDTH:HEIGHT"` | Separate presentation viewport with uniform fit, `slide-padding=N` and `min-font-size=N`. |
 | `note "..."` | Subtitle under the title. |
 | `desc "..."` | Long description for the SVG `<desc>` (screen readers, search). |
 | `legend [bottom] [off] [kind ...]` | A legend built from the node and arrow kinds that actually appear. Under `clean` it is added automatically when a typed edge is used; it sits top-right beside the title when it fits, otherwise as a block at the top or, with `bottom`, at the end. `legend off` suppresses even the automatic one. Listing kinds restricts it. |

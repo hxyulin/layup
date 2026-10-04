@@ -1,10 +1,15 @@
+import { createPresentation, PRESENTATION_CSS } from './presentation.js';
+
 // Interaction for diagrams rendered by @hxyulin/layup/markdown-it: hovering or
 // clicking a node highlights it and its edges, and the expand button opens
 // a full-window view with pan and zoom. Handlers are delegated from the
 // document, so diagrams added by client-side navigation need no setup.
 // Importing this module during server rendering does nothing.
 
-const CSS = `
+const presentations = new WeakMap();
+const presentationKeyHosts = new WeakSet();
+
+const CSS = PRESENTATION_CSS + `
 .layup-diagram{position:relative}
 .layup-diagram .layup-expand[hidden]{display:flex}
 .layup-expand{position:absolute;right:6px;bottom:6px;align-items:center;justify-content:center;width:26px;height:26px;padding:0;cursor:pointer;opacity:0;transition:opacity .15s}
@@ -47,6 +52,33 @@ function install() {
   style.id = 'layup-client';
   style.textContent = CSS;
   document.head.append(style);
+
+  const setupPresentations = (root) => {
+    const ancestor = root.closest?.('.layup-diagram');
+    const hosts = ancestor ? [ancestor] : [];
+    hosts.push(...root.querySelectorAll('.layup-diagram'));
+    for (const host of hosts) {
+      const existing = presentations.get(host);
+      const svg = host.querySelector('svg.layup[data-presentation]');
+      if (existing?.svg === svg) continue;
+      existing?.destroy();
+      presentations.delete(host);
+      if (!svg) continue;
+      const controller = createPresentation(svg, host);
+      if (!controller) continue;
+      presentations.set(host, controller);
+      if (!presentationKeyHosts.has(host)) {
+        host.addEventListener('keydown', event => presentations.get(host)?.keydown(event));
+        presentationKeyHosts.add(host);
+      }
+    }
+  };
+  setupPresentations(document);
+  new MutationObserver(records => {
+    for (const record of records) for (const node of record.addedNodes) {
+      if (node instanceof Element) setupPresentations(node);
+    }
+  }).observe(document.body, { childList: true, subtree: true });
 
   document.addEventListener('pointerover', (e) => {
     const svg = diagram(e.target);
@@ -108,7 +140,10 @@ function openViewer(source) {
   const colors = getComputedStyle(source);
   dialog.style.setProperty('--layup-viewer-bg', colors.getPropertyValue('--bg'));
   dialog.style.setProperty('--layup-viewer-ink', colors.getPropertyValue('--muted'));
-  dialog.addEventListener('close', () => dialog.remove());
+  const presentation = createPresentation(svg, dialog);
+  const sourceStep = presentations.get(source.closest('.layup-diagram'))?.index;
+  if (presentation && sourceStep >= 0) presentation.set(sourceStep);
+  dialog.addEventListener('close', () => { presentation?.destroy(); dialog.remove(); });
   dialog.showModal();
   const view = panZoom(dialog.querySelector('.layup-stage'), svg);
   dialog.querySelector('.layup-bar').addEventListener('click', (e) => {
@@ -119,6 +154,7 @@ function openViewer(source) {
   // Esc closes the dialog natively.
   const keys = { '+': () => view.zoom(0.8), '=': () => view.zoom(0.8), '-': () => view.zoom(1.25), '0': view.fit, f: view.fit, ArrowLeft: () => view.pan(-0.1, 0), ArrowRight: () => view.pan(0.1, 0), ArrowUp: () => view.pan(0, -0.1), ArrowDown: () => view.pan(0, 0.1) };
   dialog.addEventListener('keydown', (e) => {
+    if (presentation?.keydown(e)) return;
     if (e.ctrlKey || e.metaKey || e.altKey || !keys[e.key]) return;
     e.preventDefault();
     keys[e.key]();

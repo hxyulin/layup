@@ -24,11 +24,16 @@ pub mod lint;
 mod machine;
 pub mod model;
 pub mod parser;
+pub mod presentation;
 pub mod route;
+pub mod scene;
+pub mod sequence;
 mod sizing;
+pub mod slides;
 pub mod style;
 pub mod svg;
 pub mod text;
+pub mod views;
 
 use std::fmt;
 
@@ -154,6 +159,27 @@ pub struct Compiled {
     pub diagram: model::Diagram,
     pub scene: layout::Scene,
     pub warnings: Vec<Warning>,
+    pub slide: Option<slides::SlidePlan>,
+    pub presentation: presentation::Presentation,
+    pub views: Vec<views::ViewInfo>,
+    pub selected_view: Option<String>,
+    pub sequence: Option<sequence::SequenceInfo>,
+}
+
+impl Compiled {
+    /// Rendered viewport; scene geometry stays in its original coordinate space.
+    pub fn viewport(&self) -> (f64, f64) {
+        self.slide
+            .as_ref()
+            .map_or((self.scene.width, self.scene.height), |s| {
+                (s.width, s.height)
+            })
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CompileOptions {
+    pub view: Option<String>,
 }
 
 pub fn compile(src: &str) -> Result<Compiled, Error> {
@@ -162,20 +188,92 @@ pub fn compile(src: &str) -> Result<Compiled, Error> {
 
 /// Compile with optional fallback font bytes used for measurement and output.
 pub fn compile_with_fonts(src: &str, fonts: &text::Fonts) -> Result<Compiled, Error> {
-    let mut diagram = model::build(src)?;
+    compile_with_options(src, &CompileOptions::default(), fonts)
+}
+
+/// Compile a selected view using the same fonts and semantics as rendering.
+pub fn compile_with_options(
+    src: &str,
+    options: &CompileOptions,
+    fonts: &text::Fonts,
+) -> Result<Compiled, Error> {
+    compile_document(src, options, fonts).map_err(|mut error| {
+        if let Ok(tokens) = lexer::lex(src) {
+            if error.line.is_none() {
+                error.span = tokens
+                    .iter()
+                    .find(|t| !matches!(t.tok, lexer::Tok::Newline))
+                    .map(|t| Box::new(t.span));
+                error.line = error.span.as_ref().map(|s| s.line);
+            }
+            diagnostic::locate(&mut error, &tokens);
+        }
+        error
+    })
+}
+
+fn compile_document(
+    src: &str,
+    options: &CompileOptions,
+    fonts: &text::Fonts,
+) -> Result<Compiled, Error> {
+    let mut resolved = views::resolve(&parser::parse(src)?, options.view.as_deref())?;
+    let steps = presentation::extract(&mut resolved.statements)?;
+    let slide = if let [parser::Stmt::Item(root)] = resolved.statements.as_mut_slice() {
+        if root.head == "diagram" {
+            slides::Slide::take(root)?
+        } else {
+            None
+        }
+    } else {
+        None
+    };
     let mut warnings = Vec::new();
+    let sequence_document = if sequence::is_sequence(&resolved.statements) {
+        Some(sequence::build(&resolved.statements)?)
+    } else {
+        None
+    };
+    let mut diagram = match &sequence_document {
+        Some(document) => document.diagram.clone(),
+        None => model::build_statements(&resolved.statements)?,
+    };
     if diagram.mode == model::Mode::StateMachine {
         machine::check(&diagram, &mut warnings);
     }
-    let mut scene = layout::layout_with_fonts(&diagram, &mut warnings, fonts);
+    let (mut scene, sequence_info) = if let Some(document) = &sequence_document {
+        let (scene, info) = sequence::layout(document, fonts, &mut warnings)?;
+        (scene, Some(info))
+    } else {
+        (
+            layout::layout_with_fonts(&diagram, &mut warnings, fonts),
+            None,
+        )
+    };
+    if sequence_info.is_none() {
+        route::route_all(&diagram, &mut scene, &mut warnings);
+    }
     diagram.width = scene.width;
-    route::route_all(&diagram, &mut scene, &mut warnings);
     check::check(&scene, &mut warnings);
     let mut missing = std::collections::BTreeSet::new();
-    for placed in &scene.items {
-        if let layout::Item::Text(t) = &placed.item {
+    let mut drawings: Vec<_> = scene
+        .items
+        .iter()
+        .map(|placed| (&placed.item, placed.node.map(|i| scene.nodes[i].line)))
+        .chain(
+            scene
+                .edges
+                .iter()
+                .filter_map(|edge| edge.chip.as_ref().map(|item| (item, Some(edge.line)))),
+        )
+        .collect();
+    while let Some((item, line)) = drawings.pop() {
+        if let layout::Item::Group(children) = item {
+            drawings.extend(children.iter().map(|child| (child, line)));
+        }
+        if let layout::Item::Text(t) = item {
             for run in &t.runs {
-                let font = if run.code {
+                let font = if run.code || t.mono {
                     text::Font::Mono
                 } else if t.weight >= 600 {
                     text::Font::SansBold
@@ -188,34 +286,34 @@ pub fn compile_with_fonts(src: &str, fonts: &text::Fonts) -> Result<Compiled, Er
                         && missing.insert(c)
                     {
                         warnings.push(Warning {
-                            line: placed.node.map(|i| scene.nodes[i].line),
+                            line,
                             msg: format!("character U+{:04X} `{c}` is outside the bundled fonts; viewer fallback metrics are estimated", c as u32),
                         });
                     }
                 }
             }
         }
-    }
-    for chip in scene
-        .items
-        .iter()
-        .map(|p| &p.item)
-        .chain(scene.edges.iter().filter_map(|e| e.chip.as_ref()))
-    {
-        if let layout::Item::Chip { text: label, .. } = chip {
+        if let layout::Item::Chip { text: label, .. } = item {
             for c in label.chars() {
                 if !text::is_cjk(c)
                     && !text::supports_with_fonts(c, text::Font::Sans, fonts)
                     && missing.insert(c)
                 {
-                    warnings.push(Warning { line: None, msg: format!("character U+{:04X} `{c}` is outside the bundled fonts; viewer fallback metrics are estimated", c as u32) });
+                    warnings.push(Warning { line, msg: format!("character U+{:04X} `{c}` is outside the bundled fonts; viewer fallback metrics are estimated", c as u32) });
                 }
             }
         }
     }
+    let presentation = presentation::resolve(steps, &scene)?;
+    let slide = slide.map(|s| s.plan(&scene, &mut warnings));
     Ok(Compiled {
         diagram,
         scene,
         warnings,
+        slide,
+        presentation,
+        views: resolved.views,
+        selected_view: resolved.selected_view,
+        sequence: sequence_info,
     })
 }

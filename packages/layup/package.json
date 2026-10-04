@@ -40,7 +40,7 @@
   ],
   "scripts": {
     "test": "node --test",
-    "prepack": "cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown && cp ../../target/wasm32-unknown-unknown/wasm/layup_wasm.wasm layup.wasm"
+    "prepack": "cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown && cp ../../target/wasm32-unknown-unknown/wasm/layup_wasm.wasm layup.wasm && cp ../../crates/layup/src/presentation.js presentation.js"
   },
   "publishConfig": {
     "access": "public"

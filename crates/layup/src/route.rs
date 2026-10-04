@@ -161,6 +161,7 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
             taken_bus.push(e.bus);
         }
         scene.edges.push(EdgePath {
+            id: e.id.clone(),
             from: e.from.clone(),
             to: e.to.clone(),
             kind: e.kind.clone(),
@@ -172,6 +173,8 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
             chip,
             bus: e.bus,
             line: e.line,
+            span: e.span,
+            asynchronous: false,
         });
     }
     let lowest = scene

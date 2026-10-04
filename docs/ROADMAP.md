@@ -63,7 +63,23 @@ Reachability includes default composite initial paths and direct descendant
 entry. History, parallel regions, fork/join, and structured event syntax
 should follow concrete use cases.
 
-## Agreed next stages
+## Presentation and sequence diagrams: implemented
+
+`mode=sequence` adds authored participant columns, lifelines, synchronous and
+asynchronous messages, returns, self-calls, notes and nested loop/opt/alt
+fragments. Time advances downward; left/right controls column order. Text
+shares measured wrapping, RTL shaping and supplied-font behavior with other
+diagrams. See [the sequence reference](SEQUENCE.md).
+
+Slide viewports uniformly fit the completed scene and warn when scaled text
+falls below an authored readability threshold. Progressive reveal supports
+cumulative node/edge visibility, per-step highlights and speaker notes in
+standalone, iframe, inline and fullscreen viewers. Reusable models define
+nodes/edges once and select named views with inherited attributes and local
+presentation steps. See [the presentation guide](PRESENTATION.md) and the
+[combined request/retry model](../examples/presentation-model.layup).
+
+## Next stages
 
 Language tooling is implemented: source spans, recovering syntax diagnostics,
 CLI/JavaScript linting, and formatting that preserves comments and strings.
@@ -72,24 +88,25 @@ editor completion/LSP support and incremental parsing are possible follow-ups.
 
 1. Automatic sizing/packing and composite states: implemented and covered by
    geometry, semantic, CLI/WASM parity, and browser checks.
-2. JSON scene export, then PNG/PDF: expose a versioned scene contract and add
-   optional SVG-based output frontends.
-3. Interactive and animated views: active-state sets, transition traces,
-   playback controls, and animated traversal using the exported semantic IDs.
+2. JSON scene export: implemented as schema version 1 in Rust, CLI and JS/WASM.
+   PNG/PDF can follow as optional SVG-based output frontends.
+3. Interactive reveal and playback controls: implemented. Active-state sets,
+   transition traces and animated traversal can use exported semantic IDs.
    Simulation needs an explicit execution contract and stays a separate layer.
+4. Architecture presets and swimlanes can extend presentation workflows;
+   ER/interface diagrams should follow concrete software-documentation needs.
 
 ## Output and interactive views
 
 Retain SVG as the shared rendering format. SVG and the HTML viewer will gain
 new node kinds together, as will the WebAssembly/VitePress integration.
 
-A serializable scene/geometry export is the next useful format: it would let
-other tools inspect layout, build alternate renderers, and implement state
-highlighting without parsing SVG. Define its coordinate, outline, text-run,
-and font contracts before calling it a stable API. Include hierarchy, source lines,
-text direction, and stable transition IDs that distinguish multiple arrows
-between the same states. Keep portable layout geometry separate from SVG
-styling and optional font payloads.
+The version-1 scene export lets other tools inspect layout, build alternate
+renderers and use semantic IDs without parsing SVG. It includes original
+coordinates, outlines, drawing operations, text runs, hierarchy, source
+spans, fonts, views, slide transforms, sequence events and presentation plans.
+Font identifiers remain separate from SVG's embedded font payloads. Consumers
+must check the schema version; incompatible contracts need a version change.
 
 PNG/PDF export can consume the SVG in an optional rendering frontend, with
 explicit scale/page sizing and the same system/supplied-font policy as SVG.

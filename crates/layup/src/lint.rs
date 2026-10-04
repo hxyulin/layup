@@ -13,11 +13,19 @@ pub fn lint(source: &str) -> Vec<Diagnostic> {
 }
 
 pub fn lint_with_fonts(source: &str, fonts: &Fonts) -> Vec<Diagnostic> {
+    lint_with_options(source, &crate::CompileOptions::default(), fonts)
+}
+
+pub fn lint_with_options(
+    source: &str,
+    options: &crate::CompileOptions,
+    fonts: &Fonts,
+) -> Vec<Diagnostic> {
     let parsed = crate::parser::parse_recovering(source);
     if !parsed.errors.is_empty() {
         return parsed.errors.iter().map(Diagnostic::from_error).collect();
     }
-    let compiled = match crate::compile_with_fonts(source, fonts) {
+    let compiled = match crate::compile_with_options(source, options, fonts) {
         Err(e) => return vec![Diagnostic::from_error(&e)],
         Ok(c) => c,
     };
@@ -39,7 +47,10 @@ pub fn lint_with_fonts(source: &str, fonts: &Fonts) -> Vec<Diagnostic> {
     }
     let mut items = Vec::new();
     let mut edges = Vec::new();
-    let mut stack: Vec<_> = parsed.statements.iter().rev().collect();
+    let mut resolved = crate::views::resolve(&parsed.statements, options.view.as_deref())
+        .expect("validated by compilation");
+    crate::presentation::extract(&mut resolved.statements).expect("validated by compilation");
+    let mut stack: Vec<_> = resolved.statements.iter().rev().collect();
     while let Some(stmt) = stack.pop() {
         match stmt {
             Stmt::Item(i) => {
@@ -83,12 +94,33 @@ pub fn lint_with_fonts(source: &str, fonts: &Fonts) -> Vec<Diagnostic> {
             }
         }
     }
-    let used_arrows: BTreeSet<_> = compiled
+    let mut used_arrows: BTreeSet<_> = compiled
         .diagram
         .edges
         .iter()
         .map(|e| e.kind.as_str())
         .collect();
+    if compiled.selected_view.is_some() {
+        // Declarations belong to the shared model. A filtered-out use in
+        // another view still makes that declaration useful in the source.
+        let mut shared: Vec<_> = parsed.statements.iter().collect();
+        while let Some(statement) = shared.pop() {
+            match statement {
+                Stmt::Edge(edge) => {
+                    used_arrows.insert(edge.kind.as_deref().unwrap_or("default"));
+                }
+                Stmt::Item(item) if item.head != "view" && !ignores_body(&item.head) => {
+                    if compiled.diagram.kinds.contains_key(&item.head) {
+                        used_kinds.insert(item.head.as_str());
+                    }
+                    if let Some(body) = &item.body {
+                        shared.extend(body);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
     for i in &items {
         if let Some(Arg::Value(Value::Ident(name))) = i.args.first() {
             if i.head == "style" && !used_kinds.contains(name.as_str()) {
@@ -124,8 +156,14 @@ pub fn lint_with_fonts(source: &str, fonts: &Fonts) -> Vec<Diagnostic> {
     }
     let mut transitions = BTreeMap::new();
     for (e, syntax) in compiled.diagram.edges.iter().zip(edges) {
+        if compiled.diagram.mode == crate::model::Mode::Sequence {
+            // Repeated calls are separate chronological events, including retries.
+            continue;
+        }
         let mut normalized = e.clone();
         normalized.line = 0;
+        normalized.span = Span::default();
+        normalized.id.clear();
         let signature = format!("{normalized:?}");
         if let Some(first) = transitions.get(&signature) {
             let mut d=warning("lint/duplicate-transition",format!("duplicate transition {} -> {}",e.from,e.to),syntax.span,Some("remove the duplicate, or give distinct transitions different labels or routing attributes".into()));

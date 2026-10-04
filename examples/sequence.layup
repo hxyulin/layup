@@ -1,0 +1,29 @@
+diagram "Submit and process a request" mode=sequence {
+  actor user "User" blue
+  participant browser "Browser" green
+  participant api "API" purple
+  participant worker "Worker" orange
+
+  user -> browser "Submit request" id=submit
+  browser -> api "POST /jobs" id=request
+  note "Validate the payload before starting work." over=api
+  api -> api "Validate and authorize" id=validate
+  api -> worker "Queue job" async id=enqueue
+  api -> browser "202 Accepted" return id=accepted
+
+  loop "Until the job completes" {
+    browser -> api "GET /jobs/:id" id=poll
+    alt "Job status" {
+      branch "Complete" {
+        api -> browser "200 + result" return id=result
+      }
+      branch "Still running" {
+        api -> browser "200 + pending" return id=pending
+      }
+    }
+  }
+
+  opt "Notify the user" {
+    browser -> user "Display the result" id=display
+  }
+}

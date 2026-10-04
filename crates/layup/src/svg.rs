@@ -35,6 +35,7 @@ pub fn render(c: &Compiled, theme: Theme) -> String {
 pub fn render_with(c: &Compiled, options: &Options) -> String {
     let theme = options.theme;
     let scene = &c.scene;
+    let (width, height) = c.viewport();
     let id = id_prefix(c, theme);
     let mut s = String::new();
     let class = match theme {
@@ -44,9 +45,14 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     };
     let _ = writeln!(
         s,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" direction="ltr" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc">"#,
-        w = num(scene.width),
-        h = num(scene.height)
+        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" direction="ltr" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc"{presentation}>"#,
+        w = width,
+        h = height,
+        presentation = if c.presentation.steps.is_empty() {
+            String::new()
+        } else {
+            format!(" data-presentation=\"{}\"", esc(&c.presentation.json()))
+        }
     );
     let _ = writeln!(
         s,
@@ -83,21 +89,32 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
             r#"    <marker id="{id}m-{n}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="mk mk-{n}"/></marker>"#,
             n = t.name()
         );
+        let _ = writeln!(
+            s,
+            r#"    <marker id="{id}mo-{n}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" class="ln ln-{n}" fill="none"/></marker>"#,
+            n = t.name()
+        );
     }
     s.push_str("  </defs>\n");
     let _ = writeln!(
         s,
         r#"  <rect class="bg" width="{}" height="{}"/>"#,
-        num(scene.width),
-        num(scene.height)
+        width, height
     );
     let _ = writeln!(
         s,
         r#"  <rect class="frame" x="0.5" y="0.5" width="{}" height="{}"/>"#,
-        num(scene.width - 1.0),
-        num(scene.height - 1.0)
+        (width - 1.0).max(0.0),
+        (height - 1.0).max(0.0)
     );
 
+    if let Some(slide) = &c.slide {
+        let _ = writeln!(
+            s,
+            "  <g class=\"diagram-transform\" transform=\"translate({} {}) scale({})\">",
+            slide.offset_x, slide.offset_y, slide.scale
+        );
+    }
     s.push_str("  <g class=\"content\">\n");
     let mut open: Option<usize> = None;
     let close = |s: &mut String, open: Option<usize>| {
@@ -134,10 +151,11 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     for e in &scene.edges {
         let _ = writeln!(
             s,
-            r#"    <g class="edge k-{}" data-from="{}" data-to="{}">"#,
+            r#"    <g class="edge k-{}" data-from="{}" data-to="{}" data-edge-id="{}">"#,
             esc(&e.kind),
             esc(&e.from),
-            esc(&e.to)
+            esc(&e.to),
+            esc(&e.id)
         );
         let mut d = String::new();
         for (i, (x, y)) in e.points.iter().enumerate() {
@@ -154,10 +172,20 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
             attrs.push_str(r#" stroke-dasharray="7 5""#);
         }
         if e.head_end {
-            let _ = write!(attrs, r#" marker-end="url(#{id}m-{})""#, e.tone.name());
+            let _ = write!(
+                attrs,
+                r#" marker-end="url(#{id}{}-{})""#,
+                if e.asynchronous { "mo" } else { "m" },
+                e.tone.name()
+            );
         }
         if e.head_start {
-            let _ = write!(attrs, r#" marker-start="url(#{id}m-{})""#, e.tone.name());
+            let _ = write!(
+                attrs,
+                r#" marker-start="url(#{id}{}-{})""#,
+                if e.asynchronous { "mo" } else { "m" },
+                e.tone.name()
+            );
         }
         let _ = writeln!(s, r#"      <path d="{d}" {attrs}/>"#);
         if let Some(chip) = &e.chip {
@@ -174,6 +202,9 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
         s.push_str("    </g>\n");
     }
     s.push_str("  </g>\n");
+    if c.slide.is_some() {
+        s.push_str("  </g>\n");
+    }
     s.push_str("</svg>\n");
     s
 }
@@ -196,10 +227,12 @@ fn id_prefix(c: &Compiled, theme: Theme) -> String {
 fn used_chars(scene: &Scene) -> BTreeSet<char> {
     let chips = scene.edges.iter().filter_map(|e| e.chip.as_ref());
     let mut chars: BTreeSet<char> = [' ', '\u{a0}'].into();
-    for item in scene.items.iter().map(|p| &p.item).chain(chips) {
+    let mut stack: Vec<_> = scene.items.iter().map(|p| &p.item).chain(chips).collect();
+    while let Some(item) = stack.pop() {
         match item {
             Item::Text(t) => chars.extend(t.runs.iter().flat_map(|r| r.text.chars())),
             Item::Chip { text, .. } => chars.extend(text.chars()),
+            Item::Group(items) => stack.extend(items),
             _ => {}
         }
     }
@@ -208,6 +241,21 @@ fn used_chars(scene: &Scene) -> BTreeSet<char> {
 
 fn item(s: &mut String, p: &Placed, id: &str, direction: Direction) {
     match &p.item {
+        Item::Group(items) => {
+            s.push_str("      <g>\n");
+            for child in items {
+                item(
+                    s,
+                    &Placed {
+                        item: child.clone(),
+                        node: None,
+                    },
+                    id,
+                    direction,
+                );
+            }
+            s.push_str("      </g>\n");
+        }
         Item::Box {
             rect,
             tone,

@@ -39,6 +39,7 @@ pub enum Mode {
     #[default]
     Graph,
     StateMachine,
+    Sequence,
 }
 
 /// Diagram-wide defaults. `clean` (the default) fills in tones, edge
@@ -166,6 +167,7 @@ pub struct Node {
     pub gutter: Option<f64>,
     pub hints: Box<[LayoutHint]>,
     pub line: usize,
+    pub span: crate::diagnostic::Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,6 +192,7 @@ impl Side {
 
 #[derive(Debug, Clone)]
 pub struct Edge {
+    pub id: String,
     pub from: String,
     pub to: String,
     pub kind: String,
@@ -206,6 +209,7 @@ pub struct Edge {
     /// Share a port and channel with other `bus` edges instead of spreading.
     pub bus: bool,
     pub line: usize,
+    pub span: crate::diagnostic::Span,
 }
 
 const FLAG_WORDS: &[&str] = &[
@@ -214,8 +218,18 @@ const FLAG_WORDS: &[&str] = &[
 ];
 
 pub fn build(src: &str) -> Result<Diagram, Error> {
-    let stmts = parse(src)?;
-    let result = build_statements(&stmts);
+    let result = (|| {
+        let mut resolved = crate::views::resolve(&parse(src)?, None)?;
+        crate::presentation::extract(&mut resolved.statements)?;
+        if let [Stmt::Item(root)] = resolved.statements.as_mut_slice() {
+            crate::slides::Slide::take(root)?;
+        }
+        if crate::sequence::is_sequence(&resolved.statements) {
+            Ok(crate::sequence::build(&resolved.statements)?.diagram)
+        } else {
+            build_statements(&resolved.statements)
+        }
+    })();
     result.map_err(|mut error| {
         if let Ok(tokens) = crate::lexer::lex(src) {
             if error.line.is_none() {
@@ -232,7 +246,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
     })
 }
 
-fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
+pub(crate) fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
     validate_numbers(stmts)?;
     let mut b = Builder {
         kinds: presets(),
@@ -284,7 +298,7 @@ fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
                         _ => {
                             return Err(Error::at(
                                 root.line,
-                                "mode must be graph or state-machine",
+                                "mode must be graph, state-machine or sequence",
                             ));
                         }
                     };
@@ -365,6 +379,31 @@ fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
     }
     d.blocks = b.blocks(&body, &mut d)?;
     d.edges = b.edges;
+    let mut reserved_edges = BTreeSet::new();
+    let mut edge_locations = BTreeMap::new();
+    for edge in &d.edges {
+        if !edge.id.is_empty() {
+            if let Some(first) = edge_locations.insert(edge.id.clone(), edge.span) {
+                return Err(Error::located(
+                    edge.span,
+                    "semantic/duplicate-edge-id",
+                    format!("duplicate edge id `{}`", edge.id),
+                )
+                .with_related(first, "first edge with this id"));
+            }
+            reserved_edges.insert(edge.id.clone());
+        }
+    }
+    for (i, edge) in d.edges.iter_mut().enumerate() {
+        if edge.id.is_empty() {
+            let mut n = i + 1;
+            while reserved_edges.contains(&format!("edge-{n}")) {
+                n += 1;
+            }
+            edge.id = format!("edge-{n}");
+            reserved_edges.insert(edge.id.clone());
+        }
+    }
     d.kinds = b.kinds;
     d.arrows = b.arrows;
     d.legend = b.legend;
@@ -832,6 +871,7 @@ impl Builder {
             gutter,
             hints: hints.into_boxed_slice(),
             line: it.line,
+            span: it.span,
         })
     }
 
@@ -984,6 +1024,7 @@ impl Builder {
             (false, false) => (e.from.clone(), e.to.clone(), false, false),
         };
         let mut edge = Edge {
+            id: String::new(),
             from,
             to,
             kind,
@@ -998,6 +1039,7 @@ impl Builder {
             labeled: false,
             bus: false,
             line: e.line,
+            span: e.span,
         };
         for a in &e.args {
             match a {
@@ -1018,6 +1060,16 @@ impl Builder {
                     }
                 },
                 Arg::Attr(k, v) => match k.as_str() {
+                    "id" => {
+                        edge.id = v.as_text();
+                        if edge.id.is_empty() {
+                            return Err(Error::located(
+                                e.span,
+                                "semantic/edge-id",
+                                "edge id cannot be empty",
+                            ));
+                        }
+                    }
                     "via" => edge.via = Some(side_value(v, e.line)?),
                     "from" => edge.from_side = Some(side_value(v, e.line)?),
                     "to" => edge.to_side = Some(side_value(v, e.line)?),

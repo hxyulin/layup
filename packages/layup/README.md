@@ -34,6 +34,22 @@ Unicode scalars. `LayupError` keeps its `line`, `reason` and message format.
 See [the language-tools guide](../../docs/LANGUAGE-TOOLS.md) for rules and
 source-position conventions.
 
+The development checkout also exposes a versioned scene API:
+
+```js
+const scene = layup.compile(source, { view: 'detail', fonts: [] });
+const { output } = layup.render(source, { view: 'detail', format: 'html' });
+const diagnostics = layup.lint(source, { view: 'detail' });
+```
+
+`compile` returns schema version 1 with nodes, edges, drawing operations,
+source spans, font identifiers, warnings, selected views, optional sequence
+metadata, slide transforms and presentation steps. Geometry stays in the
+original scene coordinate system; `scene.viewport.slide` supplies the
+separate fit transform. Font bytes are not exported. See the
+[scene contract and presentation guide](../../docs/PRESENTATION.md) for the
+complete schema and [sequence reference](../../docs/SEQUENCE.md) for the DSL.
+
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 
@@ -61,6 +77,12 @@ The preset follows VitePress's light/dark toggle (`darkSelector: '.dark'`)
 and writes markup that survives Vue's template compiler, which would drop an
 SVG's `<style>` and interpolate `{{ }}`. For other markdown-it hosts use the
 default export; its `auto` theme follows `prefers-color-scheme`.
+
+The plugin accepts a default `view` option; a fence's `view=NAME` overrides it.
+Authored `step` plans are embedded as SVG metadata. Importing the client adds
+Present/Previous/Next/All controls and plain-text speaker notes to diagrams
+with steps, including fullscreen and keyboard navigation. Static output
+displays the complete diagram before presentation begins.
 
 ## Interaction
 

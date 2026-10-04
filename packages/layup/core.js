@@ -34,11 +34,19 @@ export function wrap(instance) {
     return `\nfont=${btoa(binary)}`;
   }
 
-  function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [] } = {}) {
+  function compileOptions(options, fonts, view) {
+    if (view !== undefined) {
+      if (typeof view !== 'string' || /[\r\n]/.test(view)) throw new TypeError('view must be a single-line string');
+      options += `\nview=${view}`;
+    }
+    for (const font of fonts) options += fontOption(font);
+    return options;
+  }
+
+  function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [], view } = {}) {
     let options = `theme=${theme}\nformat=${format}`;
     if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
-    for (const font of fonts) options += fontOption(font);
-    return invoke(source, options);
+    return invoke(source, compileOptions(options, fonts, view));
   }
 
   function invoke(source, options) {
@@ -62,11 +70,11 @@ export function wrap(instance) {
   return {
     render,
     format(source) { return invoke(source, 'operation=format').output; },
-    lint(source, { fonts = [] } = {}) {
-      // Use the same font validation and transport as rendering.
-      let options = 'operation=lint';
-      for (const font of fonts) options += fontOption(font);
-      return invoke(source, options).diagnostics;
+    lint(source, { fonts = [], view } = {}) {
+      return invoke(source, compileOptions('operation=lint', fonts, view)).diagnostics;
+    },
+    compile(source, { fonts = [], view } = {}) {
+      return invoke(source, compileOptions('operation=compile', fonts, view)).scene;
     },
   };
 }

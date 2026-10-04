@@ -1,0 +1,42 @@
+// One sequence model, a complete overview, and a slide-sized walkthrough.
+// Render with --view overview or --view walkthrough --html.
+model "Request and retry" mode=sequence slide=wide {
+  participant client "Browser" blue
+  participant api "API" purple
+  participant worker "Worker" green
+
+  client -> api "POST /jobs" id=request
+  api -> worker "Queue work" async id=enqueue
+  api -> client "202 Accepted" return id=accepted
+  loop "Poll until complete" {
+    client -> api "GET /jobs/:id" id=poll
+    api -> client "200 + pending" return id=pending
+  }
+  api -> client "200 + result" return id=result
+
+  view overview "Request and retry · overview" {
+    include client api worker
+  }
+  view walkthrough "Request and retry · walkthrough" {
+    include client api worker
+    step request "Submit the request" {
+      show client api worker
+      show-edge request
+      highlight-edge request
+      note "The browser sends a request to the API."
+    }
+    step dispatch "Dispatch work asynchronously" {
+      show-edge enqueue accepted
+      highlight-edge enqueue
+      note "Work continues after the API returns an acknowledgement."
+    }
+    step retry "Poll while work is pending" {
+      show-edge poll pending
+      highlight-edge poll pending
+    }
+    step complete "Return the result" {
+      show-edge result
+      highlight-edge result
+    }
+  }
+}

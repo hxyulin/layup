@@ -12,6 +12,8 @@ layup lint diagram.layup --json    # structured source diagnostics
 layup fmt diagram.layup --check   # formatting check without writing
 layup fmt diagram.layup --write   # format in place after syntax validation
 layup build docs/
+layup compile diagram.layup -o scene.json
+layup render model.layup --view detail --html
 ```
 
 The installed executable is named `layup`. For use in Rust code, depend on
@@ -20,6 +22,12 @@ The installed executable is named `layup`. For use in Rust code, depend on
 Version 0.3 adds the `lint` and `fmt` commands.
 See the [language-tools guide](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-TOOLS.md)
 for recovery, lint rules, source positions, stdin and batch formatting.
+
+The development checkout adds `compile` for versioned scene JSON, and global
+`--view NAME` selection for shared models. Slide fitting and authored reveal
+plans use the same compiler as SVG/HTML rendering. See the
+[presentation and scene guide](https://github.com/hxyulin/layup/blob/main/docs/PRESENTATION.md)
+and [sequence diagrams](https://github.com/hxyulin/layup/blob/main/docs/SEQUENCE.md).
 
 See the [project README](https://github.com/hxyulin/layup#readme) for examples,
 font details, and documentation. Licensed under MIT OR Apache-2.0.

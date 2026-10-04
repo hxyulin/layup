@@ -17,8 +17,14 @@ pub fn render(c: &Compiled, theme: Theme, embed: bool) -> String {
         .replace("{{TITLE}}", &esc(&c.diagram.title))
         .replace("{{THEME}}", theme_name)
         .replace("{{EMBED}}", if embed { "embed" } else { "" })
-        .replace("{{WIDTH}}", &crate::svg::num(c.scene.width))
-        .replace("{{HEIGHT}}", &crate::svg::num(c.scene.height))
+        .replace("{{WIDTH}}", &crate::svg::num(c.viewport().0))
+        .replace("{{HEIGHT}}", &crate::svg::num(c.viewport().1))
+        .replace(
+            "{{PRESENTATION_SCRIPT}}",
+            &include_str!("presentation.js")
+                .replace("export function ", "function ")
+                .replace("export const ", "const "),
+        )
         .replace("{{SVG}}", &svg)
 }
 
@@ -61,6 +67,7 @@ const TEMPLATE: &str = r##"<!doctype html>
 <div id="stage">{{SVG}}</div>
 <div id="hint">drag to pan · wheel to zoom · hover or click a node · ?focus=id</div>
 <script>
+{{PRESENTATION_SCRIPT}}
 (() => {
   const W = {{WIDTH}}, H = {{HEIGHT}};
   const stage = document.getElementById('stage');
@@ -69,6 +76,16 @@ const TEMPLATE: &str = r##"<!doctype html>
   const params = new URLSearchParams(location.search);
   let vb = { x: 0, y: 0, w: W, h: H };
   let pinned = null;
+  const presentationStyle = document.createElement('style');
+  presentationStyle.textContent = PRESENTATION_CSS + '#presentation-host{position:absolute;left:12px;bottom:32px;right:12px;z-index:2;background:inherit;padding:8px;border-radius:6px}';
+  document.head.append(presentationStyle);
+  const presentationHost = document.createElement('div');
+  presentationHost.id = 'presentation-host';
+  document.body.append(presentationHost);
+  const presentation = createPresentation(svg, presentationHost, { onChange(state) {
+    if (window.parent !== window) window.parent.postMessage({ layup: 'step', ...state }, '*');
+  }});
+  if (!presentation) presentationHost.remove();
 
   const apply = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
   const aspect = () => stage.clientWidth / Math.max(1, stage.clientHeight);
@@ -158,7 +175,16 @@ const TEMPLATE: &str = r##"<!doctype html>
     pin(id);
     if (zoom) {
       const b = node.querySelector('.box');
-      const x = +b.getAttribute('x'), y = +b.getAttribute('y'), w = +b.getAttribute('width'), h = +b.getAttribute('height');
+      if (!b) return true;
+      const bounds = b.getBBox();
+      // Convert actual shape bounds into root SVG user units. This includes
+      // the slide transform and excludes the current pan/zoom viewBox scale.
+      const rootMatrix = svg.getCTM(), boxMatrix = b.getCTM();
+      if (!rootMatrix || !boxMatrix) return true;
+      const matrix = rootMatrix.inverse().multiply(boxMatrix);
+      const corners = [[bounds.x,bounds.y],[bounds.x+bounds.width,bounds.y],[bounds.x,bounds.y+bounds.height],[bounds.x+bounds.width,bounds.y+bounds.height]].map(([x,y]) => new DOMPoint(x,y).matrixTransform(matrix));
+      const x = Math.min(...corners.map(p => p.x)), y = Math.min(...corners.map(p => p.y));
+      const w = Math.max(...corners.map(p => p.x)) - x, h = Math.max(...corners.map(p => p.y)) - y;
       const a = aspect();
       const pad = 1.8;
       let vw = Math.max(w * pad, 320), vh = vw / a;
@@ -176,6 +202,7 @@ const TEMPLATE: &str = r##"<!doctype html>
     if (act === 'fit') fit(); else if (act === 'one') actual(); else if (act === 'theme') cycleTheme(); else if (act === 'clear') pin(null);
   });
   window.addEventListener('keydown', e => {
+    if (presentation?.keydown(e)) return;
     if (e.key === 'Escape') pin(null); else if (e.key === 'f' || e.key === 'F') fit(); else if (e.key === '1') actual(); else if (e.key === 't' || e.key === 'T') cycleTheme();
   });
   window.addEventListener('resize', () => { if (!pinned) fit(); });
@@ -185,12 +212,20 @@ const TEMPLATE: &str = r##"<!doctype html>
     else if (m.layup === 'clear') { pin(null); fit(); }
     else if (m.layup === 'theme') setTheme(m.theme);
     else if (m.layup === 'fit') fit();
+    else if (m.layup === 'step') {
+      if (m.action === 'next') presentation?.next();
+      else if (m.action === 'previous') presentation?.previous();
+      else if (m.action === 'all') presentation?.all();
+      else presentation?.set(m.id ?? m.index);
+    }
   });
 
   const qTheme = params.get('theme');
   let saved = null; try { saved = localStorage.getItem('layup-theme'); } catch (_) {}
   if (qTheme) setTheme(qTheme); else if (saved) setTheme(saved); else setTheme(html.dataset.theme);
   fit();
+  const step = params.get('step');
+  if (step) presentation?.set(step);
   const focus = params.get('focus');
   if (focus) focusOn(focus, true);
   if (window.parent !== window) window.parent.postMessage({ layup: 'ready', width: W, height: H }, '*');

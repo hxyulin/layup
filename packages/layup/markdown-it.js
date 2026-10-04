@@ -2,7 +2,7 @@
 import { loadSync, LayupError } from './node.js';
 
 export default function layup(md, options = {}) {
-  const { theme = 'auto', darkSelector, fonts, vue = false, strict = false } = options;
+  const { theme = 'auto', darkSelector, fonts, view, vue = false, strict = false } = options;
   const engine = loadSync();
   const fallback = md.renderer.rules.fence;
 
@@ -20,7 +20,7 @@ export default function layup(md, options = {}) {
     const where = (line) => `${env?.relativePath ?? env?.path ?? 'markdown'}:${(token.map?.[0] ?? 0) + 1 + (line ?? 0)}`;
     let svg;
     try {
-      const { output, warnings } = engine.render(token.content, { theme, darkSelector, fonts });
+      const { output, warnings } = engine.render(token.content, { theme, darkSelector, fonts, view: flags.find(flag => flag.startsWith('view='))?.slice(5) ?? view });
       for (const w of warnings) {
         const message = `${where(w.line)}: layup warning: ${w.message}`;
         if (strict) throw new Error(message);

@@ -59,6 +59,7 @@ preview-incremental:
 wasm:
     cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown
     cp target/wasm32-unknown-unknown/wasm/layup_wasm.wasm packages/layup/layup.wasm
+    cp crates/layup/src/presentation.js packages/layup/presentation.js
 
 # Test the npm package against the CLI.
 js-test: wasm
@@ -88,3 +89,18 @@ vitepress: wasm
 # Build the VitePress example and test it in Chromium (downloads Chromium once).
 vitepress-test: wasm
     cd examples/vitepress && npm install --no-audit --no-fund && npx playwright install chromium && npx vitepress build && node --test
+
+# Exercise presentation controls in standalone, inline, fullscreen and iframe views.
+presentation-test:
+    cargo build -p layup-cli
+    node tools/verify-presentation.mjs
+
+# Review slide transforms and font-size checks in Chromium.
+slide-test:
+    cargo build -p layup-cli
+    node tools/verify-slides.mjs
+
+# Review event-ordered sequence diagrams and multilingual message labels.
+sequence-test:
+    cargo build -p layup-cli
+    node tools/verify-sequences.mjs

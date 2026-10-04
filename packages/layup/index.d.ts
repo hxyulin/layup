@@ -1,8 +1,13 @@
 export type Theme = 'light' | 'dark' | 'auto';
 
-export interface RenderOptions {
-  /** Optional fallback OpenType/TrueType font bytes, used for exact measurement and embedded in output. */
+export interface CompileOptions {
+  /** Optional fallback OpenType/TrueType bytes used for exact measurement. */
   fonts?: readonly Uint8Array[];
+  /** Select a named view of a shared model; the first authored view is the default. */
+  view?: string;
+}
+
+export interface RenderOptions extends CompileOptions {
   theme?: Theme;
   /** `svg`, a standalone interactive `html` page, or `embed` (HTML without toolbar, for an iframe). */
   format?: 'svg' | 'html' | 'embed';
@@ -49,7 +54,9 @@ export interface Layup {
   /** Format valid syntax without changing comments, strings or statement order. Throws LayupError. */
   format(source: string): string;
   /** Collect recoverable syntax errors, or semantic/layout and authoring diagnostics. Does not throw for invalid DSL. */
-  lint(source: string, options?: Pick<RenderOptions, 'fonts'>): LintDiagnostic[];
+  lint(source: string, options?: CompileOptions): LintDiagnostic[];
+  /** Return a versioned scene with geometry, drawing items, source spans, and presentation metadata. Throws LayupError. */
+  compile(source: string, options?: CompileOptions): Scene;
 }
 
 export class LayupError extends Error {
@@ -66,3 +73,108 @@ export class LayupError extends Error {
 export function load(url?: string | URL): Promise<Layup>;
 /** Node only. */
 export function loadSync(): Layup;
+
+
+export type Tone = 'gray' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'red';
+export interface Point { readonly x: number; readonly y: number; }
+export interface Rect extends Point { readonly width: number; readonly height: number; }
+export type Outline =
+  | { readonly type: 'rectangle'; readonly rect: Rect }
+  | { readonly type: 'rounded'; readonly rect: Rect; readonly radius: number }
+  | { readonly type: 'diamond'; readonly rect: Rect; readonly vertices: readonly Point[] };
+
+/** Drawing coordinates belong to the original scene, before the optional slide transform. */
+export type Drawing =
+  | { readonly type: 'group'; readonly items: readonly Drawing[] }
+  | { readonly type: 'box'; readonly rect: Rect; readonly tone: Tone; readonly hollow: boolean; readonly white: boolean; readonly radius: number; readonly strokeWidth: number }
+  | { readonly type: 'state-marker'; readonly rect: Rect; readonly tone: Tone; readonly finalState: boolean }
+  | { readonly type: 'diamond'; readonly rect: Rect; readonly tone: Tone; readonly hollow: boolean; readonly strokeWidth: number }
+  | { readonly type: 'strip'; readonly rect: Rect; readonly radius: number }
+  | { readonly type: 'rule'; readonly from: Point; readonly to: Point; readonly tone: Tone | null; readonly dashed: boolean }
+  | { readonly type: 'text'; readonly x: number; readonly y: number; readonly anchor: 'start' | 'middle' | 'end'; readonly direction: 'auto' | 'ltr' | 'rtl'; readonly runs: readonly TextRun[]; readonly size: number; readonly weight: number; readonly mono: boolean; readonly ink: 'text' | 'muted' | 'code' | { readonly tone: Tone }; readonly letterSpacing: number }
+  | { readonly type: 'chip'; readonly rect: Rect; readonly text: string; readonly tone: Tone; readonly rotate: boolean; readonly bordered: boolean }
+  | { readonly type: 'sample'; readonly x: number; readonly y: number; readonly tone: Tone; readonly dashed: boolean };
+
+export interface TextRun {
+  readonly text: string;
+  readonly code: boolean;
+  readonly tag: boolean;
+}
+export interface SceneNode {
+  readonly id: string;
+  readonly kind: string;
+  readonly parentId: string | null;
+  readonly rect: Rect;
+  readonly outline: Outline;
+  readonly tone: Tone;
+  readonly href: string | null;
+  readonly line: number;
+  readonly span: SourceSpan;
+}
+export interface SceneEdge {
+  readonly id: string;
+  readonly from: string;
+  readonly to: string;
+  readonly kind: string;
+  readonly points: readonly Point[];
+  readonly style: { readonly tone: Tone; readonly dashed: boolean; readonly headStart: boolean; readonly headEnd: boolean; readonly bus: boolean; readonly asynchronous: boolean };
+  readonly chip: Drawing | null;
+  readonly line: number;
+  readonly span: SourceSpan;
+}
+export interface PresentationStep {
+  readonly id: string;
+  readonly title: string;
+  readonly note: string | null;
+  readonly visibleNodes: readonly string[];
+  readonly visibleEdges: readonly string[];
+  readonly highlightNodes: readonly string[];
+  readonly highlightEdges: readonly string[];
+}
+export interface Presentation {
+  readonly version: 1;
+  readonly steps: readonly PresentationStep[];
+}
+export interface SlideTransform {
+  readonly scale: number;
+  readonly offsetX: number;
+  readonly offsetY: number;
+  readonly padding: number;
+  readonly contentWidth: number;
+  readonly contentHeight: number;
+  readonly minFontSize: number;
+  readonly smallestFontSize: number | null;
+}
+export interface SceneView {
+  readonly id: string;
+  readonly title: string;
+  readonly span: SourceSpan;
+}
+export interface SequenceInfo {
+  readonly participants: readonly string[];
+  readonly messages: readonly { readonly id: string; readonly asynchronous: boolean; readonly line: number; readonly span: SourceSpan }[];
+  readonly annotations: readonly { readonly kind: string; readonly label: string; readonly rect: Rect; readonly line: number; readonly span: SourceSpan }[];
+}
+export interface Scene {
+  readonly version: 1;
+  readonly units: 'svg-user-units';
+  readonly coordinateSystem: 'scene';
+  readonly title: string;
+  readonly mode: 'graph' | 'state-machine' | 'sequence';
+  readonly width: number;
+  readonly height: number;
+  readonly margin: number;
+  readonly contentLeft: number;
+  readonly contentRight: number;
+  readonly viewport: { readonly width: number; readonly height: number; readonly slide: SlideTransform | null };
+  readonly selectedView: string | null;
+  readonly views: readonly SceneView[];
+  readonly nodes: readonly SceneNode[];
+  readonly edges: readonly SceneEdge[];
+  readonly items: readonly { readonly nodeId: string | null; readonly drawing: Drawing }[];
+  readonly keepout: readonly Rect[];
+  readonly fonts: { readonly sans: string; readonly mono: string; readonly bundledFallbacks: readonly string[]; readonly fallbacks: readonly string[]; readonly systemCjk: boolean };
+  readonly presentation: Presentation;
+  readonly sequence: SequenceInfo | null;
+  readonly diagnostics: readonly LintDiagnostic[];
+}

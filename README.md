@@ -20,6 +20,12 @@ JavaScript/WASM API. The [changelog](CHANGELOG.md) covers the features and
 API changes, and the [language-tools guide](docs/LANGUAGE-TOOLS.md) explains
 the new tooling.
 
+The current development checkout also adds sequence diagrams, slide viewports,
+progressive reveal, reusable models/views and versioned scene JSON. See the
+[presentation guide](docs/PRESENTATION.md) and
+[sequence reference](docs/SEQUENCE.md), or try the
+[combined request/retry demo](examples/presentation-model.layup).
+
 ### Architecture
 
 Layup draws its own architecture diagram:
@@ -61,6 +67,8 @@ layup check docs/**/*.layup --strict          # CI: warnings fail
 layup check docs/*.md                         # every ```layup block in Markdown
 layup lint diagram.layup --json               # source diagnostics for tools
 layup fmt diagram.layup --check               # formatting check, without writing
+layup compile diagram.layup -o scene.json      # geometry and presentation metadata
+layup render model.layup --view detail --html # select a shared model's view
 layup build docs/                             # every .layup gets an .svg beside it
 ```
 
@@ -317,6 +325,13 @@ let diagram = layup::compile(r#"diagram "Hello" { node api "API" }"#)?;
 let svg = layup::svg::render(&diagram, layup::Theme::Light);
 # Ok::<(), layup::Error>(())
 ```
+
+`compile_with_options(source, &CompileOptions { view: Some("detail".into()) },
+&fonts)` selects a named view. `scene::export(&compiled)` produces versioned
+JSON with original geometry, source ranges, slide transforms, presentation
+steps and sequence metadata. In JavaScript, use
+`engine.compile(source, { view: 'detail', fonts: [] })` to receive the same
+scene as an object. See [the scene contract](docs/PRESENTATION.md#scene-export).
 
 ### License
 

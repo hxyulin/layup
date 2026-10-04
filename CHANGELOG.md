@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Sequence diagrams with authored participant order, lifelines, self-messages, asynchronous/return arrows, notes and nested loop/opt/alt fragments; measured Unicode/RTL labels and supplied-font support.
+- Slide viewports with widescreen/standard/custom dimensions, uniform fit, padding and post-fit minimum-font-size diagnostics.
+- Cumulative presentation steps with stable edge IDs, highlights, speaker notes, keyboard navigation and inline/fullscreen/iframe controls.
+- Reusable models and named views with explicit node identity, include filtering, attribute overrides, per-view presentation plans and CLI/JS/Markdown view selection.
+- Version-1 JSON scene export through Rust `scene::export`, CLI `compile` and JavaScript/WASM `compile`, including original geometry, hierarchy, source spans, slide transforms, reveal plans and sequence metadata without font payloads.
+- Rust model/scene struct additions and `Mode::Sequence` / `Item::Group` affect downstream struct literals and exhaustive matches.
+- Combined presentation demo, focused semantic/geometry tests, native/WASM parity and Chromium galleries.
+
 ## 0.3.0
 
 ### Language tools

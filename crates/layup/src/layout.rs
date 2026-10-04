@@ -85,6 +85,8 @@ pub struct TextItem {
 
 #[derive(Debug, Clone)]
 pub enum Item {
+    /// Compound drawing, used for multiline message labels and annotations.
+    Group(Vec<Item>),
     /// A node body. `hollow` draws only the border.
     Box {
         rect: Rect,
@@ -153,10 +155,12 @@ pub struct NodeRect {
     pub tone: Tone,
     pub href: Option<String>,
     pub line: usize,
+    pub span: crate::diagnostic::Span,
 }
 
 #[derive(Debug, Clone)]
 pub struct EdgePath {
+    pub id: String,
     pub from: String,
     pub to: String,
     pub kind: String,
@@ -168,6 +172,8 @@ pub struct EdgePath {
     pub chip: Option<Item>,
     pub bus: bool,
     pub line: usize,
+    pub span: crate::diagnostic::Span,
+    pub asynchronous: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -1529,6 +1535,7 @@ fn draw_node(
         tone: n.style.tone,
         href: n.href.clone(),
         line: n.line,
+        span: n.span,
     });
     if n.style.shape.marker() {
         ctx.push_for(
