@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Flat state-machine diagrams with `state`, `initial`, `final`, and `choice` shapes.
+- Opt-in `mode=state-machine` validation for initial/final markers, directed transition endpoints, choice branches, and unreachable states.
+- Deterministic machine cycle placement, extra transition-label space, and self-loops with caption clearance.
+- State-machine examples, semantic/geometry tests, CLI/WASM parity, and browser visual/interaction checks.
+
 - Decision, process, and terminal shapes with compact bodies, diamond-safe text wrapping, and outline-aware arrow attachment.
 - Subtree placement for decision trees in all four directions, with general graph fallback for merges, cycles, mixed kinds, and placement hints.
 - Upright branch captions that avoid actual node outlines; warnings when no clear caption placement exists.

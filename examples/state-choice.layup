@@ -1,0 +1,15 @@
+diagram "Authorize an order" mode=state-machine direction=down width=1100 {
+  initial start
+  state received "Order received" blue
+  choice allowed
+  state processing "Processing" green
+  state rejected "Rejected" red
+  final done
+
+  start -> received
+  received -> allowed "validate"
+  allowed -> processing "[allowed] / enqueue()"
+  allowed -> rejected "[denied]"
+  processing -> done "finish"
+  rejected -> done "close"
+}

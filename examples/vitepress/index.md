@@ -54,3 +54,20 @@ diagram "Review a request" layout=auto direction=right {
   ready -> followup "No"
 }
 ```
+
+State machines add initial and final markers, labeled transitions, and
+readable return paths. The renderer displays guards and actions as text.
+
+```layup
+diagram "Job lifecycle" mode=state-machine direction=right {
+  initial begin
+  state idle "Idle" blue
+  state active "Active" green
+  final done
+  begin -> idle
+  idle -> active "start"
+  active -> active "tick"
+  active -> idle "reset"
+  active -> done "finish"
+}
+```

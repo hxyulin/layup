@@ -94,6 +94,11 @@ pub enum Item {
         rx: f64,
         stroke_width: f64,
     },
+    StateMarker {
+        rect: Rect,
+        tone: Tone,
+        final_state: bool,
+    },
     Diamond {
         rect: Rect,
         tone: Tone,
@@ -309,6 +314,7 @@ struct Ctx<'a> {
     warnings: &'a mut Vec<Warning>,
     parent: Option<usize>,
     text_direction: crate::text::Direction,
+    machine_gutter: Option<f64>,
 }
 
 pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
@@ -347,6 +353,14 @@ pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts
         warnings,
         parent: None,
         text_direction: d.text_direction,
+        machine_gutter: (d.mode == crate::model::Mode::StateMachine).then(|| {
+            d.edges
+                .iter()
+                .filter_map(|e| e.label.as_deref())
+                .map(|label| width_with_fonts(label, Font::SansBold, 11.5, 0.0, fonts) + 30.0)
+                .fold(64.0, f64::max)
+                .min(160.0)
+        }),
     };
 
     // Header.
@@ -461,6 +475,9 @@ pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts
     if let Some((lb, true)) = &legend_block {
         measured.push((clone_legend(lb), height(lb)));
     }
+    if ctx.machine_gutter.is_some() {
+        y += 32.0;
+    }
     let mut first = true;
     for (l, h) in measured {
         y += gap_before(&l, first);
@@ -468,7 +485,14 @@ pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts
         draw(&mut ctx, &l, content_left, y, content_w, h);
         y += h;
     }
-    ctx.scene.height = (y + m.bottom).ceil();
+    ctx.scene.height = (y
+        + m.bottom
+        + if ctx.machine_gutter.is_some() {
+            32.0
+        } else {
+            0.0
+        })
+    .ceil();
     ctx.scene
 }
 
@@ -700,12 +724,21 @@ fn measure_flow<'a>(
     layers: &'a [Vec<Block>],
     w: f64,
 ) -> L<'a> {
-    const GUTTER: f64 = 24.0;
+    let gutter = ctx
+        .machine_gutter
+        .map(|g| {
+            if direction.horizontal() {
+                g.min((w / (2.0 * layers.len().max(1) as f64)).max(1.0))
+            } else {
+                g
+            }
+        })
+        .unwrap_or(24.0);
     let mut cells = Vec::new();
     let mut total_h: f64 = 0.0;
     if direction.horizontal() {
         let count = layers.len().max(1);
-        let cw = (w - GUTTER * count.saturating_sub(1) as f64) / count as f64;
+        let cw = (w - gutter * count.saturating_sub(1) as f64) / count as f64;
         for (rank, peers) in layers.iter().enumerate() {
             let column = if direction.reversed() {
                 count - rank - 1
@@ -716,10 +749,11 @@ fn measure_flow<'a>(
             for peer in peers {
                 let l = measure(ctx, peer, cw);
                 let h = height(&l);
-                cells.push((l, column as f64 * (cw + GUTTER), y, cw, h));
-                y += h + GUTTER;
+                cells.push((l, column as f64 * (cw + gutter), y, cw, h));
+                y += h + ctx.machine_gutter.map(|_| 64.0).unwrap_or(gutter);
             }
-            total_h = total_h.max((y - GUTTER).max(0.0));
+            total_h =
+                total_h.max((y - ctx.machine_gutter.map(|_| 64.0).unwrap_or(gutter)).max(0.0));
         }
     } else {
         let order: Vec<_> = if direction.reversed() {
@@ -732,10 +766,10 @@ fn measure_flow<'a>(
                 let l = measure(ctx, peer, w);
                 let h = height(&l);
                 cells.push((l, 0.0, total_h, w, h));
-                total_h += h + BLOCK_GAP;
+                total_h += h + ctx.machine_gutter.map(|_| 64.0).unwrap_or(BLOCK_GAP);
             }
         }
-        total_h = (total_h - BLOCK_GAP).max(0.0);
+        total_h = (total_h - ctx.machine_gutter.map(|_| 64.0).unwrap_or(BLOCK_GAP)).max(0.0);
     }
     if direction.horizontal()
         && layers
@@ -786,16 +820,28 @@ fn measure_row<'a>(ctx: &mut Ctx, r: &'a Row, w: f64) -> L<'a> {
 }
 
 fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
-    let w = n.style.shape.node_width(w);
+    let w = n.body_width(w);
+    if n.style.shape.marker()
+        || (n.style.shape == Shape::Choice && n.title.is_none() && n.lines.is_empty())
+    {
+        return L::Node {
+            node: n,
+            lines: Vec::new(),
+            children: Vec::new(),
+            natural: w,
+            content_bottom: 0.0,
+        };
+    }
     let (pad_x, mut cursor) = match n.style.shape {
-        Shape::Card | Shape::Process => (20.0, 10.0),
-        Shape::Decision => (w / 4.0 + 10.0, 10.0),
+        Shape::Card | Shape::Process | Shape::State => (20.0, 10.0),
+        Shape::Decision | Shape::Choice => (w / 4.0 + 10.0, 10.0),
         Shape::Terminal => (30.0, 10.0),
+        Shape::Initial | Shape::Final => (0.0, 0.0),
         Shape::Api => (16.0, 10.0),
         Shape::Package => (20.0, 56.0 + 20.0),
         Shape::Container => (20.0, 10.0),
     };
-    let inner_w = if n.style.shape == Shape::Decision {
+    let inner_w = if n.style.shape.diamond() {
         Outline::Diamond(Rect {
             x: 0.0,
             y: 0.0,
@@ -814,7 +860,13 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
     let line_no = Some(n.line);
 
     match n.style.shape {
-        Shape::Card | Shape::Container | Shape::Process | Shape::Decision | Shape::Terminal => {
+        Shape::Card
+        | Shape::Container
+        | Shape::Process
+        | Shape::Decision
+        | Shape::Terminal
+        | Shape::State
+        | Shape::Choice => {
             if n.style.shape == Shape::Container {
                 if let Some(role) = &n.role {
                     lines.push(MLine {
@@ -950,6 +1002,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
                 }
             }
         }
+        Shape::Initial | Shape::Final => {}
         Shape::Api => {
             if let Some(t) = title {
                 let tag_w = n
@@ -1049,7 +1102,15 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
         children.push((l, h));
     }
     let bottom_pad = match n.style.shape {
-        Shape::Card | Shape::Api | Shape::Process | Shape::Decision | Shape::Terminal => 10.0,
+        Shape::Card
+        | Shape::Api
+        | Shape::Process
+        | Shape::Decision
+        | Shape::Terminal
+        | Shape::State
+        | Shape::Initial
+        | Shape::Final
+        | Shape::Choice => 10.0,
         Shape::Package | Shape::Container => {
             if n.children.is_empty() {
                 14.0
@@ -1059,8 +1120,11 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
         }
     };
     let mut natural = (cursor + bottom_pad).max(if is_container { 40.0 } else { 30.0 });
-    if n.style.shape == Shape::Decision {
+    if n.style.shape.diamond() {
         natural *= 2.0;
+    }
+    if n.style.shape == Shape::State {
+        natural = natural.max(48.0);
     }
     L::Node {
         node: n,
@@ -1293,7 +1357,7 @@ fn draw_node(
     h: f64,
 ) {
     let compact = n.style.shape.compact();
-    let nw = n.style.shape.node_width(w);
+    let nw = n.body_width(w);
     let (x, w) = (x + (w - nw) / 2.0, nw);
     // Compact shapes keep their measured height in a stretched row and center
     // inside the allocated cell. Legacy cards still stretch with their peers.
@@ -1306,12 +1370,16 @@ fn draw_node(
     ctx.text_direction = n.text_direction.unwrap_or(saved_direction);
     let rect = Rect { x, y, w, h };
     let outline = match n.style.shape {
-        Shape::Decision => Outline::Diamond(rect),
+        Shape::Decision | Shape::Choice => Outline::Diamond(rect),
         Shape::Terminal => Outline::Rounded {
             rect,
             radius: (h / 2.0).min(24.0),
         },
-        Shape::Process => Outline::Rounded { rect, radius: 7.0 },
+        Shape::Process | Shape::State => Outline::Rounded { rect, radius: 7.0 },
+        Shape::Initial | Shape::Final => Outline::Rounded {
+            rect,
+            radius: h / 2.0,
+        },
         _ => Outline::Rectangle(rect),
     };
     let idx = ctx.scene.nodes.len();
@@ -1325,10 +1393,23 @@ fn draw_node(
         href: n.href.clone(),
         line: n.line,
     });
+    if n.style.shape.marker() {
+        ctx.push_for(
+            idx,
+            Item::StateMarker {
+                rect,
+                tone: n.style.tone,
+                final_state: n.style.shape == Shape::Final,
+            },
+        );
+        ctx.text_direction = saved_direction;
+        return;
+    }
     let (pad_x, rx, stroke_width) = match n.style.shape {
-        Shape::Card | Shape::Process => (20.0, 7.0, 1.25),
-        Shape::Decision => (w / 4.0 + 10.0, 0.0, 1.25),
+        Shape::Card | Shape::Process | Shape::State => (20.0, 7.0, 1.25),
+        Shape::Decision | Shape::Choice => (w / 4.0 + 10.0, 0.0, 1.25),
         Shape::Terminal => (30.0, (h / 2.0).min(24.0), 1.25),
+        Shape::Initial | Shape::Final => (0.0, 0.0, 1.25),
         Shape::Api => (16.0, 6.0, 1.3),
         Shape::Package => (20.0, 10.0, 1.25),
         Shape::Container => (20.0, 8.0, 1.5),
@@ -1336,7 +1417,7 @@ fn draw_node(
     let white = n.style.shape == Shape::Package;
     ctx.push_for(
         idx,
-        if n.style.shape == Shape::Decision {
+        if n.style.shape.diamond() {
             Item::Diamond {
                 rect,
                 tone: n.style.tone,
@@ -1404,9 +1485,20 @@ fn draw_node(
             }
             cursor += 76.0;
         }
-        Shape::Decision => cursor = outline.text_area(0.0).y + 10.0,
-        Shape::Card | Shape::Container | Shape::Api | Shape::Process | Shape::Terminal => {
-            cursor += 10.0
+        Shape::Decision | Shape::Choice => cursor = outline.text_area(0.0).y + 10.0,
+        Shape::Card
+        | Shape::Container
+        | Shape::Api
+        | Shape::Process
+        | Shape::Terminal
+        | Shape::State
+        | Shape::Initial
+        | Shape::Final => {
+            cursor += if n.style.shape == Shape::State {
+                (h - (content_bottom - 10.0)) / 2.0
+            } else {
+                10.0
+            };
         }
     }
     let inner_w = w - 2.0 * pad_x;

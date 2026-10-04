@@ -1,0 +1,13 @@
+diagram "申请处理" mode=state-machine direction=left width=1400 {
+  initial start
+  state waiting "等待申请" blue { sub "资料到齐后开始审核。" }
+  state review "مراجعة الطلب" yellow text-direction=rtl
+  state accepted "申请通过" green
+  final done
+
+  start -> waiting
+  waiting -> review "提交 / 检查资料"
+  review -> waiting "补充资料"
+  review -> accepted "موافقة"
+  accepted -> done "归档"
+}

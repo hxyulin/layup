@@ -18,6 +18,7 @@ pub mod geometry;
 pub mod html;
 pub mod layout;
 pub mod lexer;
+mod machine;
 pub mod model;
 pub mod parser;
 pub mod route;
@@ -117,6 +118,9 @@ pub fn compile(src: &str) -> Result<Compiled, Error> {
 pub fn compile_with_fonts(src: &str, fonts: &text::Fonts) -> Result<Compiled, Error> {
     let diagram = model::build(src)?;
     let mut warnings = Vec::new();
+    if diagram.mode == model::Mode::StateMachine {
+        machine::check(&diagram, &mut warnings);
+    }
     let mut scene = layout::layout_with_fonts(&diagram, &mut warnings, fonts);
     route::route_all(&diagram, &mut scene, &mut warnings);
     check::check(&scene, &mut warnings);

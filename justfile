@@ -76,6 +76,11 @@ decision-test:
     cargo build -p layup-cli
     node tools/verify-decisions.mjs
 
+# Review state-machine cycles, choices and multilingual text in Chromium.
+state-test:
+    cargo build -p layup-cli
+    node tools/verify-states.mjs
+
 # Run the VitePress example with the local package (http://localhost:5173).
 vitepress: wasm
     cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev

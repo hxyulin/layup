@@ -57,8 +57,9 @@ solid). Layup runs those checks on every render and `--strict` turns
 them into errors.
 
 What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs, sequence diagrams, and
-state-machine semantics. Decision trees and flowcharts use compact shapes
-and subtree lanes; future state diagrams are outlined in [the roadmap](ROADMAP.md).
+full UML state-machine semantics. Decision trees use subtree lanes; flat
+state machines have explicit checks and cycle placement. Composite/parallel
+states and simulation are future work in [the roadmap](ROADMAP.md).
 
 ## 2. The source language
 
@@ -163,6 +164,9 @@ Built-in kinds:
 | `decision` | Compact diamond, centered 15px bold question and optional code/prose. Labels wrap inside the central safe rectangle. |
 | `process` | Compact rounded process step, centered title/code/prose. |
 | `terminal` | Compact capsule for a start or outcome; multiline content uses capped rounded corners. |
+| `state` | Compact rounded state, centered title and optional code/prose; minimum height 48px. |
+| `initial` / `final` | Filled 20px initial dot / 28px final bullseye; IDs and styling, no title or text body. |
+| `choice` | A 28px diamond without a title, or a compact labeled diamond up to 180px wide. |
 | `package` | White frame with a gray head strip and mono name. Holds children. |
 | `crate` | Hollow blue container, mono name, role "lib crate" (override with `role="bin crate"`). |
 | `group` | Hollow gray container with no role. |
@@ -175,7 +179,7 @@ style service base=card tone=green "service"          // legend label
 style port shape=api hollow purple label="port"
 ```
 
-`base=` copies another kind; `shape=` is `card | api | package | container | process | decision | terminal` (`diamond` aliases `decision`);
+`base=` copies another kind; `shape=` is `card | api | package | container | process | decision | terminal | state | initial | final | choice` (`diamond` aliases `decision`);
 words are tones and flags; `role=` and `label=` set the container role
 and the legend label.
 
@@ -245,6 +249,59 @@ search both sides of every route segment, excluding node fills and earlier
 labels. A caption without clear space produces a warning instead of being
 silently omitted. Ordinary edge semantics remain unchanged: yes/no are
 labels, and branches can also use arbitrary categories or numeric ranges.
+
+### Flat state machines
+
+```text
+diagram "Job" mode=state-machine direction=right {
+  initial start
+  state idle "Idle"
+  state active "Active" { sub "entry / begin()" }
+  choice finish
+  final done
+  start -> idle
+  idle -> active "start"
+  active -> finish "check"
+  finish -> active "[retry] / reset()"
+  finish -> done "[complete]"
+}
+```
+
+`mode=state-machine` enables automatic layout unless an explicit
+`layout=manual` is present. `mode=graph` is the default and retains ordinary
+graph semantics, including the current strongly connected component layout.
+State and pseudostate shapes are available in either mode. The machine
+checks are opt-in:
+
+- Exactly one initial marker, with one outgoing transition and no incoming
+  transitions. Multiple initial markers report the second declaration line.
+- No outgoing transitions from a final marker; a final marker is optional.
+- At least two outgoing transitions from each choice.
+- Every transition has one directed arrow and connects states/pseudostates,
+  rather than structural containers.
+- All leaf nodes use state or pseudostate shapes. Custom styles inherit
+  these semantics through their resolved shape.
+- Topologically unreachable states and pseudostates emit source-line
+  warnings; `--strict` treats them as failures.
+
+Unknown targets and duplicate IDs continue to use the general language
+checks. Guard syntax, mutual exclusion, event handling, and actions are not
+interpreted. `event [guard] / action`, `entry / action`, and `exit / action`
+are conventions for ordinary edge labels and text lines.
+
+A deterministic depth-first traversal starts at the initial marker and
+orders adjacent states by declaration order. Back edges and self-loops
+are excluded only from placement constraints; all original transitions
+remain in the rendered scene. This spreads cycles across ranks instead of
+collapsing them into a single layer. Machine regions reserve extra room
+for transition captions; unpinned self-loops try the cross axis first with
+clearance for an upright caption. Explicit `via=` and ports retain priority.
+
+All four directions and placement hints work. Authored rows and sections
+remain boundaries. Groups can organize one flat machine, with one initial
+marker across the diagram; they do not introduce composite-state scopes.
+Nested `state` blocks, history, fork/join, parallel regions, and simulation
+are not part of this first pass.
 
 ### Predictable edits
 

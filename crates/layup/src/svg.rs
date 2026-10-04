@@ -232,6 +232,36 @@ fn item(s: &mut String, p: &Placed, id: &str, direction: Direction) {
                 num(*stroke_width)
             );
         }
+        Item::StateMarker {
+            rect,
+            tone,
+            final_state,
+        } => {
+            let cx = num(rect.cx());
+            let cy = num(rect.cy());
+            let radius = num(rect.w / 2.0);
+            let ink = if *tone == Tone::Gray {
+                "ink".to_string()
+            } else {
+                format!("ink-{}", tone.name())
+            };
+            if *final_state {
+                let _ = writeln!(
+                    s,
+                    r#"      <circle class="box state-final" cx="{cx}" cy="{cy}" r="{radius}"><title>Final state</title></circle>"#
+                );
+                let _ = writeln!(
+                    s,
+                    r#"      <circle class="{ink}" cx="{cx}" cy="{cy}" r="{}"/>"#,
+                    num(rect.w / 2.0 - 5.0)
+                );
+            } else {
+                let _ = writeln!(
+                    s,
+                    r#"      <circle class="box {ink}" cx="{cx}" cy="{cy}" r="{radius}"><title>Initial state</title></circle>"#
+                );
+            }
+        }
         Item::Diamond {
             rect,
             tone,
@@ -487,6 +517,7 @@ fn stylesheet_with_fonts(
     .layup .bg{fill:var(--bg)}.layup .frame{fill:none;stroke:var(--frame)}
     .layup .rule{stroke:var(--rule);stroke-width:1;fill:none}
     .layup .strip{fill:var(--strip)}
+    .layup .box.state-final{fill:var(--bg);stroke:var(--ink);stroke-width:1.5}
     .layup .box{stroke-width:1.25}.layup .hollow{fill:none}.layup .white{fill:var(--white)}
     .layup .ln{fill:none;stroke-width:1.8}
     .layup .chip{fill:var(--bg);stroke:var(--chipbd);stroke-width:.8}.layup .chip.plain{stroke:none}

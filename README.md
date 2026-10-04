@@ -175,6 +175,53 @@ See [the support decision tree](examples/decision-tree.layup),
 Run `just decision-test` to generate a Chromium review gallery and check
 text against the rendered outlines.
 
+### State machines
+
+`mode=state-machine` adds flat state-machine checks and enables automatic
+layout by default. Use `state` for a rounded state, `initial` for the filled
+start dot, `final` for the bullseye, and `choice` for a diamond pseudostate:
+
+```text
+diagram "Job lifecycle" mode=state-machine direction=right {
+  initial start
+  state idle "Idle"
+  state running "Running" { sub "entry / begin()" }
+  final done
+
+  start -> idle
+  idle -> running "start / begin()"
+  running -> running "tick / update()"
+  running -> idle "reset"
+  running -> done "finish [completed]"
+}
+```
+
+Transition labels follow the optional convention `event [guard] / action`.
+They remain display text; rendering does not execute a machine or evaluate
+guards. `choice allowed` draws a small unlabeled diamond; an optional title
+turns it into a larger labeled diamond. Put guard labels on outgoing edges.
+Initial and final markers take IDs and styling, without text bodies.
+
+Machine mode requires one initial marker with one outgoing transition,
+rejects transitions into an initial or out of a final marker, requires two
+or more outgoing transitions from a choice, and warns about states that
+cannot be reached from the initial marker. A continuously running machine
+can omit a final marker. Custom kinds can inherit `state` or the marker
+shapes. These semantic checks apply only in machine mode.
+
+Cycles get forward placement from the initial marker while return
+transitions and self-loops remain visible. Node declaration order controls
+traversal; reordering edge statements preserves state placement. All four
+directions, explicit ports, placement hints, `layout=manual`, and authored
+rows remain available. Structural groups can organize a flat machine;
+composite-state semantics, parallel regions, history, and simulation are
+future work.
+
+See [the job lifecycle](examples/state-machine.layup),
+[guarded choices](examples/state-choice.layup), and
+[multilingual states](examples/state-international.layup). Run
+`just state-test` for the Chromium review gallery.
+
 ### Fonts and measurement
 
 IBM Plex Sans (regular and semibold), Mono, Arabic, and Hebrew are bundled.

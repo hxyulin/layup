@@ -51,3 +51,20 @@ test('decision trees match CLI output in each direction', () => {
     assert.match(rendered.output, /<polygon class="box/);
   }
 });
+
+
+test('state machines match CLI output and preserve semantic diagnostics', () => {
+  const engine = loadSync();
+  const machine = readFileSync(new URL('examples/state-machine.layup', root), 'utf8');
+  for (const direction of ['down', 'up', 'right', 'left']) {
+    const source = machine.replace('direction=right', `direction=${direction}`);
+    const cli = execFileSync(new URL('target/debug/layup', root).pathname, ['render', '-', '-o', '-'], { input: source }).toString();
+    const rendered = engine.render(source);
+    assert.equal(rendered.output, cli);
+    assert.deepEqual(rendered.warnings, []);
+    assert.match(rendered.output, /<circle class="box state-final"/);
+  }
+  assert.throws(() => engine.render('diagram "Bad machine" mode=state-machine { initial s; final end; s -> end; end -> s }'), e => e instanceof LayupError && e.reason.includes('final marker'));
+  const source = 'diagram "Unreachable" mode=state-machine { initial s; state a; state b; s -> a }';
+  assert.ok(engine.render(source).warnings.some(w => w.message.includes('unreachable')));
+});

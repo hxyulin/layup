@@ -89,24 +89,35 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
             .map(|(s, _)| *s)
             .collect();
         let (ra, rb) = (scene.nodes[plan.a].rect, scene.nodes[plan.b].rect);
-        let mut points = match plan.outside {
-            Some((side, k)) => {
-                let total = if side == Side::Right {
-                    via_total[0]
-                } else {
-                    via_total[1]
-                };
-                route_outside(scene, ra, rb, side, k, total, &obstacles, &avoid)
-            }
-            None => {
-                let original = route_with_retries(&plan, &obstacles, &avoid);
-                if clear(&original, &obstacles)
-                    && !overlaps_taken(&original, &avoid)
-                    && search::valid_ports(&original, &plan, ra, rb)
-                {
-                    original
-                } else {
-                    search::fallback(scene, e, &plan, &obstacles, &avoid).unwrap_or(original)
+        let loop_points = (d.mode == crate::model::Mode::StateMachine
+            && plan.a == plan.b
+            && e.via.is_none()
+            && e.from_side.is_none()
+            && e.to_side.is_none())
+        .then(|| state_loop(scene, ra, d.direction, &obstacles, &avoid))
+        .flatten();
+        let mut points = if let Some(points) = loop_points {
+            points
+        } else {
+            match plan.outside {
+                Some((side, k)) => {
+                    let total = if side == Side::Right {
+                        via_total[0]
+                    } else {
+                        via_total[1]
+                    };
+                    route_outside(scene, ra, rb, side, k, total, &obstacles, &avoid)
+                }
+                None => {
+                    let original = route_with_retries(&plan, &obstacles, &avoid);
+                    if clear(&original, &obstacles)
+                        && !overlaps_taken(&original, &avoid)
+                        && search::valid_ports(&original, &plan, ra, rb)
+                    {
+                        original
+                    } else {
+                        search::fallback(scene, e, &plan, &obstacles, &avoid).unwrap_or(original)
+                    }
                 }
             }
         };
@@ -873,43 +884,47 @@ fn place_branch_chip(scene: &Scene, points: &[(f64, f64)], text: &str, tone: Ton
                 ));
             }
             if horizontal {
-                candidates.push((
-                    Rect {
-                        x: x - w / 2.0,
-                        y: y - h - 4.0,
-                        w,
-                        h,
-                    },
-                    false,
-                ));
-                candidates.push((
-                    Rect {
-                        x: x - w / 2.0,
-                        y: y + 4.0,
-                        w,
-                        h,
-                    },
-                    false,
-                ));
+                for offset in [4.0, 16.0, 28.0] {
+                    candidates.push((
+                        Rect {
+                            x: x - w / 2.0,
+                            y: y - h - offset,
+                            w,
+                            h,
+                        },
+                        false,
+                    ));
+                    candidates.push((
+                        Rect {
+                            x: x - w / 2.0,
+                            y: y + offset,
+                            w,
+                            h,
+                        },
+                        false,
+                    ));
+                }
             } else {
-                candidates.push((
-                    Rect {
-                        x: x + 6.0,
-                        y: y - h / 2.0,
-                        w,
-                        h,
-                    },
-                    false,
-                ));
-                candidates.push((
-                    Rect {
-                        x: x - w - 6.0,
-                        y: y - h / 2.0,
-                        w,
-                        h,
-                    },
-                    false,
-                ));
+                for offset in [6.0, 18.0, 30.0] {
+                    candidates.push((
+                        Rect {
+                            x: x + offset,
+                            y: y - h / 2.0,
+                            w,
+                            h,
+                        },
+                        false,
+                    ));
+                    candidates.push((
+                        Rect {
+                            x: x - w - offset,
+                            y: y - h / 2.0,
+                            w,
+                            h,
+                        },
+                        false,
+                    ));
+                }
             }
             for (rect, bordered) in candidates {
                 if rect.x >= 4.0
@@ -926,6 +941,48 @@ fn place_branch_chip(scene: &Scene, points: &[(f64, f64)], text: &str, tone: Ton
                         bordered,
                     });
                 }
+            }
+        }
+    }
+    None
+}
+
+/// Leave room around a machine self-loop for an upright event/action caption.
+/// Prefer the cross axis, then try other sides when existing paths occupy it.
+fn state_loop(
+    scene: &Scene,
+    r: Rect,
+    direction: crate::model::Direction,
+    obstacles: &[Rect],
+    avoid: &[Seg],
+) -> Option<Vec<(f64, f64)>> {
+    let sides = if direction.horizontal() {
+        [Side::Top, Side::Bottom, Side::Right, Side::Left]
+    } else {
+        [Side::Right, Side::Left, Side::Bottom, Side::Top]
+    };
+    let mut blocked = obstacles.to_vec();
+    blocked.extend(&scene.keepout);
+    for side in sides {
+        let center = if vertical(side) { r.cx() } else { r.cy() };
+        let span = if vertical(side) { r.w } else { r.h };
+        let delta = (span / 4.0).min(20.0);
+        for offset in [40.0, 56.0, 72.0] {
+            let p = port(r, side, center - delta);
+            let q = port(r, side, center + delta);
+            let displace = |p: (f64, f64)| match side {
+                Side::Top => (p.0, p.1 - offset),
+                Side::Bottom => (p.0, p.1 + offset),
+                Side::Right => (p.0 + offset, p.1),
+                Side::Left => (p.0 - offset, p.1),
+            };
+            let points = vec![p, displace(p), displace(q), q];
+            if points.iter().all(|&(x, y)| {
+                x >= 4.0 && x <= scene.width - 4.0 && y >= 4.0 && y <= scene.height - 4.0
+            }) && clear(&points, &blocked)
+                && !overlaps_taken(&points, avoid)
+            {
+                return Some(points);
             }
         }
     }

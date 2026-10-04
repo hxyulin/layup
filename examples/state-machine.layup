@@ -1,0 +1,14 @@
+diagram "Job lifecycle" mode=state-machine direction=right width=1400 {
+  initial start
+  state idle "Idle" blue
+  state running "Running" green { sub "entry / begin()" }
+  state paused "Paused" yellow
+  final done
+
+  start -> idle
+  idle -> running "start / begin()"
+  running -> paused "pause"
+  paused -> running "resume"
+  running -> running "tick / update()"
+  running -> done "finish [completed]"
+}

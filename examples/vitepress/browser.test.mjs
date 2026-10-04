@@ -40,10 +40,10 @@ const state = () =>
   svg().evaluate((s) => ({ pinned: s.dataset.pinned ?? null, hl: [...s.querySelectorAll('.node.hl')].map((n) => n.dataset.id) }));
 
 test('hydrates with styles and fonts intact', async () => {
-  assert.equal(await page.locator('.layup-diagram svg style').count(), 4);
+  assert.equal(await page.locator('.layup-diagram svg style').count(), 5);
   await page.evaluate(() => document.fonts.ready);
   const faces = await page.evaluate(() => [...document.fonts].filter((f) => f.family.startsWith('Layup')).map((f) => f.status));
-  assert.ok(faces.length === 12 && faces.every((s) => s === 'loaded'), String(faces));
+  assert.ok(faces.length === 15 && faces.every((s) => s === 'loaded'), String(faces));
   assert.match((await svg(1).locator("text").allTextContents()).join("\n"), /\{\{\svalue\s\}\}/);
   assert.equal(await page.locator('.layup-diagram + div[class*="language-"] code, .layup-diagram + pre code').count(), 1);
 });
@@ -103,6 +103,9 @@ test('node links navigate client-side and handlers survive navigation', async ()
 });
 
 test('decision polygons highlight, pin, and expand in the viewer', async () => {
+  // Start from a settled page; the preceding test exercises client navigation.
+  await page.goto(URL, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
   const scope = '.layup-diagram >> nth=3';
   const question = svg(3).locator('.node[data-id="ready"]');
   await question.hover();
@@ -114,6 +117,24 @@ test('decision polygons highlight, pin, and expand in the viewer', async () => {
   await page.hover(scope);
   await page.click(`${scope} >> .layup-expand`);
   assert.equal(await page.locator('.layup-viewer polygon.box').count(), 1);
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
+});
+
+test('state markers highlight, pin, and survive viewer expansion', async () => {
+  const scope = '.layup-diagram >> nth=4';
+  const initial = svg(4).locator('.node[data-id="begin"]');
+  assert.equal(await svg(4).locator('circle.box').count(), 2);
+  await initial.hover();
+  assert.deepEqual((await svg(4).locator('.node.hl').evaluateAll(nodes => nodes.map(n => n.dataset.id))).sort(), ['begin', 'idle']);
+  await initial.click();
+  await page.mouse.move(2, 2);
+  assert.equal(await svg(4).evaluate(s => s.dataset.pinned), 'begin');
+  await page.hover(scope);
+  await page.click(`${scope} >> .layup-expand`);
+  assert.equal(await page.locator('.layup-viewer circle.box').count(), 2);
+  await page.locator('.layup-viewer .node[data-id="done"]').click();
+  assert.equal(await page.locator('.layup-viewer svg').evaluate(s => s.dataset.pinned), 'done');
   await page.keyboard.press('Escape');
   await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
 });

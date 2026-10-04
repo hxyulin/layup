@@ -10,9 +10,10 @@ pub(crate) fn arrange(
     blocks: &mut Vec<Block>,
     edges: &[Edge],
     direction: Direction,
+    machine: bool,
 ) -> Result<(), Error> {
     for block in blocks.iter_mut() {
-        descend(block, edges, direction)?;
+        descend(block, edges, direction, machine)?;
     }
     let mut out = Vec::new();
     let mut run = Vec::new();
@@ -20,19 +21,24 @@ pub(crate) fn arrange(
         if matches!(block, Block::Node(_)) {
             run.push(block);
         } else {
-            out.extend(layer(std::mem::take(&mut run), edges, direction)?);
+            out.extend(layer(std::mem::take(&mut run), edges, direction, machine)?);
             out.push(block);
         }
     }
-    out.extend(layer(run, edges, direction)?);
+    out.extend(layer(run, edges, direction, machine)?);
     *blocks = out;
     Ok(())
 }
 
-fn descend(block: &mut Block, edges: &[Edge], direction: Direction) -> Result<(), Error> {
+fn descend(
+    block: &mut Block,
+    edges: &[Edge],
+    direction: Direction,
+    machine: bool,
+) -> Result<(), Error> {
     match block {
-        Block::Node(n) => arrange(&mut n.children, edges, direction)?,
-        Block::Section(s) => arrange(&mut s.children, edges, direction)?,
+        Block::Node(n) => arrange(&mut n.children, edges, direction, machine)?,
+        Block::Section(s) => arrange(&mut s.children, edges, direction, machine)?,
         Block::Row(r) => {
             for cell in r.cells.iter_mut().flatten() {
                 if let Block::Node(n) = cell
@@ -43,7 +49,7 @@ fn descend(block: &mut Block, edges: &[Edge], direction: Direction) -> Result<()
                         "layout hints cannot reposition explicit row cells",
                     ));
                 }
-                descend(cell, edges, direction)?;
+                descend(cell, edges, direction, machine)?;
             }
         }
         _ => {}
@@ -84,7 +90,12 @@ fn owners(block: &Block, owner: usize, ids: &mut BTreeMap<String, usize>) {
     }
 }
 
-fn layer(blocks: Vec<Block>, edges: &[Edge], direction: Direction) -> Result<Vec<Block>, Error> {
+fn layer(
+    blocks: Vec<Block>,
+    edges: &[Edge],
+    direction: Direction,
+    machine: bool,
+) -> Result<Vec<Block>, Error> {
     let n = blocks.len();
     if n == 0 {
         return Ok(blocks);
@@ -268,14 +279,16 @@ fn layer(blocks: Vec<Block>, edges: &[Edge], direction: Direction) -> Result<Vec
     let mut flow_layers = Vec::new();
     let mut last_island = None;
     for ((island, _rank), groups) in levels {
-        if direction != Direction::Down && last_island.is_some_and(|prev| prev != island) {
+        if (direction != Direction::Down || machine)
+            && last_island.is_some_and(|prev| prev != island)
+        {
             result.push(Block::Flow {
                 direction,
                 layers: std::mem::take(&mut flow_layers),
             });
         }
         last_island = Some(island);
-        if direction != Direction::Down {
+        if direction != Direction::Down || machine {
             // Peers occupy the cross axis; dependency ranks occupy the flow axis.
             if direction.horizontal() {
                 flow_layers.push(

@@ -101,6 +101,14 @@ pub enum Shape {
     Decision,
     /// Start or outcome with a capsule outline.
     Terminal,
+    /// Rounded state with optional action/prose lines.
+    State,
+    /// Filled initial-state dot.
+    Initial,
+    /// Final-state bullseye.
+    Final,
+    /// Choice pseudostate, with an optional question label.
+    Choice,
     /// Centered title over centered code; the small typed API box.
     Api,
     /// White frame with a gray head strip and a mono name; holds children.
@@ -111,13 +119,32 @@ pub enum Shape {
 
 impl Shape {
     pub fn compact(self) -> bool {
-        matches!(self, Self::Process | Self::Decision | Self::Terminal)
+        matches!(
+            self,
+            Self::Process
+                | Self::Decision
+                | Self::Terminal
+                | Self::State
+                | Self::Initial
+                | Self::Final
+                | Self::Choice
+        )
+    }
+
+    pub fn marker(self) -> bool {
+        matches!(self, Self::Initial | Self::Final)
+    }
+    pub fn diamond(self) -> bool {
+        matches!(self, Self::Decision | Self::Choice)
     }
 
     pub fn node_width(self, available: f64) -> f64 {
         match self {
-            Self::Decision => available.min(280.0),
-            Self::Process | Self::Terminal => available.min(240.0),
+            Self::Decision => available.clamp(1.0, 280.0),
+            Self::Process | Self::Terminal | Self::State => available.clamp(1.0, 240.0),
+            Self::Choice => available.clamp(1.0, 180.0),
+            Self::Initial => 20.0,
+            Self::Final => 28.0,
             _ => available,
         }
     }
@@ -167,12 +194,17 @@ pub fn presets() -> BTreeMap<String, NodeStyle> {
         ("process", Shape::Process),
         ("decision", Shape::Decision),
         ("terminal", Shape::Terminal),
+        ("state", Shape::State),
+        ("initial", Shape::Initial),
+        ("final", Shape::Final),
+        ("choice", Shape::Choice),
     ] {
         m.insert(
             name.into(),
             NodeStyle {
                 shape,
                 align: Align::Center,
+                auto: !shape.marker(),
                 ..card.clone()
             },
         );

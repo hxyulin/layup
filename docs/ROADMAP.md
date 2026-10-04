@@ -30,30 +30,35 @@ additional compact shapes, variable node widths, and more economical
 packing for trees with many leaves. Current tree lanes rely on an authored
 canvas width; wide trees can require `width=` or explicit grouping.
 
-## State machine diagrams
+## State machine diagrams: flat machines implemented
 
-Build on the same graph and geometry primitives: a rounded `state` kind,
-initial/final pseudostates, and a choice pseudostate backed by the diamond.
-Transition labels can initially be ordinary strings with the convention
-`event [guard] / action`. Rendering does not execute guards or actions.
+`mode=state-machine` enables automatic machine placement and opt-in
+validation. `state`, `initial`, `final`, and `choice` shapes render rounded
+states, dots, bullseyes, and small or labeled diamonds. Transition labels
+use ordinary strings with the convention `event [guard] / action`; state
+entry/exit annotations are optional prose lines. Nothing executes guards
+or actions.
 
-The current engine already supports labeled transitions, self-loops, return
-paths, custom edge kinds, and nested containers. Composite states can reuse
-those containers. Keep transition semantics explicit if a machine-specific
-mode later adds checks: unknown state references, invalid initial/final
-transitions, unreachable states, and ambiguous initial states. Do not apply
-these rules to ordinary architecture diagrams.
+Flat machines validate the initial marker, transition direction and
+endpoints, final markers, and choice branch counts. Unreachable states
+warn with source lines. Final markers are optional for continuously
+running machines. Ordinary architecture diagrams keep their semantics.
 
-Cycle placement needs separate attention. Today a strongly connected
-component shares one layer, which is predictable for dependency graphs but
-can make a machine with many mutually reachable states very wide or tall.
-A later machine layout policy could place the component internally while
-preserving its position in the outer graph. Review examples before adding
-an automatic policy or saved coordinates.
+Cycle placement uses a deterministic traversal starting at the initial
+marker. Placement omits back edges and self-loops while rendering retains
+all transitions, with space for return paths and self-loop captions.
+This avoids collapsing a mutually reachable set into one rank. Source
+node order controls traversal; edge statement reordering preserves
+positions. Explicit rows, placement hints, ports and manual layout remain
+available. Regression/browser checks cover cycles and self-loops in all
+four directions, choices, validation, RTL/CJK, and integration behavior.
+Run `just state-test` for the review gallery.
 
-Deliver simple flat state machines first; then composite states and choice
-pseudostates. History, parallel regions, entry/exit actions, fork/join, and
-transition simulation can follow actual use cases.
+Next consider composite-state scopes and nested initial/final markers.
+Structural groups can already organize a flat machine, but `state` blocks
+cannot yet contain child states. History, parallel regions, fork/join,
+transition simulation, structured events/guards/actions, and active-state
+traces should follow concrete use cases.
 
 ## Output and interactive views
 

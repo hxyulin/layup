@@ -18,6 +18,7 @@ pub struct Diagram {
     /// True when the author wrote `width=`; otherwise the model picks one.
     pub width_set: bool,
     pub preset: Preset,
+    pub mode: Mode,
     /// Infer rows from edges when enabled; authored block flow otherwise.
     pub auto_layout: bool,
     /// Flow of inferred layers; authored rows retain their physical order.
@@ -29,6 +30,15 @@ pub struct Diagram {
     pub kinds: BTreeMap<String, NodeStyle>,
     pub arrows: BTreeMap<String, ArrowStyle>,
     pub legend: Option<Legend>,
+}
+
+/// Machine checks and cycle placement are opt-in; ordinary graphs retain
+/// their existing semantics even when they use state-shaped nodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Mode {
+    #[default]
+    Graph,
+    StateMachine,
 }
 
 /// Diagram-wide defaults. `clean` (the default) fills in tones, edge
@@ -228,6 +238,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         width: 900.0,
         width_set: false,
         preset: Preset::Clean,
+        mode: Mode::Graph,
         auto_layout: false,
         direction: Direction::Down,
         text_direction: crate::text::Direction::Auto,
@@ -237,6 +248,7 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         arrows: BTreeMap::new(),
         legend: None,
     };
+    let mut layout_set = false;
     if let Some(root) = root {
         for a in &root.args {
             match a {
@@ -246,7 +258,20 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                     d.width_set = true;
                 }
                 Arg::Attr(k, v) if k == "title" => d.title = v.as_text(),
+                Arg::Attr(k, v) if k == "mode" => {
+                    d.mode = match v.as_text().as_str() {
+                        "graph" => Mode::Graph,
+                        "state-machine" => Mode::StateMachine,
+                        _ => {
+                            return Err(Error::at(
+                                root.line,
+                                "mode must be graph or state-machine",
+                            ));
+                        }
+                    };
+                }
                 Arg::Attr(k, v) if k == "layout" => {
+                    layout_set = true;
                     d.auto_layout = match v.as_text().as_str() {
                         "auto" => true,
                         "manual" => false,
@@ -289,6 +314,9 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                 }
             }
         }
+    }
+    if d.mode == Mode::StateMachine && !layout_set {
+        d.auto_layout = true;
     }
     // Declarations first so nodes anywhere can use kinds declared later in the file.
     for s in &body {
@@ -333,6 +361,9 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
             }
         }
     }
+    if d.mode == Mode::StateMachine {
+        crate::machine::validate(&d)?;
+    }
     crate::arrange::validate_mode(&d.blocks, d.auto_layout)?;
     if !d.auto_layout && d.direction != Direction::Down {
         return Err(Error::new(
@@ -340,7 +371,17 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         ));
     }
     if d.auto_layout {
-        crate::arrange::arrange(&mut d.blocks, &d.edges, d.direction)?;
+        let layout_edges = if d.mode == Mode::StateMachine {
+            crate::machine::layout_edges(&d)
+        } else {
+            d.edges.clone()
+        };
+        crate::arrange::arrange(
+            &mut d.blocks,
+            &layout_edges,
+            d.direction,
+            d.mode == Mode::StateMachine,
+        )?;
     }
     if d.preset == Preset::Clean {
         auto_width(&mut d);
@@ -627,7 +668,12 @@ impl Builder {
         if !self.ids.insert(id.clone()) {
             return Err(Error::at(it.line, format!("duplicate node id `{id}`")));
         }
-        if title.is_none() && lines.iter().all(|l| !matches!(l, Line::Code(_))) && id != it.head {
+        if !style.shape.marker()
+            && style.shape != Shape::Choice
+            && title.is_none()
+            && lines.iter().all(|l| !matches!(l, Line::Code(_)))
+            && id != it.head
+        {
             title = Some(id.clone());
         }
         // A generic node with nested children draws as a hollow container
@@ -642,7 +688,13 @@ impl Builder {
         if style.shape.compact() && !children.is_empty() {
             return Err(Error::at(
                 it.line,
-                "decision, process and terminal shapes cannot contain child blocks; use a group around the flow",
+                "compact shapes cannot contain child blocks; use a group around the flow",
+            ));
+        }
+        if style.shape.marker() && (title.is_some() || tag.is_some() || !lines.is_empty()) {
+            return Err(Error::at(
+                it.line,
+                "initial and final markers take an id and styling, but no title, tag or text body",
             ));
         }
         Ok(Node {
@@ -719,13 +771,17 @@ impl Builder {
                             "process" => Shape::Process,
                             "decision" | "diamond" => Shape::Decision,
                             "terminal" => Shape::Terminal,
+                            "state" => Shape::State,
+                            "initial" => Shape::Initial,
+                            "final" => Shape::Final,
+                            "choice" => Shape::Choice,
                             "package" => Shape::Package,
                             "container" => Shape::Container,
                             other => {
                                 return Err(Error::at(
                                     it.line,
                                     format!(
-                                        "unknown shape `{other}`; use card, api, package, container, process, decision or terminal"
+                                        "unknown shape `{other}`; use card, api, package, container, process, decision, terminal, state, initial, final or choice"
                                     ),
                                 ));
                             }
@@ -1224,6 +1280,16 @@ fn show(a: &Arg) -> String {
 impl Node {
     pub fn is_container(&self) -> bool {
         matches!(self.style.shape, Shape::Package | Shape::Container) || !self.children.is_empty()
+    }
+}
+
+impl Node {
+    pub fn body_width(&self, available: f64) -> f64 {
+        if self.style.shape == Shape::Choice && self.title.is_none() && self.lines.is_empty() {
+            28.0
+        } else {
+            self.style.shape.node_width(available)
+        }
     }
 }
 

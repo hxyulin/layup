@@ -29,7 +29,9 @@ validates documentation diagrams and examples with warnings treated as errors.
    items and edge statements. Syntax is separate from node-kind semantics.
 2. **Resolve semantics.** `model.rs` builds a typed `Diagram`, resolves styles
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
-   legend.
+   legend. `machine.rs` adds opt-in flat-machine validation and unreachable
+   state warnings. Its traversal removes back edges only from placement
+   constraints, preserving all original transitions for routing.
 3. **Lay out blocks.** `layout.rs` measures text, wraps prose, and places the
    authored rows and containers. `text/` shapes labels against bundled IBM Plex faces or supplied
    fallback font bytes. Compact decision trees reserve subtree lanes in any
@@ -73,6 +75,7 @@ revisions, checksums, and the separate SIL OFL license.
 | Syntax | `lexer.rs`, `parser.rs` |
 | Node kinds, defaults, themes | `model.rs`, `style.rs` |
 | Shape boundaries, ports, safe label areas | `geometry.rs` |
+| Flat machine checks and cycle placement constraints | `machine.rs` |
 | Text measurement and wrapping | `text/mod.rs`, `text/fonts.rs` |
 | Block geometry | `layout.rs` |
 | Edge paths and labels | `route.rs` |
