@@ -5,5 +5,10 @@ import './custom.css';
 
 export default {
   extends: DefaultTheme,
-  enhanceApp({ app }) { app.component('Playground', Playground); },
+  enhanceApp({ app, router }) {
+    app.component('Playground', Playground);
+    router.onAfterRouteChange = () => {
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('layup:navigate'));
+    };
+  },
 };

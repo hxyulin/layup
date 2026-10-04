@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A compact source canvas for the slide pipeline example; resizable playground pane widths and shared height with pointer/keyboard controls. Example/share links and browser history update reused editors, and source edits recover when the selected view is removed.
 - VitePress/pnpm documentation site with DSL and diagram walkthroughs, formats/API references, a browser-worker WASM playground, editable examples, diagnostics, formatting, views, supplied fonts, downloads and UTF-8 share links; GitHub Pages build/test/deploy workflow.
 - Sequence diagrams with authored participant order, lifelines, self-messages, asynchronous/return arrows, notes and nested loop/opt/alt fragments; measured Unicode/RTL labels and supplied-font support.
 - Slide viewports with widescreen/standard/custom dimensions, uniform fit, padding and post-fit minimum-font-size diagnostics.

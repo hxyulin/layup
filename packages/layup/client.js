@@ -12,9 +12,10 @@ const presentationKeyHosts = new WeakSet();
 const CSS = PRESENTATION_CSS + `
 .layup-diagram{position:relative}
 .layup-diagram .layup-expand[hidden]{display:flex}
-.layup-expand{position:absolute;right:6px;bottom:6px;align-items:center;justify-content:center;width:26px;height:26px;padding:0;cursor:pointer;opacity:0;transition:opacity .15s}
+.layup-diagram .layup-expand{position:absolute;right:6px;bottom:6px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:32px;height:32px;padding:0;line-height:1;cursor:pointer;opacity:0;transition:opacity .15s}
 .layup-diagram:hover .layup-expand,.layup-expand:focus-visible{opacity:1}
-@media (hover:none){.layup-expand{opacity:1}}
+@media (hover:none){.layup-diagram .layup-expand{opacity:1}}
+.layup-icon{display:block;flex:none;width:16px;height:16px;max-width:none}
 svg.layup .node{cursor:pointer}
 svg.layup .node,svg.layup .edge{transition:opacity .15s}
 svg.layup.focus .node:not(.hl),svg.layup.focus .edge:not(.hl){opacity:.22}

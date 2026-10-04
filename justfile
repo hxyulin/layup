@@ -12,7 +12,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup examples/vitepress/*.md --strict
+    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup examples/vitepress/*.md README.md --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
@@ -33,7 +33,7 @@ serve: examples
 png svg:
     qlmanage -t -s 2000 -o out "{{svg}}"
 
-# Regenerate the architecture diagram embedded in README.md.
+# Regenerate the architecture reference diagram.
 docs:
     cargo run -q -p layup-cli -- render docs/diagrams/architecture.layup --strict
 
@@ -123,3 +123,15 @@ slide-test:
 sequence-test:
     cargo build -p layup-cli
     node tools/verify-sequences.mjs
+
+# Regenerate light/dark README previews from canonical examples.
+showcase:
+    pnpm showcase
+
+# Lint GitHub Actions workflows (requires actionlint).
+workflows-check:
+    actionlint -color
+
+# Check contributor documentation links, showcase assets and issue forms.
+repository-check:
+    pnpm repo:check

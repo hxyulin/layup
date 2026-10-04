@@ -1,377 +1,162 @@
-# <img src="docs/site/public/mark.svg" alt="" width="40" height="40" /> Layup
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/site/public/mark-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/site/public/mark.svg">
+    <img src="docs/site/public/mark.svg" alt="Layup logo" width="160" height="160">
+  </picture>
+</p>
+<h1 align="center">Layup</h1>
+<p align="center">Diagrams for explaining software, written as code.</p>
+<p align="center">
+  <a href="rust-toolchain.toml"><img alt="Rust stable" src="https://img.shields.io/badge/Rust-stable-dea584?logo=rust"></a>
+  <a href="Cargo.toml"><img alt="Rust edition 2024" src="https://img.shields.io/badge/edition-2024-dea584"></a>
+  <a href="package.json"><img alt="Node.js 22 or newer" src="https://img.shields.io/badge/Node.js-%E2%89%A522-5fa04e?logo=nodedotjs&logoColor=white"></a>
+  <a href="package.json"><img alt="pnpm 12.9.1" src="https://img.shields.io/badge/pnpm-12.9.1-f69220?logo=pnpm&logoColor=white"></a>
+  <a href="https://github.com/hxyulin/layup/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/hxyulin/layup/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/hxyulin/layup/actions/workflows/docs.yml"><img alt="Documentation status" src="https://github.com/hxyulin/layup/actions/workflows/docs.yml/badge.svg?branch=main"></a>
+  <a href="#license"><img alt="MIT or Apache-2.0" src="https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue"></a>
+</p>
+<p align="center">
+  <a href="https://hxyulin.github.io/layup/">Documentation</a> ·
+  <a href="https://hxyulin.github.io/layup/playground.html">Live playground</a> ·
+  <a href="https://hxyulin.github.io/layup/examples.html">Examples</a> ·
+  <a href="CHANGELOG.md">Changelog</a>
+</p>
 
-An authored-layout diagram tool and Rust library. You write a
-`.layup` file that describes cards, containers, rows and typed edges;
-`layup` lays it out with real font metrics, routes the edges, checks for
-overflow and crossings, and writes a self-contained SVG or an
-interactive HTML page.
+Write a `.layup` file to describe your system, then render a self-contained
+SVG, an interactive HTML page, or a JSON scene. Layup measures text with real
+font metrics, arranges nodes, routes connections, and reports layout problems
+with source locations. Use automatic placement or author the layout yourself.
+The Rust engine also runs in JavaScript through WebAssembly.
 
-See [the language and design reference](https://github.com/hxyulin/layup/blob/main/docs/DESIGN.md) for the rationale, the language
-reference and the iframe protocol. The `examples/` directory includes architecture diagrams and a minimal
-`hello.layup`.
+<p align="center">
+  <a href="https://hxyulin.github.io/layup/playground.html?example=slides">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/pipeline-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="docs/showcase/pipeline-light.svg">
+      <img src="docs/showcase/pipeline-light.svg" alt="A slide-sized pipeline: Client sends a Request to API, which sends a Query to Storage." width="800">
+    </picture>
+  </a>
+</p>
 
-### New in 0.3
+[Edit this diagram live](https://hxyulin.github.io/layup/playground.html?example=slides)
+· [View its source](examples/slides.layup)
 
-Automatic graph flow in all four directions, Unicode/RTL text with optional
-user fonts, decision trees, state machines with composite scopes, and
-font-aware automatic sizing. Source tooling now includes recovering syntax
-diagnostics, typo suggestions, linting, and formatting in the CLI and
-JavaScript/WASM API. The [changelog](CHANGELOG.md) covers the features and
-API changes, and the [language-tools guide](docs/LANGUAGE-TOOLS.md) explains
-the new tooling.
+| Explain | Layup supports |
+| --- | --- |
+| Software structure | Architecture cards, containers, typed edges, shared models and named views |
+| Control flow | Decision trees, process nodes, labeled branches and merges |
+| Runtime behavior | State machines, composite states, cycles and sequence diagrams |
+| Presentations | Slide sizing, progressive reveal, pan/zoom and interactive selection |
+| International text | Four graph directions, LTR/RTL text, Unicode and system/user CJK fonts |
+| Your workflow | CLI, Rust and JavaScript APIs, Markdown/VitePress, linting and formatting |
 
-The current development checkout also adds sequence diagrams, slide viewports,
-progressive reveal, reusable models/views and versioned scene JSON. See the
-[presentation guide](docs/PRESENTATION.md) and
-[sequence reference](docs/SEQUENCE.md), or try the
-[combined request/retry demo](examples/presentation-model.layup).
+<details>
+<summary><strong>More examples: decisions and sequences</strong></summary>
 
-### Documentation and live editor
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/decisions-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/showcase/decisions-light.svg">
+  <img src="docs/showcase/decisions-light.svg" alt="A support-routing decision tree with labeled branches." width="800" loading="lazy">
+</picture>
 
-The [documentation site](https://hxyulin.github.io/layup/) includes a DSL
-walkthrough, rendered examples, all diagram modes, presentation workflows,
-formats and API references. Its live editor compiles in a browser worker,
-with diagnostics, formatting, named views, local fonts, sharing and downloads.
-GitHub Actions builds, tests, and publishes the VitePress site to GitHub Pages
-on pushes to `main`.
+[Decision source](examples/decision-tree.layup)
+· [Edit decisions](https://hxyulin.github.io/layup/playground.html?example=decisions)
 
-JavaScript development uses a pnpm workspace and one frozen lockfile:
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/showcase/sequence-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/showcase/sequence-light.svg">
+  <img src="docs/showcase/sequence-light.svg" alt="A sequence diagram showing a request, retry loop and alternative responses." width="800" loading="lazy">
+</picture>
+
+[Sequence source](examples/sequence.layup)
+· [Edit sequences](https://hxyulin.github.io/layup/playground.html?example=sequence)
+
+</details>
+
+## Quickstart
+
+Try the [playground](https://hxyulin.github.io/layup/playground.html) to edit
+examples and download diagrams without installing anything. The docs and
+examples here follow the development checkout; see the
+[changelog](CHANGELOG.md) for release history.
+
+<details>
+<summary><strong>Install the CLI and render your first diagram</strong></summary>
+
+Install [Rust stable](https://rustup.rs/), then build the current checkout:
+
+```sh
+git clone https://github.com/hxyulin/layup.git
+cd layup
+cargo install --path crates/layup-cli --locked
+```
+
+Save this as `hello.layup`:
+
+```layup
+diagram "A request" layout=auto direction=right {
+  process client "Client" blue
+  process api "API" green
+  process store "Storage" purple
+  client -> api "Request"
+  api -> store "Query"
+}
+```
+
+```sh
+layup render hello.layup --theme auto          # hello.svg
+layup render hello.layup --html --theme auto   # hello.html, with pan/zoom
+layup check hello.layup --strict               # fail on layout warnings
+layup lint hello.layup                         # source and authoring diagnostics
+layup fmt hello.layup --check                  # check source formatting
+```
+
+`--theme auto` follows the viewer's color scheme. Use `--theme light` or
+`--theme dark` for a fixed palette. GitHub previews above use separate light
+and dark SVGs so they follow the reader's theme too.
+
+Continue with the [DSL walkthrough](https://hxyulin.github.io/layup/guide/language.html)
+and [output formats](https://hxyulin.github.io/layup/guide/formats.html).
+
+</details>
+
+<details>
+<summary><strong>Use the Rust/JavaScript APIs or run the docs locally</strong></summary>
+
+The [API guide](https://hxyulin.github.io/layup/reference/api.html) covers Rust,
+Node.js and browser WASM. The
+[Markdown guide](https://hxyulin.github.io/layup/guide/markdown.html) covers
+build-time diagrams and interactive VitePress integration.
+
+For the local playground, use Rust stable, Node 22+, and the pnpm version
+pinned in [package.json](package.json):
 
 ```sh
 rustup target add wasm32-unknown-unknown
 pnpm install --frozen-lockfile
-pnpm docs:dev       # http://localhost:5173/layup/
-pnpm docs:build     # rebuild WASM and generate the production site
-pnpm docs:preview
+pnpm docs:dev  # http://localhost:5173/layup/
 ```
 
-See [documentation development](docs/site/contributing.md) for browser tests,
-new examples, deployment and base-path overrides. These docs follow the
-checkout, including features added after the 0.3.0 version bump.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for repository setup and checks, and
+[docs development](docs/site/contributing.md) for production previews and
+GitHub Pages deployment.
 
-### Architecture
+</details>
 
-Layup draws its own architecture diagram:
+## Contributing
 
-![Layup pipeline: parse source, resolve the model, lay out blocks with bundled fonts, route edges, check warnings, and render SVG or HTML.](https://raw.githubusercontent.com/hxyulin/layup/main/docs/diagrams/architecture.svg)
+Bug reports, examples, documentation and implementation changes are welcome.
 
-[Diagram source](https://github.com/hxyulin/layup/blob/main/docs/diagrams/architecture.layup)
-· [Architecture walkthrough](https://github.com/hxyulin/layup/blob/main/docs/ARCHITECTURE.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, validation, visual review and pull requests.
+- For layout issues, include the `.layup` source, expected result and a screenshot.
+- The [architecture guide](docs/ARCHITECTURE.md) introduces the engine.
+- [AGENTS.md](AGENTS.md) records repository conventions for coding assistants.
 
-Regenerate the diagram with `just docs`.
+## License
 
-### Install
+Layup is available under either the [MIT license](LICENSE-MIT) or the
+[Apache License 2.0](LICENSE-APACHE), at your option.
 
-The `layup` crate is the layout engine. The `layup-cli` crate provides the
-`layup` command.
-
-```sh
-cargo install layup-cli --version 0.3.0 --locked
-```
-
-Or build and install from a source checkout:
-
-```sh
-cargo build --release          # target/release/layup
-cargo install --path crates/layup-cli
-```
-
-Rust stable, with no external runtime dependencies or font downloads.
-
-### Use
-
-```sh
-layup render diagram.layup                    # diagram.svg
-layup render diagram.layup --theme auto       # follows prefers-color-scheme
-layup render diagram.layup --html             # interactive page
-layup render diagram.layup --html --embed     # no toolbar, for an <iframe>
-layup render - -o - < diagram.layup           # stdin to stdout
-layup check docs/**/*.layup --strict          # CI: warnings fail
-layup check docs/*.md                         # every ```layup block in Markdown
-layup lint diagram.layup --json               # source diagnostics for tools
-layup fmt diagram.layup --check               # formatting check, without writing
-layup compile diagram.layup -o scene.json      # geometry and presentation metadata
-layup render model.layup --view detail --html # select a shared model's view
-layup build docs/                             # every .layup gets an .svg beside it
-```
-
-`layup check` (and every render) reports text that overflows its box,
-edges that cross a node, edges that share a line, and label chips that
-sit on a node, each with the source line.
-
-Layup 0.3 provides `layup lint` for recovering syntax checks,
-semantic/layout diagnostics and authoring rules, and `layup fmt` for source
-formatting that preserves comments and quoted text. Errors include source
-ranges, excerpts and typo suggestions. See [the language-tools guide](docs/LANGUAGE-TOOLS.md)
-for Rust/JavaScript APIs, JSON locations and syntax compatibility.
-
-### A small example
-
-Tones cycle automatically, so a first sketch needs no styling at all —
-`examples/hello.layup` renders strict-clean as written:
-
-```
-diagram "Hello layup" {
-  node api "Requests" { code "GET /items" }
-  node worker "Worker" { code "poll()" }
-  node store "Store" { code "items.put()" }
-
-  api -> worker "sends"
-  worker -uses-> store labeled
-}
-```
-
-More examples demonstrate [service layers](https://github.com/hxyulin/layup/blob/main/examples/service-layers.layup),
-a [job pipeline](https://github.com/hxyulin/layup/blob/main/examples/job-pipeline.layup), and
-[storage contracts](https://github.com/hxyulin/layup/blob/main/examples/storage-contracts.layup). These are fictional
-systems illustrating layout features, not claims about a real project's architecture.
-
-### Embedding
-
-```html
-<iframe id="arch" src="storage-contracts.html?theme=auto" style="width:100%;border:0"></iframe>
-<script>
-  const frame = document.getElementById('arch');
-  addEventListener('message', e => {
-    if (e.data?.layup === 'ready') frame.style.height = Math.min(e.data.height, 800) + 'px';
-    if (e.data?.layup === 'select') console.log('selected', e.data.id);
-  });
-  // later: frame.contentWindow.postMessage({ layup: 'focus', id: 'store' }, '*');
-</script>
-```
-
-`examples/embed-host.html` is a complete host page. Open it from a local
-server (`just serve`) since browsers block `postMessage` between
-`file://` documents.
-
-### Development
-
-```sh
-just check       # fmt, clippy, tests, and all diagrams with --strict
-just examples    # render examples/*.layup to examples/*.svg and out/*.html
-just docs        # regenerate the architecture diagram
-```
-
-### Direction and international text
-
-Automatic graphs accept `direction=down|up|right|left` (default `down`).
-Labels have a separate `text-direction=auto|ltr|rtl`, on the diagram or an
-individual node. Node overrides also apply to their descendants. Automatic
-text direction follows the paragraph's first strong character; code spans
-are isolated LTR runs. Default node alignment follows the resolved text
-direction; `align=left|right|center|start` overrides it.
-
-```text
-diagram "معالجة الطلبات" layout=auto direction=left text-direction=rtl {
-  node request "طلب جديد"
-  node worker "المعالجة" { sub "يستخدم العامل `GET /items` لقراءة البيانات." }
-  node result "النتيجة"
-  request -> worker
-  worker -> result
-}
-```
-
-Authored rows and section order stay fixed. Within automatic regions, ranks
-follow the selected direction and peers occupy the perpendicular axis.
-`after=` is a direction-neutral alias of `below=`; `same-layer=` and `beside=`
-constrain peers. See `examples/directions.layup`, `examples/international.layup`,
-and `examples/right-to-left.layup`. The [next-capabilities roadmap](docs/ROADMAP.md)
-tracks layout, state machines, and output formats.
-
-Under the default `clean` preset, automatic layout computes the canvas width
-from font measurements, tree extents, rank widths, and container padding.
-The canvas starts at 900px and grows for wide trees or long horizontal
-chains. Compact nodes use content widths and trees pack uneven subtrees
-around their measured extents. Set `width=N` to keep a fixed canvas; authored
-rows and the `manual` preset retain their sizing policy.
-
-### Decision trees and flowcharts
-
-Use `decision` for a diamond question, `terminal` for a start or outcome,
-and `process` for a rounded step. All three are compact, centered nodes
-with the same text, styling, link, and edge options as cards.
-
-```text
-diagram "Approve a request" layout=auto direction=down {
-  decision ready "Are all requirements met?"
-  terminal approve "Approve" green
-  terminal followup "Request more information" orange
-  ready -> approve "Yes"
-  ready -> followup "No"
-}
-```
-
-Automatic regions consisting of these compact kinds use subtree lanes when
-they form a single directed tree containing a decision: each question stays
-centered over its descendants, and separate branches keep their own space.
-Child declaration order determines branch order. All four graph directions
-work. Merges, cycles, mixed card/flowchart regions, and explicit placement
-hints use the existing graph layout. Authored rows and sections remain
-available. Put related trees in separate `group` or `section` blocks.
-
-Diamond text wraps within a safe inner area. Arrows meet the sloping or
-rounded boundary, and branch captions stay upright and avoid node outlines.
-If a caption cannot fit, rendering reports a warning; use a wider canvas,
-shorter label, or placement hints. Compact shapes accept title/code/prose,
-but child blocks belong in a surrounding container. Custom kinds can use
-`shape=decision` (or `diamond`), `process`, or `terminal`.
-
-See [the support decision tree](examples/decision-tree.layup),
-[request validation](examples/decision-flow.layup), and
-[multilingual decisions](examples/decision-international.layup).
-Run `just decision-test` to generate a Chromium review gallery and check
-text against the rendered outlines.
-
-### State machines
-
-`mode=state-machine` adds state-machine checks and enables automatic
-layout by default. Use `state` for a rounded state, `initial` for the filled
-start dot, `final` for the bullseye, and `choice` for a diamond pseudostate:
-
-```text
-diagram "Job lifecycle" mode=state-machine direction=right {
-  initial start
-  state idle "Idle"
-  state running "Running" { sub "entry / begin()" }
-  final done
-
-  start -> idle
-  idle -> running "start / begin()"
-  running -> running "tick / update()"
-  running -> idle "reset"
-  running -> done "finish [completed]"
-}
-```
-
-Transition labels follow the optional convention `event [guard] / action`.
-They remain display text; rendering does not execute a machine or evaluate
-guards. `choice allowed` draws a small unlabeled diamond; an optional title
-turns it into a larger labeled diamond. Put guard labels on outgoing edges.
-Initial and final markers take IDs and styling, without text bodies.
-
-Machine mode requires one initial marker per scope with one outgoing transition,
-rejects transitions into an initial or out of a final marker, requires two
-or more outgoing transitions from a choice, and warns about states that
-cannot be reached from the initial marker. A continuously running machine
-can omit a final marker. Custom kinds can inherit `state` or the marker
-shapes. These semantic checks apply only in machine mode.
-
-Cycles get forward placement from the initial marker while return
-transitions and self-loops remain visible. Node declaration order controls
-traversal; reordering edge statements preserves state placement. All four
-directions, explicit ports, placement hints, `layout=manual`, and authored
-rows remain available. Structural groups organize nodes without introducing
-a new machine scope.
-
-Nest states to make a composite with its own initial marker:
-
-```text
-diagram "Connection" mode=state-machine direction=right {
-  initial start
-  state offline "Offline"
-  state connected "Connected" {
-    initial enter
-    state ready "Ready"
-    state sending "Sending"
-    enter -> ready
-    ready -> sending "send"
-    sending -> ready "ack"
-  }
-  start -> offline
-  offline -> connected "connect"
-  connected -> offline "disconnect"
-}
-```
-
-A composite draws a rounded frame with a separate title/action header.
-Initial transitions stay within their own scope; regular transitions can
-enter a composite, target a descendant directly, or leave a nested state.
-IDs remain unique across the diagram. Final markers finish their containing
-scope; transitions can enter a final from that scope or a descendant scope.
-Reachability follows declared transitions and composite initial paths,
-without evaluating guards or actions. Parallel regions, history, and
-simulation remain future work.
-
-See [the job lifecycle](examples/state-machine.layup),
-[guarded choices](examples/state-choice.layup), and
-[multilingual states](examples/state-international.layup), and
-[nested connection states](examples/state-composite.layup). Run
-`just state-test` for the Chromium review gallery.
-
-### Fonts and measurement
-
-IBM Plex Sans (regular and semibold), Mono, Arabic, and Hebrew are bundled.
-Latin output embeds small glyph subsets. Arabic/Hebrew faces are embedded
-only when used and remain intact to preserve shaping. Text measurement uses
-Rustybuzz shaping with the same font bytes. Kerning and optional ligatures
-are disabled in both measurement and SVG; required script shaping remains.
-
-CJK prose wraps at Unicode line-break opportunities, including punctuation
-rules, without requiring spaces. **No CJK font is bundled.** By default the
-viewer supplies the glyphs and layout estimates their widths. System-font
-appearance and exact wrapping can vary between viewers. An inline host can
-choose a family with `.layup { --layup-font-fallback: "Noto Sans CJK SC", sans-serif; }`.
-This CSS choice changes rendering, not the engine's width estimates.
-
-For measured, reproducible fallback text, supply a standalone OpenType or
-TrueType face. Fonts are tried in order after the bundled faces, measured,
-and embedded unmodified when needed:
-
-```sh
-layup render examples/international.layup --font /path/to/CJK-Regular.ttf
-layup check examples/international.layup --font /path/to/CJK-Regular.ttf --strict
-```
-
-Repeat `--font` for additional fallback faces. The Rust API accepts
-`text::Fonts` with `add_fallback(bytes)`, then `compile_with_fonts(source, &fonts)`.
-The JavaScript package accepts `render(source, { fonts: [fontBytes] })`, with
-`Uint8Array` values. Supplied faces retain their shaping tables and are
-embedded whole, so a large CJK font can make an output substantially larger.
-Standalone static faces are recommended; weight/variation selection is not
-currently configurable.
-
-Bundled font subsets are named Layup Sans and Layup Mono under the SIL OFL.
-Each SVG carries the bundled-font license notice. Element IDs and supplied
-font-family names include content hashes so diagrams can share a page.
-Characters outside the available fonts still use viewer fallback and
-estimated widths; non-CJK missing glyphs produce diagnostics.
-
-### Rust library
-
-```toml
-[dependencies]
-layup = "0.3.0"
-```
-
-```rust
-let diagram = layup::compile(r#"diagram "Hello" { node api "API" }"#)?;
-let svg = layup::svg::render(&diagram, layup::Theme::Light);
-# Ok::<(), layup::Error>(())
-```
-
-`compile_with_options(source, &CompileOptions { view: Some("detail".into()) },
-&fonts)` selects a named view. `scene::export(&compiled)` produces versioned
-JSON with original geometry, source ranges, slide transforms, presentation
-steps and sequence metadata. In JavaScript, use
-`engine.compile(source, { view: 'detail', fonts: [] })` to receive the same
-scene as an object. See [the scene contract](docs/PRESENTATION.md#scene-export).
-
-### License
-
-The Rust code is licensed under either [MIT](https://github.com/hxyulin/layup/blob/main/LICENSE-MIT)
-or [Apache-2.0](https://github.com/hxyulin/layup/blob/main/LICENSE-APACHE), at your option.
-Bundled IBM Plex fonts are separately licensed under the SIL Open Font License
-1.1; see `crates/layup/fonts/OFL.txt` and `crates/layup/fonts/README.md` for
-license, source revision, and checksums.
-
-### Release checks
-
-```sh
-just check && just js-test && just vitepress-test
-just international-test # Chromium metrics and multilingual preview
-cargo publish -p layup -p layup-cli --dry-run
-```
-
-Publish `layup` (the engine, fonts, and renderers) first, then `layup-cli`
-(the command-line interface). The CLI depends on the released engine version.
-Publishing to crates.io is a separate release step.
+- Bundled fonts use [SIL OFL 1.1](crates/layup/fonts/OFL.txt); see the [font notes](crates/layup/fonts/README.md).
+- CJK fonts come from the system or from the user.

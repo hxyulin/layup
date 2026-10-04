@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation and DSL reference
+    url: https://hxyulin.github.io/layup/
+    about: Learn the language, diagram formats and APIs.
+  - name: Live playground
+    url: https://hxyulin.github.io/layup/playground.html
+    about: Try examples and create a share link for a reproducing diagram.

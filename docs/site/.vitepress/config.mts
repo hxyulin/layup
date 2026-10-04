@@ -7,7 +7,10 @@ export default defineConfig({
   title: 'Layup',
   description: 'Diagrams for explaining software. Learn the DSL, edit examples live, and export SVG, HTML, or scene data.',
   base,
-  head: [['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}mark.svg` }]],
+  head: [
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}mark.svg` }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}mark-dark.svg`, media: '(prefers-color-scheme: dark)' }],
+  ],
   cleanUrls: false,
   lastUpdated: true,
   markdown: { config: md => md.use(layup, { strict: true }) },
@@ -18,7 +21,7 @@ export default defineConfig({
     optimizeDeps: { exclude: ['@hxyulin/layup'] },
   },
   themeConfig: {
-    logo: { src: '/mark.svg', alt: '' },
+    logo: { light: '/mark.svg', dark: '/mark-dark.svg', alt: '' },
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Examples', link: '/examples' },

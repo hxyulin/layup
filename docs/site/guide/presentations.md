@@ -7,7 +7,7 @@ steps. The same features apply to graphs, decisions, states, and sequences.
 ## Fit a slide
 
 ```layup source
-diagram "A request through the system" layout=auto direction=right slide=wide {
+diagram "A request through the system" layout=auto direction=right width=480 slide=wide {
   process client "Client" blue
   process api "API" green
   process store "Storage" purple
@@ -26,7 +26,10 @@ diagram "A request through the system" layout=auto direction=right slide=wide {
 
 The finished scene scales uniformly and centers in the viewport. Layout,
 routes, measured text, and aspect ratio remain intact. `width=N` controls the
-original layout canvas separately. Readability warnings include every text
+original layout canvas separately. For a short pipeline, a compact source
+width such as `480` avoids fitting a mostly empty 900-unit default canvas.
+The slide keeps its 16:9 viewport; change source width to balance the content
+inside it. Readability warnings include every text
 item, including captions, roles, and chips, after fitting. `--strict` fails
 on those warnings. The threshold is in slide units before display resizing.
 

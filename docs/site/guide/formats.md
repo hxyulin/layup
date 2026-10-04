@@ -34,6 +34,35 @@ host messaging: browsers restrict messages between `file://` pages. See
 [iframe presentation controls](/guide/presentations#drive-an-iframe) and
 [the complete host protocol](https://github.com/hxyulin/layup/blob/main/docs/DESIGN.md#4-interactive-output-and-iframes).
 
+## Light and dark images on GitHub
+
+Use `--theme auto` for SVGs that should follow `prefers-color-scheme` in a
+browser or image viewer. Inline VitePress diagrams instead follow the site's
+light/dark toggle. Use a fixed palette when converting an SVG to a raster
+image or when the host cannot communicate its theme.
+
+For a GitHub README, generate both palettes and let `<picture>` select the
+image for the reader:
+
+```sh
+layup render diagram.layup --theme light -o diagram-light.svg
+layup render diagram.layup --theme dark -o diagram-dark.svg
+```
+
+```html
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="diagram-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="diagram-light.svg">
+  <img src="diagram-light.svg" alt="Describe the diagram">
+</picture>
+```
+
+The fallback image is light. To always show a dark diagram, use an ordinary
+image pointing to `diagram-dark.svg`. GitHub supports the theme-dependent
+picture pattern in its [Markdown quickstart](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/quickstart-for-writing-on-github).
+The repository README uses this pattern; `pnpm showcase` regenerates its
+previews from canonical examples.
+
 ## Scene JSON
 
 ```sh

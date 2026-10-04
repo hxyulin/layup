@@ -1,5 +1,8 @@
 # Develop and publish these docs
 
+For repository setup, contribution guidelines and checks beyond the site, see
+[CONTRIBUTING.md](https://github.com/hxyulin/layup/blob/main/CONTRIBUTING.md).
+
 The site uses VitePress and the repository's pnpm workspace. Markdown diagrams
 compile at build time through the local Layup package. The live editor uses
 that same package in a browser worker, with the WASM asset emitted under the
@@ -35,7 +38,8 @@ The build outputs `docs/site/.vitepress/dist/`. Build-time `layup` fences use
 strict checks, so invalid diagrams and warnings fail the site build. Browser
 tests check the production build under `/layup/`, including worker/WASM asset
 URLs, live edits, diagnostics, view selection, presentation controls, sharing,
-downloads, theme changes, mobile layout, and client-side navigation.
+downloads, theme changes, mobile layout, pane resizing, same-page links and
+browser history, view selection after source edits, and slide readability.
 
 ## Add a page or example
 

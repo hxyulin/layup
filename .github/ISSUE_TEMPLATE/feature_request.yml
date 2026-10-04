@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a diagram, workflow or API improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: use_case
+    attributes:
+      label: What are you trying to explain or build?
+      description: Describe a concrete use case and the current limitation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: A sample DSL, sketch or API example helps show the intended result.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or related examples
+      description: Optional workarounds, examples or tradeoffs.

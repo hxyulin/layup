@@ -4,6 +4,7 @@ import { withBase } from 'vitepress';
 import { sampleById, samples } from '../samples.js';
 import { decodeShare, encodeShare } from '../share.js';
 import { safeLinks } from '../links.js';
+import { EXPAND_ICON, ZOOM_IN_ICON, ZOOM_OUT_ICON } from '../../../../../packages/layup/icons.js';
 
 const props = defineProps({ preset: { type: String, default: 'hello' }, full: Boolean });
 const editorId = `layup-source-${useId()}`;
@@ -19,6 +20,12 @@ const notice = ref('');
 const fontFiles = ref([]);
 const fonts = ref([]);
 const textarea = ref();
+const panels = ref();
+const sourcePanel = ref();
+const sourceWidth = ref(50);
+const panelHeight = ref(null);
+const measuredHeight = ref(522);
+const resizing = ref(false);
 const workerReady = ref(false);
 const renderedSource = ref('');
 const renderedView = ref('');
@@ -32,6 +39,50 @@ let generation = 0;
 let mounted = false;
 let destroyed = false;
 let activeOperation;
+let loadedLocation;
+let resizeObserver;
+let resizeDrag;
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+function startResize(event, axis) {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  event.currentTarget.setPointerCapture(event.pointerId);
+  resizeDrag = {
+    axis, pointerId: event.pointerId, x: event.clientX, y: event.clientY,
+    width: panels.value.getBoundingClientRect().width,
+    fraction: sourceWidth.value, height: sourcePanel.value.getBoundingClientRect().height,
+    rows: window.matchMedia('(max-width: 760px)').matches ? 2 : 1,
+  };
+  resizing.value = true;
+}
+
+function moveResize(event) {
+  if (event.pointerId !== resizeDrag?.pointerId) return;
+  if (resizeDrag.axis === 'width') sourceWidth.value = clamp(resizeDrag.fraction + (event.clientX - resizeDrag.x) / resizeDrag.width * 100, 20, 80);
+  else panelHeight.value = clamp(resizeDrag.height + (event.clientY - resizeDrag.y) / resizeDrag.rows, 240, 1200);
+}
+
+function endResize(event) {
+  if (event.pointerId !== resizeDrag?.pointerId) return;
+  resizeDrag = null;
+  resizing.value = false;
+  if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+}
+
+function resizeKey(event, axis) {
+  const keys = axis === 'width' ? ['ArrowLeft', 'ArrowRight'] : ['ArrowUp', 'ArrowDown'];
+  if (![...keys, 'Home', 'End', 'Enter'].includes(event.key)) return;
+  event.preventDefault();
+  if (axis === 'width') {
+    sourceWidth.value = event.key === 'Enter' ? 50 : event.key === 'Home' ? 20 : event.key === 'End' ? 80 : clamp(sourceWidth.value + (event.key === keys[0] ? -5 : 5), 20, 80);
+  } else {
+    panelHeight.value = event.key === 'Enter' ? null : event.key === 'Home' ? 240 : event.key === 'End' ? 1200 : clamp(measuredHeight.value + (event.key === keys[0] ? -40 : 40), 240, 1200);
+  }
+}
+
+function resetPanes() { sourceWidth.value = 50; panelHeight.value = null; }
 
 function download(content, extension, mime) {
   const url = URL.createObjectURL(new Blob([content], { type: mime }));
@@ -75,7 +126,9 @@ function startWorker() {
       scene.value = data.scene;
       diagnostics.value = data.diagnostics;
       renderedSource.value = activeOperation.source;
-      renderedView.value = activeOperation.view;
+      renderedView.value = data.view;
+      view.value = data.view;
+      if (data.viewReset) notice.value = `The selected view is no longer in this source. Showing ${data.scene.views.length ? 'the first available view' : 'the diagram'}.`;
       status.value = 'ready';
     }
   };
@@ -114,14 +167,47 @@ function schedule() {
   debounce = setTimeout(() => request(), 220);
 }
 
-function chooseSample() {
+function locationKey(url) {
+  return JSON.stringify([url.searchParams.get('example'), new URLSearchParams(url.hash.slice(1)).get('diagram')]);
+}
+
+function chooseSample(updateLocation = true) {
   const chosen = sampleById(sample.value);
   source.value = chosen.source;
   view.value = chosen.view || '';
   diagnostics.value = [];
   notice.value = '';
   previewZoom.value = 1;
+  if (props.full && updateLocation) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('example', sample.value);
+    url.hash = '';
+    loadedLocation = locationKey(url);
+    window.history.replaceState(window.history.state, '', url);
+  }
   schedule();
+}
+
+function syncLocation() {
+  if (!props.full) return;
+  const url = new URL(window.location.href);
+  const key = locationKey(url);
+  // Heading links must not discard edits to an example.
+  if (key === loadedLocation) return;
+  loadedLocation = key;
+  try {
+    const shared = decodeShare(url.hash);
+    if (shared) {
+      source.value = shared.source;
+      view.value = shared.view || '';
+      previewZoom.value = 1;
+      notice.value = '';
+      schedule();
+    } else {
+      sample.value = sampleById(url.searchParams.get('example') || props.preset).id;
+      chooseSample(false);
+    }
+  } catch (error) { notice.value = error.message; }
 }
 
 function jumpTo(diagnostic) {
@@ -171,51 +257,55 @@ async function share() {
   catch { notice.value = url.href; }
 }
 
-watch([source, view], schedule);
-watch(() => props.preset, value => { sample.value = sampleById(value).id; chooseSample(); });
+watch([source, view], () => { if (!current.value) schedule(); });
+watch(() => props.preset, value => { sample.value = sampleById(value).id; chooseSample(false); });
 onMounted(() => {
   mounted = true;
-  if (props.full) {
-    try {
-      const shared = decodeShare(window.location.hash);
-      if (shared) { source.value = shared.source; view.value = shared.view || ''; }
-      else {
-        const selected = new URLSearchParams(window.location.search).get('example');
-        if (selected) { sample.value = sampleById(selected).id; chooseSample(); }
-      }
-    } catch (error) { notice.value = error.message; }
-  }
+  resizeObserver = new ResizeObserver(() => { measuredHeight.value = Math.round(sourcePanel.value.getBoundingClientRect().height); });
+  resizeObserver.observe(sourcePanel.value);
   startWorker();
+  if (props.full) {
+    for (const event of ['layup:navigate', 'hashchange', 'popstate']) window.addEventListener(event, syncLocation);
+    syncLocation();
+  }
 });
-onBeforeUnmount(() => { destroyed = true; clearTimeout(debounce); clearTimeout(watchdog); worker?.terminate(); });
+onBeforeUnmount(() => {
+  destroyed = true;
+  resizeObserver?.disconnect();
+  for (const event of ['layup:navigate', 'hashchange', 'popstate']) window.removeEventListener(event, syncLocation);
+  clearTimeout(debounce); clearTimeout(watchdog); worker?.terminate();
+});
 </script>
 
 <template>
-  <section class="live-editor" aria-label="Live Layup editor">
+  <section class="live-editor" :class="{ 'is-resizing': resizing }" :style="{ '--source-fraction': sourceWidth / 100, '--panel-height': panelHeight == null ? undefined : `${panelHeight}px` }" aria-label="Live Layup editor">
     <div class="editor-controls">
-      <label>Example <select v-model="sample" aria-label="Example" @change="chooseSample"><option v-for="item in samples" :key="item.id" :value="item.id">{{ item.title }}</option></select></label>
+      <label>Example <select v-model="sample" aria-label="Example" @change="chooseSample()"><option v-for="item in samples" :key="item.id" :value="item.id">{{ item.title }}</option></select></label>
       <label>View <select v-model="view" aria-label="View" :disabled="!scene?.views.length"><option value="">First view (default)</option><option v-for="item in scene?.views || []" :key="item.id" :value="item.id">{{ item.title }}</option></select></label>
       <button type="button" :disabled="!workerReady || status === 'updating'" @click="request('format')">Format</button>
-      <button type="button" @click="chooseSample">Reset example</button>
+      <button type="button" @click="chooseSample()">Reset example</button>
+      <button type="button" @click="resetPanes">Reset pane sizes</button>
       <button v-if="!workerReady && status === 'error'" type="button" @click="startWorker">Restart renderer</button>
     </div>
-    <div class="editor-panels">
-      <div class="source-panel">
+    <div ref="panels" class="editor-panels">
+      <div :id="`${editorId}-panel`" ref="sourcePanel" class="source-panel">
         <label :for="editorId" class="panel-label">Layup source <span>Updates as you type</span></label>
         <textarea :id="editorId" ref="textarea" v-model="source" maxlength="100000" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" :aria-describedby="helpId" @keydown.ctrl.enter.prevent="request()"></textarea>
       </div>
-      <div class="preview-panel" :aria-busy="status === 'loading' || status === 'updating'">
-        <div class="panel-label preview-label"><div>Diagram <span role="status" aria-live="polite" aria-atomic="true" :class="`status-${status}`">{{ statusText }}</span></div><div v-if="svg" class="preview-tools"><button type="button" aria-label="Zoom preview out" :disabled="previewZoom <= 1" @click="previewZoom = Math.max(1, previewZoom - .5)">−</button><button type="button" @click="previewZoom = 1">Fit preview</button><button type="button" aria-label="Zoom preview in" :disabled="previewZoom >= 5" @click="previewZoom = Math.min(5, previewZoom + .5)">+</button></div></div>
+      <div class="pane-width-handle" role="separator" tabindex="0" aria-label="Resize source and diagram widths" aria-orientation="vertical" :aria-controls="`${editorId}-panel ${editorId}-preview`" aria-valuemin="20" aria-valuemax="80" :aria-valuenow="Math.round(sourceWidth)" :aria-valuetext="`Source ${Math.round(sourceWidth)}%, diagram ${Math.round(100 - sourceWidth)}%`" title="Drag to resize widths. Left/Right arrows adjust; Enter resets." @pointerdown="startResize($event, 'width')" @pointermove="moveResize" @pointerup="endResize" @pointercancel="endResize" @lostpointercapture="endResize" @keydown="resizeKey($event, 'width')"></div>
+      <div :id="`${editorId}-preview`" class="preview-panel" :aria-busy="status === 'loading' || status === 'updating'">
+        <div class="panel-label preview-label"><div>Diagram <span role="status" aria-live="polite" aria-atomic="true" :class="`status-${status}`">{{ statusText }}</span></div><div v-if="svg" class="preview-tools"><button type="button" aria-label="Zoom preview out" :disabled="previewZoom <= 1" @click="previewZoom = Math.max(1, previewZoom - .5)" v-html="ZOOM_OUT_ICON"></button><button type="button" @click="previewZoom = 1">Fit preview</button><button type="button" aria-label="Zoom preview in" :disabled="previewZoom >= 5" @click="previewZoom = Math.min(5, previewZoom + .5)" v-html="ZOOM_IN_ICON"></button></div></div>
         <div v-if="svg" class="preview-scroll">
           <p v-if="status === 'error'" class="last-valid">Showing the last successful render.</p>
           <div class="layup-diagram" :style="{ width: `${previewZoom * 100}%` }" tabindex="0" aria-label="Diagram preview and presentation controls">
             <div class="rendered-svg" v-html="svg"></div>
-            <button type="button" class="layup-expand" aria-label="Expand diagram" title="Expand diagram">⤢</button>
+            <button type="button" class="layup-expand" aria-label="Expand diagram" title="Expand diagram" v-html="EXPAND_ICON"></button>
           </div>
         </div>
         <div v-else class="preview-empty">Your diagram appears here. The renderer loads once and runs in your browser.</div>
       </div>
     </div>
+    <div class="pane-height-handle" role="separator" tabindex="0" aria-label="Resize source and diagram height" aria-orientation="horizontal" :aria-controls="`${editorId}-panel ${editorId}-preview`" aria-valuemin="240" aria-valuemax="1200" :aria-valuenow="measuredHeight" title="Drag to resize both panes. Up/Down arrows adjust; Enter resets." @pointerdown="startResize($event, 'height')" @pointermove="moveResize" @pointerup="endResize" @pointercancel="endResize" @lostpointercapture="endResize" @keydown="resizeKey($event, 'height')"></div>
     <p :id="helpId" class="editor-help">Ctrl+Enter renders now · Tab moves focus · Click a diagnostic to select its source · Expand for pan, zoom and presentation controls</p>
     <ul v-if="diagnostics.length" class="editor-diagnostics" aria-label="Source diagnostics">
       <li v-for="(item, index) in diagnostics" :key="index" :class="item.severity">

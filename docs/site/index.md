@@ -5,7 +5,8 @@ hero:
   text: Explain software with diagrams.
   tagline: Write a small text model. Shape the layout, show a decision, trace an interaction, or reveal a system one step at a time.
   image:
-    src: /mark.svg
+    light: /mark.svg
+    dark: /mark-dark.svg
     alt: Two connected Layup nodes
   actions:
     - theme: brand

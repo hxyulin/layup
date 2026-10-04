@@ -51,6 +51,18 @@ async function openEditor(example = 'hello') {
   await page.goto(`${site}playground.html?example=${example}`);
   await ready();
 }
+async function follow(href) {
+  await page.evaluate(href => {
+    const link = document.createElement('a');
+    link.href = href;
+    document.querySelector('.vp-doc').append(link);
+    link.click();
+    link.remove();
+  }, href);
+}
+async function exampleReady(id) {
+  await page.waitForFunction(id => document.querySelector('select[aria-label="Example"]')?.value === id && document.querySelector('.live-editor .status-ready'), id);
+}
 async function download(label) {
   const waiting = page.waitForEvent('download');
   await editor().getByRole('button', { name: label, exact: true }).click();
@@ -155,6 +167,131 @@ test('all canonical examples render; named views and presentation steps work', a
   assert.equal(await preview().locator('.node[data-id="worker"]').count(), 1);
 });
 
+test('editing source removes stale view selection without hiding source errors', async () => {
+  await openEditor('models');
+  const model = await source().inputValue();
+  await edit(model.replace('view overview ', 'view renamed '));
+  assert.equal(await editor().getByLabel('View', { exact: true }).inputValue(), '');
+  assert.match(await editor().locator('.editor-notice').textContent(), /first available view/);
+  assert.equal(JSON.parse((await download('Download scene JSON')).content).selectedView, 'renamed');
+  await openEditor('models');
+  await edit('diagram "Replaced model" { node replacement "Valid source" }');
+  assert.equal(await preview().locator('.node[data-id="replacement"]').count(), 1);
+  assert.equal(await editor().getByLabel('View', { exact: true }).isEnabled(), false);
+  await editor().getByLabel('Example', { exact: true }).selectOption('models');
+  await ready();
+  await editor().getByLabel('View', { exact: true }).selectOption('detail');
+  await ready();
+  await source().fill(model.replace('worker -> store "save"', 'worker -> missing "save"'));
+  await page.waitForSelector('.status-error');
+  assert.equal(await editor().getByLabel('View', { exact: true }).inputValue(), 'detail');
+  assert.match(await editor().locator('.editor-diagnostics').textContent(), /missing/);
+});
+
+test('query-only example navigation and browser history update a reused playground', async () => {
+  await openEditor();
+  for (const id of ['decisions', 'models', 'states']) {
+    await follow(`${site}playground.html?example=${id}`);
+    await exampleReady(id);
+  }
+  assert.equal(await preview().locator('.node[data-id="running"]').count(), 1);
+  await page.goBack();
+  await exampleReady('models');
+  assert.equal(await editor().getByLabel('View', { exact: true }).inputValue(), 'overview');
+  await page.goForward();
+  await exampleReady('states');
+});
+
+test('same-page share links load source; choosing another example clears the share', async () => {
+  await openEditor();
+  const first = 'diagram "Shared first" { node one "你好" }';
+  const second = 'diagram "Shared second" { node two "مرحبا" }';
+  for (const text of [first, second]) {
+    await follow(`${site}playground.html#${new URLSearchParams({ diagram: encodeShare(text) })}`);
+    await page.waitForFunction(text => document.querySelector('.live-editor textarea')?.value === text && document.querySelector('.status-ready'), text);
+  }
+  await page.goBack();
+  await page.waitForFunction(text => document.querySelector('.live-editor textarea')?.value === text && document.querySelector('.status-ready'), first);
+  await follow(`${page.url().split('#')[0]}#heading`);
+  await ready();
+  // Leaving a shared document restores the example referenced by the URL.
+  assert.equal(await editor().getByLabel('Example', { exact: true }).inputValue(), 'hello');
+  await editor().getByLabel('Example', { exact: true }).selectOption('slides');
+  await ready();
+  assert.equal(new URL(page.url()).hash, '');
+  assert.equal(new URL(page.url()).searchParams.get('example'), 'slides');
+  await page.reload();
+  await exampleReady('slides');
+  await edit('diagram "Unsaved edit" { node edited }');
+  await follow(`${page.url().split('#')[0]}#heading`);
+  assert.equal(await source().inputValue(), 'diagram "Unsaved edit" { node edited }');
+});
+
+test('both playground panes resize with pointer and keyboard controls', async () => {
+  await openEditor('slides');
+  const widths = () => editor().locator('.editor-panels').evaluate(panel => ({ source: panel.querySelector('.source-panel').getBoundingClientRect().width, preview: panel.querySelector('.preview-panel').getBoundingClientRect().width }));
+  const widthHandle = editor().getByRole('separator', { name: 'Resize source and diagram widths' });
+  const initial = await widths();
+  const box = await widthHandle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 130, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const resized = await widths();
+  assert.ok(resized.source < initial.source - 120);
+  assert.ok(resized.preview > initial.preview + 120);
+  await widthHandle.focus();
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('ArrowRight');
+  assert.equal(await widthHandle.getAttribute('aria-valuenow'), '55');
+  for (const [key, value] of [['Home', '20'], ['End', '80']]) {
+    await page.keyboard.press(key);
+    assert.equal(await widthHandle.getAttribute('aria-valuenow'), value);
+    assert.equal(await editor().locator('.source-panel').evaluate(panel => panel.scrollWidth > panel.clientWidth + 1), false);
+    assert.equal(await editor().locator('.preview-panel').evaluate(panel => panel.scrollWidth > panel.clientWidth + 1), false);
+  }
+  await page.keyboard.press('Enter');
+  const heightHandle = editor().getByRole('separator', { name: 'Resize source and diagram height' });
+  const heights = () => editor().locator('.editor-panels').evaluate(panel => ({ source: panel.querySelector('.source-panel').getBoundingClientRect().height, preview: panel.querySelector('.preview-panel').getBoundingClientRect().height }));
+  const initialHeight = await heights();
+  const heightBox = await heightHandle.boundingBox();
+  await page.mouse.move(heightBox.x + heightBox.width / 2, heightBox.y + heightBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(heightBox.x + heightBox.width / 2, heightBox.y + heightBox.height / 2 + 100, { steps: 8 });
+  await page.mouse.up();
+  const resizedHeight = await heights();
+  assert.ok(resizedHeight.source >= initialHeight.source + 99);
+  assert.equal(resizedHeight.source, resizedHeight.preview);
+  await heightHandle.focus();
+  await page.keyboard.press('ArrowDown');
+  assert.ok((await heights()).source >= resizedHeight.source + 39);
+  await editor().getByRole('button', { name: 'Reset pane sizes', exact: true }).click();
+  assert.equal(await widthHandle.getAttribute('aria-valuenow'), '50');
+  assert.deepEqual(await heights(), initialHeight);
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await widthHandle.isVisible(), false);
+  await heightHandle.focus();
+  await page.keyboard.press('ArrowDown');
+  assert.equal((await heights()).source, (await heights()).preview);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
+  await page.setViewportSize({ width: 1440, height: 1100 });
+});
+
+test('the slide pipeline uses the slide width and keeps its labels readable', async () => {
+  await openEditor('slides');
+  await page.evaluate(() => document.fonts.ready);
+  const layout = await preview().evaluate(svg => {
+    const canvas = svg.getBoundingClientRect();
+    const boxes = [...svg.querySelectorAll('.node .box')].map(node => node.getBoundingClientRect());
+    const texts = [...svg.querySelectorAll('.node text')].map(node => node.getBoundingClientRect());
+    return { viewBox: svg.getAttribute('viewBox'), occupancy: (Math.max(...boxes.map(box => box.right)) - Math.min(...boxes.map(box => box.left))) / canvas.width, smallestTextHeight: Math.min(...texts.map(text => text.height)), contained: [...boxes, ...texts].every(box => box.left >= canvas.left && box.right <= canvas.right && box.top >= canvas.top && box.bottom <= canvas.bottom) };
+  });
+  assert.equal(layout.viewBox, '0 0 1920 1080');
+  assert.ok(layout.occupancy > .7, JSON.stringify(layout));
+  assert.ok(layout.smallestTextHeight >= 11, JSON.stringify(layout));
+  assert.equal(layout.contained, true);
+});
+
 test('downloads use current source, portable themes, and selected scene metadata', async () => {
   await openEditor('models');
   await editor().getByLabel('View', { exact: true }).selectOption('detail');
@@ -209,6 +346,70 @@ test('user-supplied font bytes reach the worker and executable links are omitted
   await ready();
 });
 
+test('inline and live toolbar icons stay centered and sized in both themes', async () => {
+  await page.goto(`${site}guide/getting-started.html`);
+  await ready();
+  const inline = page.locator('.vp-doc .layup-diagram > svg.layup').first().locator('..');
+  const live = editor().locator('.layup-diagram');
+  for (const dark of [false, true]) {
+    if (await page.locator('html').evaluate(html => html.classList.contains('dark')) !== dark) {
+      await page.locator('.VPSwitchAppearance').first().click();
+    }
+    const paths = [];
+    for (const host of [inline, live]) {
+      const button = host.getByRole('button', { name: 'Expand diagram', exact: true });
+      await page.keyboard.press('Tab');
+      await button.focus();
+      const geometry = await button.evaluate(button => {
+        const icon = button.querySelector('svg');
+        const a = button.getBoundingClientRect();
+        const b = icon.getBoundingClientRect();
+        return { width: a.width, height: a.height, iconWidth: b.width, iconHeight: b.height,
+          offsetX: b.x + b.width / 2 - a.x - a.width / 2,
+          offsetY: b.y + b.height / 2 - a.y - a.height / 2,
+          path: icon.querySelector('path').getAttribute('d') };
+      });
+      assert.equal(geometry.width, 32);
+      assert.equal(geometry.height, 32);
+      assert.equal(geometry.iconWidth, 16);
+      assert.equal(geometry.iconHeight, 16);
+      assert.ok(Math.abs(geometry.offsetX) < .5 && Math.abs(geometry.offsetY) < .5, JSON.stringify(geometry));
+      // Wait for the hover/focus transition before checking keyboard activation.
+      await page.waitForFunction(button => Number(getComputedStyle(button).opacity) > .99, await button.elementHandle());
+      paths.push(geometry.path);
+      await page.keyboard.press('Enter');
+      await page.waitForSelector('.layup-viewer[open]');
+      await page.keyboard.press('Escape');
+    }
+    assert.equal(paths[0], paths[1]);
+    for (const label of ['Zoom preview in', 'Zoom preview out']) {
+      const icon = editor().getByRole('button', { name: label, exact: true }).locator('svg');
+      assert.deepEqual(await icon.evaluate(svg => { const r = svg.getBoundingClientRect(); return [r.width, r.height]; }), [16, 16]);
+    }
+    const logo = page.locator('.VPNavBarTitle img:visible');
+    assert.ok((await logo.getAttribute('src')).endsWith(dark ? 'mark-dark.svg' : 'mark.svg'));
+  }
+});
+
+test('touch users can see and activate expand without hovering', async () => {
+  const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+  try {
+    const phone = await touch.newPage();
+    await phone.goto(`${site}guide/getting-started.html`);
+    await phone.waitForSelector('.live-editor .status-ready');
+    assert.equal(await phone.evaluate(() => matchMedia('(hover: none)').matches), true);
+    for (const button of await phone.locator('.layup-expand').all()) {
+      assert.equal(await button.evaluate(el => getComputedStyle(el).opacity), '1');
+    }
+    await phone.locator('.live-editor .layup-expand').tap();
+    await phone.waitForSelector('.layup-viewer[open]');
+    await phone.getByRole('button', { name: 'Close', exact: true }).tap();
+    await phone.waitForSelector('.layup-viewer', { state: 'detached' });
+  } finally {
+    await touch.close();
+  }
+});
+
 test('theme, fullscreen, mobile layout, and local search work under the Pages base', async () => {
   await openEditor('presentation');
   const fill = () => preview().locator('.node .box').first().evaluate(box => getComputedStyle(box).fill);
@@ -228,8 +429,8 @@ test('theme, fullscreen, mobile layout, and local search work under the Pages ba
   await page.waitForFunction(() => document.querySelector('.VPSidebar').getBoundingClientRect().right <= 1);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false);
   const positions = await editor().locator('.editor-panels').evaluate(panel => {
-    const a = panel.children[0].getBoundingClientRect();
-    const b = panel.children[1].getBoundingClientRect();
+    const a = panel.querySelector('.source-panel').getBoundingClientRect();
+    const b = panel.querySelector('.preview-panel').getBoundingClientRect();
     return { sourceBottom: a.bottom, previewTop: b.top };
   });
   assert.ok(positions.previewTop >= positions.sourceBottom);

@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a parser, layout, export or playground problem.
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does the problem occur?
+      options:
+        - Layout or routing
+        - Text, RTL or fonts
+        - DSL parsing or diagnostics
+        - Playground or interactions
+        - Export or embedding
+        - Installation or API
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducing source and steps
+      description: Include a minimal .layup source, command or playground share link, and steps to reproduce.
+      placeholder: Paste your source and the command or steps here.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include diagnostics and a screenshot for visible layout problems.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Layup version or commit, OS, browser/Node/Rust version as applicable, theme, graph/text direction, fonts and viewport size.
+    validations:
+      required: true
