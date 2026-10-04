@@ -1,0 +1,9 @@
+diagram "Validate a request" layout=auto direction=right width=1200 {
+  process request "Receive request" blue { code "POST /orders" }
+  decision valid "Is the request valid?" yellow
+  terminal accepted "Accept order" green
+  terminal rejected "Reject request" red
+  request -> valid
+  valid -> accepted "Yes"
+  valid -> rejected "No"
+}

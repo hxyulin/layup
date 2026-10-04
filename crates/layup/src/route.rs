@@ -89,7 +89,7 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
             .map(|(s, _)| *s)
             .collect();
         let (ra, rb) = (scene.nodes[plan.a].rect, scene.nodes[plan.b].rect);
-        let points = match plan.outside {
+        let mut points = match plan.outside {
             Some((side, k)) => {
                 let total = if side == Side::Right {
                     via_total[0]
@@ -110,9 +110,17 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
                 }
             }
         };
+        attach_outline(&mut points, scene.nodes[plan.a].outline, false);
+        attach_outline(&mut points, scene.nodes[plan.b].outline, true);
         for (i, seg) in points.windows(2).enumerate() {
             let (p, q) = (seg[0], seg[1]);
-            if let Some(hit) = obstacles.iter().find(|o| segment_hits(p, q, o)) {
+            if let Some(hit) = obstacles.iter().find(|o| {
+                scene
+                    .nodes
+                    .iter()
+                    .find(|n| n.rect == **o)
+                    .is_some_and(|n| n.outline.segment_hits(p, q))
+            }) {
                 let name = scene
                     .nodes
                     .iter()
@@ -129,7 +137,13 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
                 None
             }
         });
-        let chip = chip_text.and_then(|t| place_chip(scene, &points, &t, tone, plan.a, plan.b));
+        let chip = chip_text.and_then(|t| {
+            let chip = place_chip(scene, &points, &t, tone, plan.a, plan.b);
+            if chip.is_none() {
+                warnings.push(Warning { line: Some(e.line), msg: format!("no clear space for label \"{t}\" on {} -> {}; increase width or separate the branches", e.from, e.to) });
+            }
+            chip
+        });
         for seg in points.windows(2) {
             taken.push((seg[0], seg[1]));
             taken_bus.push(e.bus);
@@ -156,6 +170,25 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
     if lowest + 24.0 > scene.height {
         scene.height = (lowest + 24.0).ceil();
     }
+}
+
+/// Extend the end segment inward from a conservative rectangular port to
+/// the real boundary, preserving its orthogonal direction and the route.
+fn attach_outline(points: &mut [(f64, f64)], outline: crate::geometry::Outline, end: bool) {
+    if matches!(outline, crate::geometry::Outline::Rectangle(_)) || points.len() < 2 {
+        return;
+    }
+    let i = if end { points.len() - 1 } else { 0 };
+    let j = if end { i - 1 } else { 1 };
+    let (p, q) = (points[i], points[j]);
+    let side = if (p.0 - q.0).abs() < 0.001 {
+        if q.1 < p.1 { Side::Top } else { Side::Bottom }
+    } else if q.0 < p.0 {
+        Side::Left
+    } else {
+        Side::Right
+    };
+    points[i] = outline.port(side, along(p, side));
 }
 
 /// Edges that leave or enter one node through the same point are moved
@@ -678,6 +711,16 @@ fn place_chip(
     a: usize,
     b: usize,
 ) -> Option<Item> {
+    let compact = !matches!(
+        scene.nodes[a].outline,
+        crate::geometry::Outline::Rectangle(_)
+    ) || !matches!(
+        scene.nodes[b].outline,
+        crate::geometry::Outline::Rectangle(_)
+    );
+    if compact {
+        return place_branch_chip(scene, points, text, tone);
+    }
     let (i, len) = points
         .windows(2)
         .enumerate()
@@ -785,4 +828,106 @@ fn place_chip(
         rotate,
         bordered,
     })
+}
+
+/// Upright decision captions search every segment and both sides of it. The
+/// actual outlines include endpoints, so a label cannot cover its question
+/// or outcome after ports have been extended to a sloping boundary.
+fn place_branch_chip(scene: &Scene, points: &[(f64, f64)], text: &str, tone: Tone) -> Option<Item> {
+    let w = width_with_fonts(text, Font::SansBold, 11.5, 0.0, &scene.fonts) + 14.0;
+    let h = 21.0;
+    let mut segments: Vec<_> = points
+        .windows(2)
+        .map(|s| {
+            (
+                s[0],
+                s[1],
+                (s[0].0 - s[1].0).abs() + (s[0].1 - s[1].1).abs(),
+            )
+        })
+        .collect();
+    segments.sort_by(|a, b| b.2.total_cmp(&a.2));
+    let free = |r: Rect| {
+        !scene.nodes.iter().enumerate().any(|(i,n)| {
+            !scene.nodes.iter().any(|m| m.parent == Some(i)) && n.outline.intersects_rect(r.grow(3.0))
+        }) && !scene.keepout.iter().any(|b| crate::geometry::Outline::Rectangle(*b).intersects_rect(r.grow(3.0)))
+          && !scene.edges.iter().filter_map(|e| e.chip.as_ref()).any(|item| matches!(item, Item::Chip { rect, .. } if crate::geometry::Outline::Rectangle(*rect).intersects_rect(r.grow(3.0))))
+    };
+    for (p, q, len) in segments {
+        if len < 1.0 {
+            continue;
+        }
+        let horizontal = (p.1 - q.1).abs() < 0.5;
+        for t in [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8] {
+            let (x, y) = (p.0 + (q.0 - p.0) * t, p.1 + (q.1 - p.1) * t);
+            let mut candidates = Vec::new();
+            if horizontal && len >= w + 16.0 {
+                candidates.push((
+                    Rect {
+                        x: x - w / 2.0,
+                        y: y - h / 2.0,
+                        w,
+                        h,
+                    },
+                    true,
+                ));
+            }
+            if horizontal {
+                candidates.push((
+                    Rect {
+                        x: x - w / 2.0,
+                        y: y - h - 4.0,
+                        w,
+                        h,
+                    },
+                    false,
+                ));
+                candidates.push((
+                    Rect {
+                        x: x - w / 2.0,
+                        y: y + 4.0,
+                        w,
+                        h,
+                    },
+                    false,
+                ));
+            } else {
+                candidates.push((
+                    Rect {
+                        x: x + 6.0,
+                        y: y - h / 2.0,
+                        w,
+                        h,
+                    },
+                    false,
+                ));
+                candidates.push((
+                    Rect {
+                        x: x - w - 6.0,
+                        y: y - h / 2.0,
+                        w,
+                        h,
+                    },
+                    false,
+                ));
+            }
+            for (rect, bordered) in candidates {
+                if rect.x >= 4.0
+                    && rect.right() <= scene.width - 4.0
+                    && rect.y >= 4.0
+                    && rect.bottom() <= scene.height - 4.0
+                    && free(rect)
+                {
+                    return Some(Item::Chip {
+                        rect,
+                        text: text.into(),
+                        tone,
+                        rotate: false,
+                        bordered,
+                    });
+                }
+            }
+        }
+    }
+    None
 }

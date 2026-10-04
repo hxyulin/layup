@@ -1,0 +1,11 @@
+diagram "检查申请" layout=auto direction=left width=1200 {
+  decision complete "申请资料是否完整？" yellow { sub "请确认姓名和联系方式。" }
+  decision approved "هل تمت الموافقة؟" blue text-direction=rtl
+  terminal followup "请补充申请资料" orange
+  terminal accept "قبول الطلب" green text-direction=rtl
+  terminal reject "رفض الطلب" red text-direction=rtl
+  complete -> approved "是"
+  complete -> followup "否"
+  approved -> accept "نعم"
+  approved -> reject "لا"
+}

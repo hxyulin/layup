@@ -95,12 +95,32 @@ pub const AUTO_CYCLE: [Tone; 5] = [
 pub enum Shape {
     /// Left-aligned head line, optional code and prose lines. Tone fill.
     Card,
+    /// Compact, centered flowchart step.
+    Process,
+    /// Branching question with a diamond outline.
+    Decision,
+    /// Start or outcome with a capsule outline.
+    Terminal,
     /// Centered title over centered code; the small typed API box.
     Api,
     /// White frame with a gray head strip and a mono name; holds children.
     Package,
     /// Hollow rounded container with a role label and a mono name; holds children.
     Container,
+}
+
+impl Shape {
+    pub fn compact(self) -> bool {
+        matches!(self, Self::Process | Self::Decision | Self::Terminal)
+    }
+
+    pub fn node_width(self, available: f64) -> f64 {
+        match self {
+            Self::Decision => available.min(280.0),
+            Self::Process | Self::Terminal => available.min(240.0),
+            _ => available,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -143,6 +163,20 @@ pub fn presets() -> BTreeMap<String, NodeStyle> {
     };
     m.insert("card".into(), card.clone());
     m.insert("node".into(), card.clone());
+    for (name, shape) in [
+        ("process", Shape::Process),
+        ("decision", Shape::Decision),
+        ("terminal", Shape::Terminal),
+    ] {
+        m.insert(
+            name.into(),
+            NodeStyle {
+                shape,
+                align: Align::Center,
+                ..card.clone()
+            },
+        );
+    }
     m.insert(
         "package".into(),
         NodeStyle {

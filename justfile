@@ -71,6 +71,11 @@ international-test:
     cargo run -q -p layup --example verify-international
     node tools/verify-international.mjs
 
+# Review decision trees in all directions and check glyph/branch-label containment.
+decision-test:
+    cargo build -p layup-cli
+    node tools/verify-decisions.mjs
+
 # Run the VitePress example with the local package (http://localhost:5173).
 vitepress: wasm
     cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev

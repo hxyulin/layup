@@ -70,6 +70,11 @@ fn owners(block: &Block, owner: usize, ids: &mut BTreeMap<String, usize>) {
                 owners(child, owner, ids);
             }
         }
+        Block::Tree { nodes, .. } => {
+            for child in nodes {
+                owners(child, owner, ids);
+            }
+        }
         Block::Flow { layers, .. } => {
             for child in layers.iter().flatten() {
                 owners(child, owner, ids);
@@ -83,6 +88,14 @@ fn layer(blocks: Vec<Block>, edges: &[Edge], direction: Direction) -> Result<Vec
     let n = blocks.len();
     if n == 0 {
         return Ok(blocks);
+    }
+    if let Some((children, root)) = decision_tree(&blocks, edges) {
+        return Ok(vec![Block::Tree {
+            direction,
+            nodes: blocks,
+            children,
+            root,
+        }]);
     }
     let mut ids = BTreeMap::new();
     for (i, block) in blocks.iter().enumerate() {
@@ -302,6 +315,56 @@ fn layer(blocks: Vec<Block>, edges: &[Edge], direction: Direction) -> Result<Vec
         });
     }
     Ok(result)
+}
+
+/// Only true trees use subtree lanes. Hints, merges, cycles, noncompact
+/// nodes and undirected relations retain the general graph layout.
+fn decision_tree(blocks: &[Block], edges: &[Edge]) -> Option<(Vec<Vec<usize>>, usize)> {
+    let mut ids = BTreeMap::new();
+    let mut has_decision = false;
+    for (i, block) in blocks.iter().enumerate() {
+        let Block::Node(n) = block else {
+            return None;
+        };
+        if !n.style.shape.compact() || !n.hints.is_empty() {
+            return None;
+        }
+        has_decision |= n.style.shape == crate::style::Shape::Decision;
+        ids.insert(n.id.as_str(), i);
+    }
+    if !has_decision {
+        return None;
+    }
+    let mut children = vec![Vec::new(); blocks.len()];
+    let mut incoming = vec![0; blocks.len()];
+    for edge in edges {
+        let (Some(&a), Some(&b)) = (ids.get(edge.from.as_str()), ids.get(edge.to.as_str())) else {
+            continue;
+        };
+        if !edge.head_at_end || edge.head_at_start || a == b || incoming[b] != 0 {
+            return None;
+        }
+        children[a].push(b);
+        incoming[b] += 1;
+    }
+    for peers in &mut children {
+        peers.sort_unstable();
+    }
+    let roots: Vec<_> = incoming
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &n)| (n == 0).then_some(i))
+        .collect();
+    let [root] = roots.as_slice() else {
+        return None;
+    };
+    let mut visited = 0;
+    let mut stack = vec![*root];
+    while let Some(i) = stack.pop() {
+        visited += 1;
+        stack.extend(&children[i]);
+    }
+    (visited == blocks.len()).then_some((children, *root))
 }
 
 fn emit_row(out: &mut Vec<Block>, cells: Vec<Option<Block>>) {

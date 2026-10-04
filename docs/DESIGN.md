@@ -57,8 +57,8 @@ solid). Layup runs those checks on every render and `--strict` turns
 them into errors.
 
 What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs, sequence diagrams, and
-state-machine semantics. Decision nodes and state diagrams are outlined in
-[the roadmap](ROADMAP.md).
+state-machine semantics. Decision trees and flowcharts use compact shapes
+and subtree lanes; future state diagrams are outlined in [the roadmap](ROADMAP.md).
 
 ## 2. The source language
 
@@ -160,6 +160,9 @@ Built-in kinds:
 | Kind | Draws |
 | --- | --- |
 | `card` / `node` | Filled rounded card, auto tone. Head 15px bold, code 12.5px mono, prose 12.5px muted. `node` with children becomes a hollow container. |
+| `decision` | Compact diamond, centered 15px bold question and optional code/prose. Labels wrap inside the central safe rectangle. |
+| `process` | Compact rounded process step, centered title/code/prose. |
+| `terminal` | Compact capsule for a start or outcome; multiline content uses capped rounded corners. |
 | `package` | White frame with a gray head strip and mono name. Holds children. |
 | `crate` | Hollow blue container, mono name, role "lib crate" (override with `role="bin crate"`). |
 | `group` | Hollow gray container with no role. |
@@ -172,7 +175,7 @@ style service base=card tone=green "service"          // legend label
 style port shape=api hollow purple label="port"
 ```
 
-`base=` copies another kind; `shape=` is `card | api | package | container`;
+`base=` copies another kind; `shape=` is `card | api | package | container | process | decision | terminal` (`diamond` aliases `decision`);
 words are tones and flags; `role=` and `label=` set the container role
 and the legend label.
 
@@ -202,6 +205,46 @@ upward flow, ranks reverse and retain the downward row-wrapping policy.
 Disconnected regions retain their authored order in every direction. Long
 horizontal chains may need an explicit larger `width=`.
 Cycles and dense graphs may still need routing hints. Run `just preview-auto` for the review gallery.
+
+### Decision trees
+
+```text
+diagram "Request" layout=auto direction=right {
+  process request "Request"
+  decision valid "Valid?"
+  terminal accepted "Accepted" green
+  terminal rejected "Rejected" red
+  request -> valid
+  valid -> accepted "Yes"
+  valid -> rejected "No"
+}
+```
+
+A consecutive automatic region made entirely of `decision`, `process`, or
+`terminal` shapes uses subtree lanes if it has one root, at least one
+decision, and exactly one incoming directed edge for every other node.
+The question centers over its subtree in any of the four directions;
+source declaration order controls the order of sibling branches. Each
+subtree reserves space for its own descendants. Duplicate edges, merges,
+cycles, undirected/bidirectional relations, or placement hints select the
+general graph layering instead. Existing cards keep their current layout.
+Separate trees with authored groups/sections to retain independent regions.
+
+These shapes cap their body width (`decision`: 280px, `process`/`terminal`:
+240px), center in the allocated cell, and keep their measured height rather
+than stretching to match a peer. A narrower cell reduces the width and
+wraps labels. Child blocks are rejected with a source-line error; put
+containers around the flow. Title, tag, code, subtext, prose, alignment,
+text direction, tone, hollow fill, and hyperlinks remain available.
+
+The shared outline geometry supplies the safe text area, boundary ports,
+containment, and orthogonal segment intersection. Routing searches
+conservative bounding rectangles, then extends each final end segment to
+the actual diamond or rounded boundary. Branch labels stay upright and
+search both sides of every route segment, excluding node fills and earlier
+labels. A caption without clear space produces a warning instead of being
+silently omitted. Ordinary edge semantics remain unchanged: yes/no are
+labels, and branches can also use arbitrary categories or numeric ranges.
 
 ### Predictable edits
 

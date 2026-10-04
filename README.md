@@ -136,7 +136,44 @@ follow the selected direction and peers occupy the perpendicular axis.
 `after=` is a direction-neutral alias of `below=`; `same-layer=` and `beside=`
 constrain peers. See `examples/directions.layup`, `examples/international.layup`,
 and `examples/right-to-left.layup`. The [next-capabilities roadmap](docs/ROADMAP.md)
-outlines decision nodes, state machines, and output formats.
+tracks decision nodes, state machines, and output formats.
+
+### Decision trees and flowcharts
+
+Use `decision` for a diamond question, `terminal` for a start or outcome,
+and `process` for a rounded step. All three are compact, centered nodes
+with the same text, styling, link, and edge options as cards.
+
+```text
+diagram "Approve a request" layout=auto direction=down {
+  decision ready "Are all requirements met?"
+  terminal approve "Approve" green
+  terminal followup "Request more information" orange
+  ready -> approve "Yes"
+  ready -> followup "No"
+}
+```
+
+Automatic regions consisting of these compact kinds use subtree lanes when
+they form a single directed tree containing a decision: each question stays
+centered over its descendants, and separate branches keep their own space.
+Child declaration order determines branch order. All four graph directions
+work. Merges, cycles, mixed card/flowchart regions, and explicit placement
+hints use the existing graph layout. Authored rows and sections remain
+available. Put related trees in separate `group` or `section` blocks.
+
+Diamond text wraps within a safe inner area. Arrows meet the sloping or
+rounded boundary, and branch captions stay upright and avoid node outlines.
+If a caption cannot fit, rendering reports a warning; use a wider canvas,
+shorter label, or placement hints. Compact shapes accept title/code/prose,
+but child blocks belong in a surrounding container. Custom kinds can use
+`shape=decision` (or `diamond`), `process`, or `terminal`.
+
+See [the support decision tree](examples/decision-tree.layup),
+[request validation](examples/decision-flow.layup), and
+[multilingual decisions](examples/decision-international.layup).
+Run `just decision-test` to generate a Chromium review gallery and check
+text against the rendered outlines.
 
 ### Fonts and measurement
 

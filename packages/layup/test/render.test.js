@@ -37,3 +37,17 @@ test('user fonts match CLI measurement and embedding without leaking across rend
   assert.throws(() => engine.render(source, { fonts: [new Uint8Array([0, 1, 2])] }), LayupError);
   assert.throws(() => engine.render(source, { fonts: ['bad'] }), TypeError);
 });
+
+
+test('decision trees match CLI output in each direction', () => {
+  const engine = loadSync();
+  const tree = readFileSync(new URL('examples/decision-tree.layup', root), 'utf8');
+  for (const direction of ['down', 'up', 'right', 'left']) {
+    const source = tree.replace('layout=auto width=1000', `layout=auto direction=${direction} width=1400`);
+    const cli = execFileSync(new URL('target/debug/layup', root).pathname, ['render', '-', '-o', '-'], { input: source }).toString();
+    const rendered = engine.render(source);
+    assert.equal(rendered.output, cli);
+    assert.deepEqual(rendered.warnings, []);
+    assert.match(rendered.output, /<polygon class="box/);
+  }
+});

@@ -32,10 +32,14 @@ validates documentation diagrams and examples with warnings treated as errors.
    legend.
 3. **Lay out blocks.** `layout.rs` measures text, wraps prose, and places the
    authored rows and containers. `text/` shapes labels against bundled IBM Plex faces or supplied
-   fallback font bytes. Layout records node rectangles and
+   fallback font bytes. Compact decision trees reserve subtree lanes in any
+   direction. `geometry.rs` shares diamond/rounded outlines and safe text
+   areas with routing and rendering. Layout records node rectangles, outlines, and
    reserved areas that routing must avoid.
 4. **Route edges.** `route.rs` chooses orthogonal paths, spreads ports, and
-   places labels around nodes and reserved areas.
+   places labels around nodes and reserved areas. Rectangles conservatively
+   guide route searches; final endpoints extend to the actual shape boundary.
+   Decision captions search all route segments and avoid endpoint fills.
 5. **Check the scene.** `check.rs` adds scene-level diagnostics, including
    overlapping edge segments and labels on nodes. These join warnings already
    produced during layout and routing.
@@ -68,6 +72,7 @@ revisions, checksums, and the separate SIL OFL license.
 | --- | --- |
 | Syntax | `lexer.rs`, `parser.rs` |
 | Node kinds, defaults, themes | `model.rs`, `style.rs` |
+| Shape boundaries, ports, safe label areas | `geometry.rs` |
 | Text measurement and wrapping | `text/mod.rs`, `text/fonts.rs` |
 | Block geometry | `layout.rs` |
 | Edge paths and labels | `route.rs` |

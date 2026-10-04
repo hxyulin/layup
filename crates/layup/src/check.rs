@@ -29,7 +29,10 @@ pub fn check(scene: &Scene, warnings: &mut Vec<Warning>) {
         }
     }
     for e in &scene.edges {
-        if let Some(Item::Chip { rect, text, .. }) = &e.chip {
+        if let Some(Item::Chip {
+            rect, text, rotate, ..
+        }) = &e.chip
+        {
             for n in &scene.nodes {
                 let inside = rect.x >= n.rect.x - 1.0
                     && rect.right() <= n.rect.right() + 1.0
@@ -40,7 +43,22 @@ pub fn check(scene: &Scene, warnings: &mut Vec<Warning>) {
                     .nodes
                     .iter()
                     .any(|m| m.parent == Some(scene.node(&n.id).unwrap()));
-                if inside && !is_endpoint && !is_container {
+                let overlaps = if matches!(n.outline, crate::geometry::Outline::Rectangle(_)) {
+                    inside
+                } else {
+                    let footprint = if *rotate {
+                        crate::layout::Rect {
+                            x: rect.cx() - rect.h / 2.0,
+                            y: rect.cy() - rect.w / 2.0,
+                            w: rect.h,
+                            h: rect.w,
+                        }
+                    } else {
+                        *rect
+                    };
+                    n.outline.intersects_rect(footprint)
+                };
+                if overlaps && !is_endpoint && !is_container {
                     warnings.push(Warning {
                         line: Some(e.line),
                         msg: format!(

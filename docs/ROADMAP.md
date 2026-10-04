@@ -6,35 +6,29 @@ of labels. Unicode line breaking handles CJK prose without spaces. CJK fonts
 come from the viewer or from explicitly supplied font bytes; no CJK font is
 bundled. Arabic and Hebrew use small bundled shaping faces.
 
-## Decision nodes and flowcharts
+## Decision nodes and flowcharts: implemented
 
-Start with a `decision` kind and a diamond shape, plus rounded process and
-terminal shapes. Keep the existing diagram language and typed/labeled edges.
-A proposed example (not executable syntax yet):
+`decision` diamonds, rounded `process` steps, and `terminal` outcomes now
+work with the existing language and labeled edges. `shape=diamond` aliases
+`shape=decision` for custom kinds. Decision trees use subtree lanes in all
+four directions; graphs with merges, cycles, hints, or mixed kinds retain
+the general graph layout. Authored rows and sections stay available.
 
-```text
-diagram "Validate request" layout=auto direction=right {
-  node request "Request"
-  decision valid "Valid?"
-  terminal accepted "Accepted"
-  terminal rejected "Rejected"
-  request -> valid
-  valid -> accepted "yes"
-  valid -> rejected "no"
-}
-```
+Shared outline geometry supplies boundary ports, point containment,
+segment/rectangle intersection, and the safe text area. Diamond labels fit
+the central inner rectangle; arrow endpoints meet sloping sides. Bounding
+rectangles remain conservative routing obstacles. Branch labels stay
+upright and avoid fills, including the endpoint nodes.
 
-The main work is geometry, not adding an SVG polygon. Introduce a reusable
-node outline interface for boundary ports, point containment, segment
-intersection, and the safe text area. Use it in placement, routing, checks,
-and rendering. Diamond labels must fit the inner text area; arrow endpoints
-must touch the actual sloping boundary. Existing rectangular collision
-bounds can remain a conservative broad-phase optimization.
+Examples and regression/browser checks cover nested branches in all four
+directions, multiline CJK and RTL labels, pinned ports, hints, containers,
+merges, self-loops, return paths, and long competing captions. Run
+`just decision-test` for the review gallery.
 
-Keep `from=`, `to=`, `via=`, explicit rows, and layer hints available. First
-acceptance cases should cover yes/no branches in all four directions,
-multiline CJK and RTL decision labels, nested decisions, back edges, and
-branches whose labels compete for space.
+Potential follow-ups are per-region tree detection in mixed diagrams,
+additional compact shapes, variable node widths, and more economical
+packing for trees with many leaves. Current tree lanes rely on an authored
+canvas width; wide trees can require `width=` or explicit grouping.
 
 ## State machine diagrams
 

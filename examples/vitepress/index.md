@@ -41,3 +41,16 @@ diagram "Cache" {
   reader -> cache "reads"
 }
 ```
+
+Decision trees use diamonds for questions and rounded terminals for outcomes.
+The same hover, pin, and full-window viewer controls work with these shapes.
+
+```layup
+diagram "Review a request" layout=auto direction=right {
+  decision ready "Is the request ready?" yellow
+  terminal approve "Approve" green
+  terminal followup "Request more information" orange
+  ready -> approve "Yes"
+  ready -> followup "No"
+}
+```

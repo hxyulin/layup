@@ -71,6 +71,13 @@ pub enum Block {
         tone: Tone,
     },
     Gap(f64),
+    /// A compact decision tree with disjoint subtree lanes.
+    Tree {
+        direction: Direction,
+        nodes: Vec<Block>,
+        children: Vec<Vec<usize>>,
+        root: usize,
+    },
     /// Inferred layers in a non-default graph direction.
     Flow {
         direction: Direction,
@@ -632,6 +639,12 @@ impl Builder {
             style.shape = Shape::Container;
             style.hollow = true;
         }
+        if style.shape.compact() && !children.is_empty() {
+            return Err(Error::at(
+                it.line,
+                "decision, process and terminal shapes cannot contain child blocks; use a group around the flow",
+            ));
+        }
         Ok(Node {
             id,
             kind: it.head.clone(),
@@ -703,18 +716,21 @@ impl Builder {
                         style.shape = match v.as_text().as_str() {
                             "card" => Shape::Card,
                             "api" => Shape::Api,
+                            "process" => Shape::Process,
+                            "decision" | "diamond" => Shape::Decision,
+                            "terminal" => Shape::Terminal,
                             "package" => Shape::Package,
                             "container" => Shape::Container,
                             other => {
                                 return Err(Error::at(
                                     it.line,
                                     format!(
-                                        "unknown shape `{other}`; use card, api, package or container"
+                                        "unknown shape `{other}`; use card, api, package, container, process, decision or terminal"
                                     ),
                                 ));
                             }
                         };
-                        if style.shape == Shape::Api {
+                        if style.shape == Shape::Api || style.shape.compact() {
                             style.align = Align::Center;
                         }
                     }
@@ -980,6 +996,26 @@ fn auto_width(d: &mut Diagram) {
                     }
                 }
                 Block::Section(s) => walk(&s.children, depth, wide, deep),
+                Block::Tree {
+                    direction,
+                    nodes,
+                    children,
+                    root,
+                } => {
+                    let leaves = children.iter().filter(|c| c.is_empty()).count();
+                    let mut max_rank = 0;
+                    let mut stack = vec![(*root, 1)];
+                    while let Some((i, rank)) = stack.pop() {
+                        max_rank = max_rank.max(rank);
+                        stack.extend(children[i].iter().map(|&j| (j, rank + 1)));
+                    }
+                    *wide = (*wide).max(if direction.horizontal() {
+                        max_rank
+                    } else {
+                        leaves
+                    });
+                    walk(nodes, depth, wide, deep);
+                }
                 Block::Flow { direction, layers } => {
                     if direction.horizontal() {
                         *wide = (*wide).max(layers.len());

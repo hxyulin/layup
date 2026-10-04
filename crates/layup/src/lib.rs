@@ -14,6 +14,7 @@
 
 mod arrange;
 pub mod check;
+pub mod geometry;
 pub mod html;
 pub mod layout;
 pub mod lexer;

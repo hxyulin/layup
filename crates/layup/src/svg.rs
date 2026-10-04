@@ -232,6 +232,28 @@ fn item(s: &mut String, p: &Placed, id: &str, direction: Direction) {
                 num(*stroke_width)
             );
         }
+        Item::Diamond {
+            rect,
+            tone,
+            hollow,
+            stroke_width,
+        } => {
+            let fill = if *hollow {
+                "hollow".to_string()
+            } else {
+                format!("bg-{}", tone.name())
+            };
+            let points = crate::geometry::Outline::Diamond(*rect)
+                .vertices()
+                .map(|(x, y)| format!("{},{}", num(x), num(y)))
+                .join(" ");
+            let _ = writeln!(
+                s,
+                r#"      <polygon class="box {fill} bd-{}" points="{points}" stroke-width="{}"/>"#,
+                tone.name(),
+                num(*stroke_width)
+            );
+        }
         Item::Strip { rect, rx } => {
             let r = num(*rx);
             let _ = writeln!(

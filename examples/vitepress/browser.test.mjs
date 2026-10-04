@@ -40,10 +40,10 @@ const state = () =>
   svg().evaluate((s) => ({ pinned: s.dataset.pinned ?? null, hl: [...s.querySelectorAll('.node.hl')].map((n) => n.dataset.id) }));
 
 test('hydrates with styles and fonts intact', async () => {
-  assert.equal(await page.locator('.layup-diagram svg style').count(), 3);
+  assert.equal(await page.locator('.layup-diagram svg style').count(), 4);
   await page.evaluate(() => document.fonts.ready);
   const faces = await page.evaluate(() => [...document.fonts].filter((f) => f.family.startsWith('Layup')).map((f) => f.status));
-  assert.ok(faces.length === 9 && faces.every((s) => s === 'loaded'), String(faces));
+  assert.ok(faces.length === 12 && faces.every((s) => s === 'loaded'), String(faces));
   assert.match((await svg(1).locator("text").allTextContents()).join("\n"), /\{\{\svalue\s\}\}/);
   assert.equal(await page.locator('.layup-diagram + div[class*="language-"] code, .layup-diagram + pre code').count(), 1);
 });
@@ -100,6 +100,22 @@ test('node links navigate client-side and handlers survive navigation', async ()
   await page.goBack();
   await node('worker').hover();
   assert.ok((await state()).hl.includes('worker'));
+});
+
+test('decision polygons highlight, pin, and expand in the viewer', async () => {
+  const scope = '.layup-diagram >> nth=3';
+  const question = svg(3).locator('.node[data-id="ready"]');
+  await question.hover();
+  assert.equal(await svg(3).locator('polygon.box').count(), 1);
+  assert.deepEqual((await svg(3).locator('.node.hl').evaluateAll(nodes => nodes.map(n => n.dataset.id))).sort(), ['approve', 'followup', 'ready']);
+  await question.click();
+  await page.mouse.move(2, 2);
+  assert.equal(await svg(3).evaluate(s => s.dataset.pinned), 'ready');
+  await page.hover(scope);
+  await page.click(`${scope} >> .layup-expand`);
+  assert.equal(await page.locator('.layup-viewer polygon.box').count(), 1);
+  await page.keyboard.press('Escape');
+  await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
 });
 
 test('logs no errors or warnings', () => {

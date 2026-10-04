@@ -5,6 +5,7 @@
 //! Text is wrapped with measured widths so nothing is ever placed by hand.
 
 use crate::Warning;
+use crate::geometry::Outline;
 use crate::model::{Block, Diagram, Direction, Legend, Line, Node, Row, Section};
 use crate::style::{Align, ArrowColor, NodeStyle, Shape, Tone};
 use crate::text::{
@@ -93,6 +94,12 @@ pub enum Item {
         rx: f64,
         stroke_width: f64,
     },
+    Diamond {
+        rect: Rect,
+        tone: Tone,
+        hollow: bool,
+        stroke_width: f64,
+    },
     /// The gray head strip of a package frame.
     Strip {
         rect: Rect,
@@ -136,6 +143,7 @@ pub struct NodeRect {
     pub id: String,
     pub kind: String,
     pub rect: Rect,
+    pub outline: Outline,
     pub parent: Option<usize>,
     pub tone: Tone,
     pub href: Option<String>,
@@ -526,6 +534,12 @@ fn measure<'a>(ctx: &mut Ctx, b: &'a Block, w: f64) -> L<'a> {
     match b {
         Block::Node(n) => measure_node(ctx, n, w),
         Block::Row(r) => measure_row(ctx, r, w),
+        Block::Tree {
+            direction,
+            nodes,
+            children,
+            root,
+        } => measure_tree(ctx, *direction, nodes, children, *root, w),
         Block::Flow { direction, layers } => measure_flow(ctx, *direction, layers, w),
         Block::Section(s) => {
             let children: Vec<(L, f64)> = s
@@ -559,6 +573,125 @@ fn measure<'a>(ctx: &mut Ctx, b: &'a Block, w: f64) -> L<'a> {
         },
         Block::Gap(g) => L::Gap(*g),
     }
+}
+
+fn measure_tree<'a>(
+    ctx: &mut Ctx,
+    direction: Direction,
+    nodes: &'a [Block],
+    children: &[Vec<usize>],
+    root: usize,
+    w: f64,
+) -> L<'a> {
+    const GAP: f64 = 48.0;
+    let mut depth = vec![0; nodes.len()];
+    let mut order = Vec::new();
+    let mut stack = vec![root];
+    while let Some(i) = stack.pop() {
+        order.push(i);
+        for &j in children[i].iter().rev() {
+            depth[j] = depth[i] + 1;
+            stack.push(j);
+        }
+    }
+    let ranks = depth.iter().max().unwrap() + 1;
+    let horizontal = direction.horizontal();
+    let mut leaves = vec![1usize; nodes.len()];
+    for &i in order.iter().rev() {
+        if !children[i].is_empty() {
+            leaves[i] = children[i].iter().map(|&j| leaves[j]).sum();
+        }
+    }
+    let lane = (w - 24.0 * (leaves[root] - 1) as f64) / leaves[root] as f64;
+    let column = (w - GAP * (ranks - 1) as f64) / ranks as f64;
+    let widths: Vec<_> = leaves
+        .iter()
+        .map(|&n| {
+            if horizontal {
+                column
+            } else {
+                lane * n as f64 + 24.0 * (n - 1) as f64
+            }
+        })
+        .collect();
+    let measured: Vec<_> = nodes
+        .iter()
+        .zip(&widths)
+        .map(|(n, &w)| measure(ctx, n, w))
+        .collect();
+    let heights: Vec<_> = measured.iter().map(height).collect();
+    let mut extent = heights.clone();
+    let mut rank_h = vec![0.0f64; ranks];
+    for &i in order.iter().rev() {
+        rank_h[depth[i]] = rank_h[depth[i]].max(heights[i]);
+        if !children[i].is_empty() {
+            extent[i] = extent[i].max(
+                children[i].iter().map(|&j| extent[j]).sum::<f64>()
+                    + GAP * (children[i].len() - 1) as f64,
+            );
+        }
+    }
+    let mut offsets = vec![0.0; ranks];
+    for i in 1..ranks {
+        offsets[i] = offsets[i - 1] + rank_h[i - 1] + GAP;
+    }
+    let total_h = if horizontal {
+        extent[root]
+    } else {
+        offsets[ranks - 1] + rank_h[ranks - 1]
+    };
+    let mut cross = vec![0.0; nodes.len()];
+    for &i in &order {
+        let child_extent = if horizontal {
+            children[i].iter().map(|&j| extent[j]).sum::<f64>()
+                + GAP * children[i].len().saturating_sub(1) as f64
+        } else {
+            widths[i]
+        };
+        let mut cursor = cross[i]
+            + if horizontal {
+                (extent[i] - child_extent) / 2.0
+            } else {
+                0.0
+            };
+        for &j in &children[i] {
+            cross[j] = cursor;
+            cursor += if horizontal {
+                extent[j] + GAP
+            } else {
+                widths[j] + 24.0
+            };
+        }
+    }
+    let cells = measured
+        .into_iter()
+        .enumerate()
+        .map(|(i, l)| {
+            let (x, y) = if horizontal {
+                let rank = if direction.reversed() {
+                    ranks - depth[i] - 1
+                } else {
+                    depth[i]
+                };
+                (
+                    rank as f64 * (column + GAP),
+                    cross[i] + (extent[i] - heights[i]) / 2.0,
+                )
+            } else {
+                let y = offsets[depth[i]] + (rank_h[depth[i]] - heights[i]) / 2.0;
+                (
+                    cross[i],
+                    if direction.reversed() {
+                        total_h - y - heights[i]
+                    } else {
+                        y
+                    },
+                )
+            };
+            (l, x, y, widths[i], heights[i])
+        })
+        .collect();
+    L::Flow { cells, h: total_h }
 }
 
 fn measure_flow<'a>(
@@ -604,6 +737,24 @@ fn measure_flow<'a>(
         }
         total_h = (total_h - BLOCK_GAP).max(0.0);
     }
+    if direction.horizontal()
+        && layers
+            .iter()
+            .flatten()
+            .any(|b| matches!(b, Block::Node(n) if n.style.shape.compact()))
+    {
+        let mut heights = std::collections::BTreeMap::<i64, f64>::new();
+        for (_, dx, dy, _, ch) in &cells {
+            let bottom = dy + ch;
+            heights
+                .entry(*dx as i64)
+                .and_modify(|h| *h = h.max(bottom))
+                .or_insert(bottom);
+        }
+        for (_, dx, dy, _, _) in &mut cells {
+            *dy += (total_h - heights[&(*dx as i64)]) / 2.0;
+        }
+    }
     L::Flow { cells, h: total_h }
 }
 
@@ -635,13 +786,27 @@ fn measure_row<'a>(ctx: &mut Ctx, r: &'a Row, w: f64) -> L<'a> {
 }
 
 fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
+    let w = n.style.shape.node_width(w);
     let (pad_x, mut cursor) = match n.style.shape {
-        Shape::Card => (20.0, 10.0),
+        Shape::Card | Shape::Process => (20.0, 10.0),
+        Shape::Decision => (w / 4.0 + 10.0, 10.0),
+        Shape::Terminal => (30.0, 10.0),
         Shape::Api => (16.0, 10.0),
         Shape::Package => (20.0, 56.0 + 20.0),
         Shape::Container => (20.0, 10.0),
     };
-    let inner_w = w - 2.0 * pad_x;
+    let inner_w = if n.style.shape == Shape::Decision {
+        Outline::Diamond(Rect {
+            x: 0.0,
+            y: 0.0,
+            w,
+            h: 100.0,
+        })
+        .text_area(10.0)
+        .w
+    } else {
+        w - 2.0 * pad_x
+    };
     let mut lines: Vec<MLine> = Vec::new();
     let mut prev_kind = 0u8;
     let title = n.title.as_deref();
@@ -649,7 +814,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
     let line_no = Some(n.line);
 
     match n.style.shape {
-        Shape::Card | Shape::Container => {
+        Shape::Card | Shape::Container | Shape::Process | Shape::Decision | Shape::Terminal => {
             if n.style.shape == Shape::Container {
                 if let Some(role) = &n.role {
                     lines.push(MLine {
@@ -720,8 +885,19 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
                                 skipped_first_code = true;
                                 continue;
                             }
-                            let wrapped =
-                                wrap_slack(ctx, c, Font::Mono, 12.5, inner_w, pad_x - 4.0, line_no);
+                            let wrapped = wrap_slack(
+                                ctx,
+                                c,
+                                Font::Mono,
+                                12.5,
+                                inner_w,
+                                if n.style.shape.compact() {
+                                    0.0
+                                } else {
+                                    pad_x - 4.0
+                                },
+                                line_no,
+                            );
                             lines.push(MLine {
                                 lines: wrapped,
                                 size: 12.5,
@@ -873,7 +1049,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
         children.push((l, h));
     }
     let bottom_pad = match n.style.shape {
-        Shape::Card | Shape::Api => 10.0,
+        Shape::Card | Shape::Api | Shape::Process | Shape::Decision | Shape::Terminal => 10.0,
         Shape::Package | Shape::Container => {
             if n.children.is_empty() {
                 14.0
@@ -882,7 +1058,10 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
             }
         }
     };
-    let natural = (cursor + bottom_pad).max(if is_container { 40.0 } else { 30.0 });
+    let mut natural = (cursor + bottom_pad).max(if is_container { 40.0 } else { 30.0 });
+    if n.style.shape == Shape::Decision {
+        natural *= 2.0;
+    }
     L::Node {
         node: n,
         lines,
@@ -1113,21 +1292,43 @@ fn draw_node(
     w: f64,
     h: f64,
 ) {
+    let compact = n.style.shape.compact();
+    let nw = n.style.shape.node_width(w);
+    let (x, w) = (x + (w - nw) / 2.0, nw);
+    // Compact shapes keep their measured height in a stretched row and center
+    // inside the allocated cell. Legacy cards still stretch with their peers.
+    let (y, h) = if compact {
+        (y + (h - natural) / 2.0, natural)
+    } else {
+        (y, h)
+    };
     let saved_direction = ctx.text_direction;
     ctx.text_direction = n.text_direction.unwrap_or(saved_direction);
     let rect = Rect { x, y, w, h };
+    let outline = match n.style.shape {
+        Shape::Decision => Outline::Diamond(rect),
+        Shape::Terminal => Outline::Rounded {
+            rect,
+            radius: (h / 2.0).min(24.0),
+        },
+        Shape::Process => Outline::Rounded { rect, radius: 7.0 },
+        _ => Outline::Rectangle(rect),
+    };
     let idx = ctx.scene.nodes.len();
     ctx.scene.nodes.push(NodeRect {
         id: n.id.clone(),
         kind: n.kind.clone(),
         rect,
+        outline,
         parent: ctx.parent,
         tone: n.style.tone,
         href: n.href.clone(),
         line: n.line,
     });
     let (pad_x, rx, stroke_width) = match n.style.shape {
-        Shape::Card => (20.0, 7.0, 1.25),
+        Shape::Card | Shape::Process => (20.0, 7.0, 1.25),
+        Shape::Decision => (w / 4.0 + 10.0, 0.0, 1.25),
+        Shape::Terminal => (30.0, (h / 2.0).min(24.0), 1.25),
         Shape::Api => (16.0, 6.0, 1.3),
         Shape::Package => (20.0, 10.0, 1.25),
         Shape::Container => (20.0, 8.0, 1.5),
@@ -1135,13 +1336,22 @@ fn draw_node(
     let white = n.style.shape == Shape::Package;
     ctx.push_for(
         idx,
-        Item::Box {
-            rect,
-            tone: n.style.tone,
-            hollow: n.style.hollow,
-            white,
-            rx,
-            stroke_width,
+        if n.style.shape == Shape::Decision {
+            Item::Diamond {
+                rect,
+                tone: n.style.tone,
+                hollow: n.style.hollow,
+                stroke_width,
+            }
+        } else {
+            Item::Box {
+                rect,
+                tone: n.style.tone,
+                hollow: n.style.hollow,
+                white,
+                rx,
+                stroke_width,
+            }
         },
     );
     let mut cursor = y;
@@ -1194,7 +1404,10 @@ fn draw_node(
             }
             cursor += 76.0;
         }
-        Shape::Card | Shape::Container | Shape::Api => cursor += 10.0,
+        Shape::Decision => cursor = outline.text_area(0.0).y + 10.0,
+        Shape::Card | Shape::Container | Shape::Api | Shape::Process | Shape::Terminal => {
+            cursor += 10.0
+        }
     }
     let inner_w = w - 2.0 * pad_x;
     for ml in lines {
@@ -1275,6 +1488,7 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
             }
             Block::Row(r) => r.cells.iter().flatten().for_each(|c| walk(c, out)),
             Block::Section(s) => s.children.iter().for_each(|c| walk(c, out)),
+            Block::Tree { nodes, .. } => nodes.iter().for_each(|c| walk(c, out)),
             Block::Flow { layers, .. } => layers.iter().flatten().for_each(|c| walk(c, out)),
             _ => {}
         }
@@ -1290,6 +1504,7 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
             }
             Block::Row(r) => r.cells.iter().flatten().find_map(|c| find(c, id)),
             Block::Section(s) => s.children.iter().find_map(|c| find(c, id)),
+            Block::Tree { nodes, .. } => nodes.iter().find_map(|c| find(c, id)),
             Block::Flow { layers, .. } => layers.iter().flatten().find_map(|c| find(c, id)),
             _ => None,
         }

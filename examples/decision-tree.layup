@@ -1,0 +1,13 @@
+diagram "Choose a support route" layout=auto width=1000 {
+  note "Questions branch into follow-up questions or terminal outcomes."
+  decision urgent "Is the service unavailable?" yellow
+  decision account "Is this an account issue?" blue
+  terminal incident "Page the on-call team" red
+  terminal billing "Contact account support" green
+  terminal help "Use the help center" purple
+
+  urgent -> incident "Yes"
+  urgent -> account "No"
+  account -> billing "Yes"
+  account -> help "No"
+}
