@@ -32,7 +32,9 @@ for (const [source, destination] of [
   ['crates/layup/fonts/README.md', 'FONT-NOTES.md'],
 ]) copyFileSync(join(root, source), join(stage, destination));
 const archive = join(output, `${name}.tar.gz`);
-const result = spawnSync('tar', ['-czf', archive, '-C', join(output, 'stage'), name], { cwd: root, stdio: 'inherit' });
+// GNU tar interprets Windows drive-letter paths as remote archive locations.
+// Relative arguments work with both GNU tar and bsdtar on every runner.
+const result = spawnSync('tar', ['-czf', `${name}.tar.gz`, '-C', 'stage', name], { cwd: output, stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) throw new Error(`Packaging ${name} failed`);
 console.log(`Created ${archive}`);
