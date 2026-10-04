@@ -1,4 +1,4 @@
-//! Flat state-machine validation and layout. Transition labels are display
+//! Hierarchical state-machine validation and layout. Transition labels are display
 //! text; guards and actions are never evaluated by the renderer.
 use crate::{
     Error, Warning,
@@ -7,23 +7,40 @@ use crate::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
-fn nodes(blocks: &[Block]) -> Vec<&Node> {
+struct Member<'a> {
+    node: &'a Node,
+    scope: Option<&'a str>,
+}
+
+fn members(blocks: &[Block]) -> Vec<Member<'_>> {
     let mut result = Vec::new();
-    let mut stack: Vec<_> = blocks.iter().rev().collect();
-    while let Some(block) = stack.pop() {
+    let mut stack: Vec<_> = blocks.iter().rev().map(|b| (b, None)).collect();
+    while let Some((block, scope)) = stack.pop() {
         match block {
             Block::Node(n) => {
-                if !n.is_container() {
-                    result.push(n.as_ref());
+                if !n.is_container() || n.style.shape == Shape::State {
+                    result.push(Member {
+                        node: n.as_ref(),
+                        scope,
+                    });
                 }
-                stack.extend(n.children.iter().rev());
+                let child_scope = if n.is_composite() {
+                    Some(n.id.as_str())
+                } else {
+                    scope
+                };
+                stack.extend(n.children.iter().rev().map(|b| (b, child_scope)));
             }
-            Block::Row(r) => stack.extend(r.cells.iter().rev().flatten()),
-            Block::Section(s) => stack.extend(s.children.iter().rev()),
-            Block::Tree { nodes, .. } => stack.extend(nodes.iter().rev()),
-            Block::Flow { layers, .. } => {
-                stack.extend(layers.iter().rev().flat_map(|l| l.iter().rev()))
-            }
+            Block::Row(r) => stack.extend(r.cells.iter().rev().flatten().map(|b| (b, scope))),
+            Block::Section(s) => stack.extend(s.children.iter().rev().map(|b| (b, scope))),
+            Block::Tree { nodes, .. } => stack.extend(nodes.iter().rev().map(|b| (b, scope))),
+            Block::Flow { layers, .. } => stack.extend(
+                layers
+                    .iter()
+                    .rev()
+                    .flat_map(|l| l.iter().rev())
+                    .map(|b| (b, scope)),
+            ),
             _ => {}
         }
     }
@@ -31,8 +48,10 @@ fn nodes(blocks: &[Block]) -> Vec<&Node> {
 }
 
 pub(crate) fn validate(d: &Diagram) -> Result<(), Error> {
-    let nodes = nodes(&d.blocks);
-    for n in &nodes {
+    let members = members(&d.blocks);
+    let mut scopes = BTreeMap::from([(None, (None, Vec::new()))]);
+    for m in &members {
+        let n = m.node;
         if !matches!(
             n.style.shape,
             Shape::State | Shape::Initial | Shape::Final | Shape::Choice
@@ -42,23 +61,32 @@ pub(crate) fn validate(d: &Diagram) -> Result<(), Error> {
                 "state-machine mode requires state, initial, final or choice nodes",
             ));
         }
+        if n.is_composite() {
+            scopes
+                .entry(Some(n.id.as_str()))
+                .or_insert((Some(n.line), Vec::new()));
+        }
+        if n.style.shape == Shape::Initial {
+            scopes
+                .entry(m.scope)
+                .or_insert((None, Vec::new()))
+                .1
+                .push(n);
+        }
     }
-    let initial: Vec<_> = nodes
-        .iter()
-        .filter(|n| n.style.shape == Shape::Initial)
-        .collect();
-    if initial.len() > 1 {
-        return Err(Error::at(
-            initial[1].line,
-            "a flat state machine requires exactly one initial marker",
-        ));
+    for (scope, (line, initial)) in scopes {
+        if initial.len() != 1 {
+            let label = scope.map_or("the root scope".to_string(), |id| {
+                format!("composite state `{id}`")
+            });
+            let message = format!("{label} requires exactly one initial marker");
+            return Err(match initial.get(1).map(|n| n.line).or(line) {
+                Some(line) => Error::at(line, message),
+                None => Error::new(message),
+            });
+        }
     }
-    if initial.is_empty() {
-        return Err(Error::new(
-            "a flat state machine requires exactly one initial marker",
-        ));
-    }
-    let ids: BTreeMap<_, _> = nodes.iter().map(|n| (n.id.as_str(), *n)).collect();
+    let ids: BTreeMap<_, _> = members.iter().map(|m| (m.node.id.as_str(), m)).collect();
     let mut outgoing = BTreeMap::<&str, usize>::new();
     for e in &d.edges {
         if !e.head_at_end || e.head_at_start {
@@ -73,21 +101,41 @@ pub(crate) fn validate(d: &Diagram) -> Result<(), Error> {
                 "transitions must connect states or pseudostates, not structural containers",
             ));
         };
-        if a.style.shape == Shape::Final {
+        if a.node.style.shape == Shape::Final {
             return Err(Error::at(
                 e.line,
                 "a final marker cannot have outgoing transitions",
             ));
         }
-        if b.style.shape == Shape::Initial {
+        if b.node.style.shape == Shape::Initial {
             return Err(Error::at(
                 e.line,
                 "an initial marker cannot have incoming transitions",
             ));
         }
+        if a.node.style.shape == Shape::Initial && a.scope != b.scope {
+            return Err(Error::at(
+                e.line,
+                "an initial transition must target a state or pseudostate in its own scope",
+            ));
+        }
+        let mut scope = a.scope;
+        while scope != b.scope {
+            let Some(parent) = scope else {
+                break;
+            };
+            scope = ids[parent].scope;
+        }
+        if b.node.style.shape == Shape::Final && scope != b.scope {
+            return Err(Error::at(
+                e.line,
+                "a final marker must be entered from its own scope or a descendant scope",
+            ));
+        }
         *outgoing.entry(e.from.as_str()).or_default() += 1;
     }
-    for n in nodes {
+    for m in members {
+        let n = m.node;
         let count = outgoing.get(n.id.as_str()).copied().unwrap_or(0);
         if n.style.shape == Shape::Initial && count != 1 {
             return Err(Error::at(
@@ -106,77 +154,134 @@ pub(crate) fn validate(d: &Diagram) -> Result<(), Error> {
 }
 
 pub(crate) fn check(d: &Diagram, warnings: &mut Vec<Warning>) {
-    let nodes = nodes(&d.blocks);
-    let Some(initial) = nodes.iter().find(|n| n.style.shape == Shape::Initial) else {
+    let members = members(&d.blocks);
+    let Some(initial) = members
+        .iter()
+        .find(|m| m.scope.is_none() && m.node.style.shape == Shape::Initial)
+    else {
         return;
     };
+    let ids: BTreeMap<_, _> = members.iter().map(|m| (m.node.id.as_str(), m)).collect();
     let mut graph = BTreeMap::<&str, Vec<&str>>::new();
     for e in &d.edges {
         graph.entry(&e.from).or_default().push(&e.to);
     }
-    let mut seen = BTreeSet::new();
-    let mut stack = vec![initial.id.as_str()];
-    while let Some(id) = stack.pop() {
-        if seen.insert(id) {
-            stack.extend(graph.get(id).into_iter().flatten().copied());
+    // Entering a composite activates its initial marker. Direct entry into
+    // a descendant also makes its ancestors structurally reachable.
+    for m in &members {
+        if m.node.style.shape == Shape::Initial
+            && let Some(scope) = m.scope
+        {
+            graph.entry(scope).or_default().push(&m.node.id);
         }
     }
-    for n in nodes {
-        if !seen.contains(n.id.as_str()) {
+    let mut seen = BTreeSet::new();
+    let mut expanded = BTreeSet::new();
+    let mut stack = vec![initial.node.id.as_str()];
+    while let Some(id) = stack.pop() {
+        if expanded.insert(id) {
+            seen.insert(id);
+            stack.extend(graph.get(id).into_iter().flatten().copied());
+            let mut scope = ids[id].scope;
+            while let Some(parent) = scope {
+                // Ancestors are active without re-entering their default
+                // initial path when a transition targets a descendant.
+                seen.insert(parent);
+                stack.extend(
+                    d.edges
+                        .iter()
+                        .filter(|e| e.from == parent)
+                        .map(|e| e.to.as_str()),
+                );
+                scope = ids[parent].scope;
+            }
+        }
+    }
+    for m in members {
+        if !seen.contains(m.node.id.as_str()) {
             warnings.push(Warning {
-                line: Some(n.line),
+                line: Some(m.node.line),
                 msg: format!(
                     "state or pseudostate `{}` is unreachable from the initial marker",
-                    n.id
+                    m.node.id
                 ),
             });
         }
     }
 }
 
-/// Remove DFS back edges from the placement graph, retaining every original
-/// transition for routing. Traversal starts at the initial marker and uses
-/// source node order, so edge statement reordering does not move states.
+/// Project transitions onto direct members of each scope, then remove DFS
+/// back edges for arrangement only. The diagram retains its original edges.
 pub(crate) fn layout_edges(d: &Diagram) -> Vec<Edge> {
-    let nodes = nodes(&d.blocks);
-    let ids: BTreeMap<_, _> = nodes
+    let members = members(&d.blocks);
+    let ids: BTreeMap<_, _> = members
         .iter()
         .enumerate()
-        .map(|(i, n)| (n.id.as_str(), i))
+        .map(|(i, m)| (m.node.id.as_str(), i))
         .collect();
-    let mut graph = vec![BTreeSet::new(); nodes.len()];
-    for e in &d.edges {
-        graph[ids[e.from.as_str()]].insert(ids[e.to.as_str()]);
-    }
-    let initial = nodes
-        .iter()
-        .position(|n| n.style.shape == Shape::Initial)
-        .unwrap();
-    let mut color = vec![0; nodes.len()];
-    let mut back = BTreeSet::new();
-    for root in std::iter::once(initial).chain(0..nodes.len()) {
-        if color[root] != 0 {
-            continue;
-        }
-        color[root] = 1;
-        let mut stack = vec![(root, graph[root].iter())];
-        while let Some((a, next)) = stack.last_mut() {
-            if let Some(&b) = next.next() {
-                if color[b] == 1 {
-                    back.insert((*a, b));
-                } else if color[b] == 0 {
-                    color[b] = 1;
-                    stack.push((b, graph[b].iter()));
+    let scopes: BTreeSet<_> = members.iter().map(|m| m.scope).collect();
+    let mut result = Vec::new();
+    for scope in scopes {
+        let peers: Vec<_> = members
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.scope == scope)
+            .map(|(i, _)| i)
+            .collect();
+        let owner = |mut i: usize| -> Option<usize> {
+            loop {
+                if members[i].scope == scope {
+                    return Some(i);
                 }
-            } else {
-                color[*a] = 2;
-                stack.pop();
+                i = *ids.get(members[i].scope?)?;
+            }
+        };
+        let mut graph = vec![BTreeSet::new(); members.len()];
+        let mut projected = Vec::new();
+        for e in &d.edges {
+            if let (Some(a), Some(b)) = (owner(ids[e.from.as_str()]), owner(ids[e.to.as_str()]))
+                && a != b
+            {
+                graph[a].insert(b);
+                let mut edge = e.clone();
+                edge.from = members[a].node.id.clone();
+                edge.to = members[b].node.id.clone();
+                projected.push((a, b, edge));
             }
         }
+        let initial = peers
+            .iter()
+            .copied()
+            .find(|&i| members[i].node.style.shape == Shape::Initial)
+            .unwrap();
+        let mut color = vec![0; members.len()];
+        let mut back = BTreeSet::new();
+        for root in std::iter::once(initial).chain(peers) {
+            if color[root] != 0 {
+                continue;
+            }
+            color[root] = 1;
+            let mut stack = vec![(root, graph[root].iter())];
+            while let Some((a, next)) = stack.last_mut() {
+                if let Some(&b) = next.next() {
+                    if color[b] == 1 {
+                        back.insert((*a, b));
+                    } else if color[b] == 0 {
+                        color[b] = 1;
+                        stack.push((b, graph[b].iter()));
+                    }
+                } else {
+                    color[*a] = 2;
+                    stack.pop();
+                }
+            }
+        }
+        result.extend(
+            projected
+                .into_iter()
+                .filter(|(a, b, _)| !back.contains(&(*a, *b)))
+                .map(|(_, _, e)| e),
+        );
     }
-    d.edges
-        .iter()
-        .filter(|e| !back.contains(&(ids[e.from.as_str()], ids[e.to.as_str()])))
-        .cloned()
-        .collect()
+    result
 }

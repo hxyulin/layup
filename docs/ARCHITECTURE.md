@@ -29,13 +29,16 @@ validates documentation diagrams and examples with warnings treated as errors.
    items and edge statements. Syntax is separate from node-kind semantics.
 2. **Resolve semantics.** `model.rs` builds a typed `Diagram`, resolves styles
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
-   legend. `machine.rs` adds opt-in flat-machine validation and unreachable
-   state warnings. Its traversal removes back edges only from placement
+   legend. `machine.rs` adds opt-in scoped-machine validation and unreachable
+   state warnings, including composite initial paths. Each scope projects
+   descendant transitions onto its immediate members; traversal removes back edges only from placement
    constraints, preserving all original transitions for routing.
-3. **Lay out blocks.** `layout.rs` measures text, wraps prose, and places the
+3. **Lay out blocks.** `sizing.rs` computes font-aware preferred widths and
+   grows unpinned automatic canvases. `layout.rs` measures text, wraps prose, and places the
    authored rows and containers. `text/` shapes labels against bundled IBM Plex faces or supplied
    fallback font bytes. Compact decision trees reserve subtree lanes in any
-   direction. `geometry.rs` shares diamond/rounded outlines and safe text
+   direction, packing measured subtrees when the canvas is unpinned. Composite
+   states use rounded frames with protected headers and child channels. `geometry.rs` shares diamond/rounded outlines and safe text
    areas with routing and rendering. Layout records node rectangles, outlines, and
    reserved areas that routing must avoid.
 4. **Route edges.** `route.rs` chooses orthogonal paths, spreads ports, and

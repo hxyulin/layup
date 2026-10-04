@@ -315,6 +315,7 @@ struct Ctx<'a> {
     parent: Option<usize>,
     text_direction: crate::text::Direction,
     machine_gutter: Option<f64>,
+    pack: bool,
 }
 
 pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
@@ -322,6 +323,14 @@ pub fn layout(d: &Diagram, warnings: &mut Vec<Warning>) -> Scene {
 }
 
 pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts) -> Scene {
+    let mut fitted;
+    let d = if d.auto_layout && !d.width_set && d.preset == crate::model::Preset::Clean {
+        fitted = d.clone();
+        crate::sizing::fit(&mut fitted, fonts);
+        &fitted
+    } else {
+        d
+    };
     let m = metrics(d.width);
     let lanes = |side| d.edges.iter().filter(|e| e.via == Some(side)).count() as f64;
     let reserve = |n: f64| {
@@ -353,14 +362,9 @@ pub fn layout_with_fonts(d: &Diagram, warnings: &mut Vec<Warning>, fonts: &Fonts
         warnings,
         parent: None,
         text_direction: d.text_direction,
-        machine_gutter: (d.mode == crate::model::Mode::StateMachine).then(|| {
-            d.edges
-                .iter()
-                .filter_map(|e| e.label.as_deref())
-                .map(|label| width_with_fonts(label, Font::SansBold, 11.5, 0.0, fonts) + 30.0)
-                .fold(64.0, f64::max)
-                .min(160.0)
-        }),
+        pack: d.auto_layout && !d.width_set && d.preset == crate::model::Preset::Clean,
+        machine_gutter: (d.mode == crate::model::Mode::StateMachine)
+            .then(|| crate::sizing::machine_gap(d, fonts)),
     };
 
     // Header.
@@ -517,6 +521,18 @@ fn gap_before(l: &L, first: bool) -> f64 {
 }
 
 impl Ctx<'_> {
+    fn node_width(&self, n: &Node, available: f64) -> f64 {
+        if self.pack && n.style.shape.compact() && !n.is_composite() {
+            n.body_width(available).min(crate::sizing::node_width(
+                n,
+                &self.scene.fonts,
+                self.machine_gutter.unwrap_or(24.0),
+            ))
+        } else {
+            n.body_width(available)
+        }
+    }
+
     fn width(&self, s: &str, font: Font, size: f64, spacing: f64) -> f64 {
         width_with_fonts(s, font, size, spacing, &self.scene.fonts)
     }
@@ -607,6 +623,9 @@ fn measure_tree<'a>(
     root: usize,
     w: f64,
 ) -> L<'a> {
+    if ctx.pack {
+        return measure_packed_tree(ctx, direction, nodes, children, root, w);
+    }
     const GAP: f64 = 48.0;
     let mut depth = vec![0; nodes.len()];
     let mut order = Vec::new();
@@ -718,6 +737,94 @@ fn measure_tree<'a>(
     L::Flow { cells, h: total_h }
 }
 
+/// Allocate cross-axis subtree space from measured node sizes rather than
+/// leaf counts. Uneven branches keep their parent over the occupied extent.
+fn measure_packed_tree<'a>(
+    ctx: &mut Ctx,
+    direction: Direction,
+    nodes: &'a [Block],
+    children: &[Vec<usize>],
+    root: usize,
+    w: f64,
+) -> L<'a> {
+    let horizontal = direction.horizontal();
+    let mut depth = vec![0; nodes.len()];
+    let mut order = Vec::new();
+    let mut stack = vec![root];
+    while let Some(i) = stack.pop() {
+        order.push(i);
+        for &j in children[i].iter().rev() {
+            depth[j] = depth[i] + 1;
+            stack.push(j);
+        }
+    }
+    let ranks = depth.iter().max().unwrap() + 1;
+    let widths: Vec<_> = nodes
+        .iter()
+        .map(|b| crate::sizing::block_width(b, &ctx.scene.fonts, 48.0))
+        .collect();
+    let measured: Vec<_> = nodes
+        .iter()
+        .zip(&widths)
+        .map(|(b, &w)| measure(ctx, b, w))
+        .collect();
+    let heights: Vec<_> = measured.iter().map(height).collect();
+    let mut extent: Vec<_> = if horizontal {
+        heights.clone()
+    } else {
+        widths.clone()
+    };
+    let mut rank_size = vec![0.0_f64; ranks];
+    let cross_gap = if horizontal { 48.0 } else { 24.0 };
+    for &i in order.iter().rev() {
+        rank_size[depth[i]] =
+            rank_size[depth[i]].max(if horizontal { widths[i] } else { heights[i] });
+        extent[i] = extent[i].max(
+            children[i].iter().map(|&j| extent[j]).sum::<f64>()
+                + cross_gap * children[i].len().saturating_sub(1) as f64,
+        );
+    }
+    let mut offsets = vec![0.0; ranks];
+    for i in 1..ranks {
+        offsets[i] = offsets[i - 1] + rank_size[i - 1] + 48.0;
+    }
+    let flow_size = offsets[ranks - 1] + rank_size[ranks - 1];
+    let total_h = if horizontal { extent[root] } else { flow_size };
+    let total_w = if horizontal { flow_size } else { extent[root] };
+    let mut cross = vec![0.0; nodes.len()];
+    for &i in &order {
+        let occupied = children[i].iter().map(|&j| extent[j]).sum::<f64>()
+            + cross_gap * children[i].len().saturating_sub(1) as f64;
+        let mut cursor = cross[i] + (extent[i] - occupied) / 2.0;
+        for &j in &children[i] {
+            cross[j] = cursor;
+            cursor += extent[j] + cross_gap;
+        }
+    }
+    let cells = measured
+        .into_iter()
+        .enumerate()
+        .map(|(i, l)| {
+            let flow = offsets[depth[i]]
+                + (rank_size[depth[i]] - if horizontal { widths[i] } else { heights[i] }) / 2.0;
+            let flow = if direction.reversed() {
+                flow_size - flow - if horizontal { widths[i] } else { heights[i] }
+            } else {
+                flow
+            };
+            let cross =
+                cross[i] + (extent[i] - if horizontal { heights[i] } else { widths[i] }) / 2.0;
+            let (x, y) = if horizontal {
+                (flow, cross)
+            } else {
+                (cross, flow)
+            };
+            (l, x + (w - total_w) / 2.0, y, widths[i], heights[i])
+        })
+        .collect();
+    L::Flow { cells, h: total_h }
+}
+
 fn measure_flow<'a>(
     ctx: &mut Ctx,
     direction: Direction,
@@ -738,18 +845,41 @@ fn measure_flow<'a>(
     let mut total_h: f64 = 0.0;
     if direction.horizontal() {
         let count = layers.len().max(1);
-        let cw = (w - gutter * count.saturating_sub(1) as f64) / count as f64;
+        let packed = ctx.pack;
+        let preferred: Vec<_> = layers
+            .iter()
+            .map(|peers| crate::sizing::blocks_width(peers, &ctx.scene.fonts, gutter))
+            .collect();
+        let sum = preferred.iter().sum::<f64>();
+        let avail = (w - gutter * count.saturating_sub(1) as f64).max(1.0);
+        let widths: Vec<_> = preferred
+            .iter()
+            .map(|&p| {
+                if packed {
+                    p * (avail / sum.max(1.0)).min(1.0)
+                } else {
+                    avail / count as f64
+                }
+            })
+            .collect();
+        let total_w = widths.iter().sum::<f64>() + gutter * count.saturating_sub(1) as f64;
+        let mut offsets = vec![0.0; count];
+        let mut cursor = (w - total_w) / 2.0;
+        for i in if direction.reversed() {
+            (0..count).rev().collect::<Vec<_>>()
+        } else {
+            (0..count).collect()
+        } {
+            offsets[i] = cursor;
+            cursor += widths[i] + gutter;
+        }
         for (rank, peers) in layers.iter().enumerate() {
-            let column = if direction.reversed() {
-                count - rank - 1
-            } else {
-                rank
-            };
+            let cw = widths[rank];
             let mut y = 0.0;
             for peer in peers {
                 let l = measure(ctx, peer, cw);
                 let h = height(&l);
-                cells.push((l, column as f64 * (cw + gutter), y, cw, h));
+                cells.push((l, offsets[rank], y, cw, h));
                 y += h + ctx.machine_gutter.map(|_| 64.0).unwrap_or(gutter);
             }
             total_h =
@@ -820,7 +950,7 @@ fn measure_row<'a>(ctx: &mut Ctx, r: &'a Row, w: f64) -> L<'a> {
 }
 
 fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
-    let w = n.body_width(w);
+    let w = ctx.node_width(n, w);
     if n.style.shape.marker()
         || (n.style.shape == Shape::Choice && n.title.is_none() && n.lines.is_empty())
     {
@@ -1086,9 +1216,15 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
         cursor += ml.before + ml.advance * ml.lines.len() as f64;
     }
     let content_bottom = cursor;
-    let is_container = matches!(n.style.shape, Shape::Package | Shape::Container);
+    let is_container = n.is_container();
     if !lines.is_empty() && !n.children.is_empty() {
-        cursor += if is_container { 6.0 } else { 12.0 };
+        cursor += if n.is_composite() {
+            40.0
+        } else if is_container {
+            6.0
+        } else {
+            12.0
+        };
     }
     if n.style.shape == Shape::Container && lines.is_empty() {
         cursor = 20.0;
@@ -1096,7 +1232,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
 
     let mut children = Vec::new();
     for (i, c) in n.children.iter().enumerate() {
-        let l = measure(ctx, c, inner_w);
+        let l = measure(ctx, c, inner_w - if n.is_composite() { 64.0 } else { 0.0 });
         let h = height(&l);
         cursor += gap_before(&l, i == 0) + h;
         children.push((l, h));
@@ -1119,6 +1255,7 @@ fn measure_node<'a>(ctx: &mut Ctx, n: &'a Node, w: f64) -> L<'a> {
             }
         }
     };
+    let bottom_pad = if n.is_composite() { 52.0 } else { bottom_pad };
     let mut natural = (cursor + bottom_pad).max(if is_container { 40.0 } else { 30.0 });
     if n.style.shape.diamond() {
         natural *= 2.0;
@@ -1356,8 +1493,8 @@ fn draw_node(
     w: f64,
     h: f64,
 ) {
-    let compact = n.style.shape.compact();
-    let nw = n.body_width(w);
+    let compact = n.style.shape.compact() && !n.is_composite();
+    let nw = ctx.node_width(n, w);
     let (x, w) = (x + (w - nw) / 2.0, nw);
     // Compact shapes keep their measured height in a stretched row and center
     // inside the allocated cell. Legacy cards still stretch with their peers.
@@ -1428,7 +1565,7 @@ fn draw_node(
             Item::Box {
                 rect,
                 tone: n.style.tone,
-                hollow: n.style.hollow,
+                hollow: n.style.hollow || n.is_composite(),
                 white,
                 rx,
                 stroke_width,
@@ -1494,7 +1631,7 @@ fn draw_node(
         | Shape::State
         | Shape::Initial
         | Shape::Final => {
-            cursor += if n.style.shape == Shape::State {
+            cursor += if n.style.shape == Shape::State && !n.is_composite() {
                 (h - (content_bottom - 10.0)) / 2.0
             } else {
                 10.0
@@ -1539,10 +1676,36 @@ fn draw_node(
         }
     }
     let _ = (natural, content_bottom);
+    if n.is_composite() {
+        let rule_y = y + content_bottom + 8.0;
+        ctx.push_for(
+            idx,
+            Item::Rule {
+                x1: x,
+                y1: rule_y,
+                x2: x + w,
+                y2: rule_y,
+                tone: Some(n.style.tone),
+                dashed: false,
+            },
+        );
+        ctx.scene.keepout.push(Rect {
+            x,
+            y,
+            w,
+            h: content_bottom + 12.0,
+        });
+    }
     if !children.is_empty() {
-        let is_container = matches!(n.style.shape, Shape::Package | Shape::Container);
+        let is_container = n.is_container();
         if !lines.is_empty() {
-            cursor += if is_container { 6.0 } else { 12.0 };
+            cursor += if n.is_composite() {
+                40.0
+            } else if is_container {
+                6.0
+            } else {
+                12.0
+            };
         } else if n.style.shape == Shape::Container {
             cursor = y + 20.0;
         }
@@ -1550,7 +1713,14 @@ fn draw_node(
         ctx.parent = Some(idx);
         for (i, (cl, ch)) in children.iter().enumerate() {
             cursor += gap_before(cl, i == 0);
-            draw(ctx, cl, x + pad_x, cursor, inner_w, *ch);
+            draw(
+                ctx,
+                cl,
+                x + pad_x + if n.is_composite() { 32.0 } else { 0.0 },
+                cursor,
+                inner_w - if n.is_composite() { 64.0 } else { 0.0 },
+                *ch,
+            );
             cursor += ch;
         }
         ctx.parent = saved;

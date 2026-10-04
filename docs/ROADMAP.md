@@ -25,12 +25,13 @@ directions, multiline CJK and RTL labels, pinned ports, hints, containers,
 merges, self-loops, return paths, and long competing captions. Run
 `just decision-test` for the review gallery.
 
-Potential follow-ups are per-region tree detection in mixed diagrams,
-additional compact shapes, variable node widths, and more economical
-packing for trees with many leaves. Current tree lanes rely on an authored
-canvas width; wide trees can require `width=` or explicit grouping.
+Font-aware sizing and measured subtree packing are implemented. Unpinned
+`clean` automatic canvases grow beyond the previous 1400px heuristic when
+needed, and compact nodes use variable content widths. Explicit widths and
+manual presets retain authored sizing. Per-region tree detection in mixed
+diagrams and additional compact shapes remain possible follow-ups.
 
-## State machine diagrams: flat machines implemented
+## State machine diagrams: composite states implemented
 
 `mode=state-machine` enables automatic machine placement and opt-in
 validation. `state`, `initial`, `final`, and `choice` shapes render rounded
@@ -39,13 +40,13 @@ use ordinary strings with the convention `event [guard] / action`; state
 entry/exit annotations are optional prose lines. Nothing executes guards
 or actions.
 
-Flat machines validate the initial marker, transition direction and
+Machines validate scoped initial markers, transition direction and
 endpoints, final markers, and choice branch counts. Unreachable states
 warn with source lines. Final markers are optional for continuously
 running machines. Ordinary architecture diagrams keep their semantics.
 
-Cycle placement uses a deterministic traversal starting at the initial
-marker. Placement omits back edges and self-loops while rendering retains
+Cycle placement uses a deterministic traversal per scope starting at its
+initial marker. Placement omits back edges and self-loops while rendering retains
 all transitions, with space for return paths and self-loop captions.
 This avoids collapsing a mutually reachable set into one rank. Source
 node order controls traversal; edge statement reordering preserves
@@ -54,11 +55,23 @@ available. Regression/browser checks cover cycles and self-loops in all
 four directions, choices, validation, RTL/CJK, and integration behavior.
 Run `just state-test` for the review gallery.
 
-Next consider composite-state scopes and nested initial/final markers.
-Structural groups can already organize a flat machine, but `state` blocks
-cannot yet contain child states. History, parallel regions, fork/join,
-transition simulation, structured events/guards/actions, and active-state
-traces should follow concrete use cases.
+Nested `state` blocks now introduce composite scopes with their own initial
+marker, optional final markers, a separate header, and padded child channels.
+Regular transitions can enter composites or descendants and leave nested
+states. Initial transitions stay in their scope. IDs remain globally unique.
+Reachability includes default composite initial paths and direct descendant
+entry. History, parallel regions, fork/join, and structured event syntax
+should follow concrete use cases.
+
+## Agreed next stages
+
+1. Automatic sizing/packing and composite states: implemented and covered by
+   geometry, semantic, CLI/WASM parity, and browser checks.
+2. JSON scene export, then PNG/PDF: expose a versioned scene contract and add
+   optional SVG-based output frontends.
+3. Interactive and animated views: active-state sets, transition traces,
+   playback controls, and animated traversal using the exported semantic IDs.
+   Simulation needs an explicit execution contract and stays a separate layer.
 
 ## Output and interactive views
 
@@ -68,9 +81,14 @@ new node kinds together, as will the WebAssembly/VitePress integration.
 A serializable scene/geometry export is the next useful format: it would let
 other tools inspect layout, build alternate renderers, and implement state
 highlighting without parsing SVG. Define its coordinate, outline, text-run,
-and font contracts before calling it a stable API.
+and font contracts before calling it a stable API. Include hierarchy, source lines,
+text direction, and stable transition IDs that distinguish multiple arrows
+between the same states. Keep portable layout geometry separate from SVG
+styling and optional font payloads.
 
-PNG/PDF export can consume the SVG in an optional rendering frontend.
+PNG/PDF export can consume the SVG in an optional rendering frontend, with
+explicit scale/page sizing and the same system/supplied-font policy as SVG.
+Check CJK/RTL output and transparent versus themed backgrounds visually.
 Interactive active-state highlighting and a transition trace overlay should
 use the same semantic node/edge IDs. A simulator should be a separate,
 explicitly configured layer rather than implied by a transition label.

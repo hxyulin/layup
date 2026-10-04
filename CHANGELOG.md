@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Font-aware automatic canvas growth for wide trees, long horizontal chains, and nested containers; explicit widths and manual presets retain authored sizing.
+- Variable widths and measured subtree packing for compact nodes on automatic canvases.
+- Composite state frames, scoped initial/final validation, nested reachability, and cross-boundary transitions in all four directions.
+- Internal composite transition routing, bounded fan-out port spreading, and nested/automatic-size Rust, WASM, and browser coverage.
+
 - Flat state-machine diagrams with `state`, `initial`, `final`, and `choice` shapes.
 - Opt-in `mode=state-machine` validation for initial/final markers, directed transition endpoints, choice branches, and unreachable states.
 - Deterministic machine cycle placement, extra transition-label space, and self-loops with caption clearance.

@@ -224,11 +224,10 @@ fn custom_state_kinds_manual_rows_and_unicode_actions_work() {
 }
 
 #[test]
-fn marker_bodies_and_composite_states_are_rejected_clearly() {
+fn marker_bodies_are_rejected_clearly() {
     for source in [
         r#"diagram "T" { initial s "Start" }"#,
         r#"diagram "T" { final end { code "done()" } }"#,
-        r#"diagram "T" { state composite { state child } }"#,
     ] {
         assert!(compile(source).is_err());
     }

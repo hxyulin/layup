@@ -57,8 +57,8 @@ solid). Layup runs those checks on every render and `--strict` turns
 them into errors.
 
 What Mermaid does better, and layup deliberately does not attempt: crossing-minimized layout for arbitrary graphs, sequence diagrams, and
-full UML state-machine semantics. Decision trees use subtree lanes; flat
-state machines have explicit checks and cycle placement. Composite/parallel
+full UML state-machine semantics. Decision trees use measured subtree extents; state machines
+have scoped initial markers, composite states, and cycle placement. Parallel
 states and simulation are future work in [the roadmap](ROADMAP.md).
 
 ## 2. The source language
@@ -93,7 +93,7 @@ diagram "Title" width=1950 {
 
 | Item | Meaning |
 | --- | --- |
-| `diagram "Title" [width=N] [preset=clean\|manual] { ... }` | Title is required. Width defaults to 900, or 1400 when a row has 3+ cells or nodes nest 3 deep. Wide diagrams (≥ 1400) get larger margins and type. `preset=manual` selects explicit-only behavior (fixed gray cards, 12px gutters, no auto legend/width); `clean` is the default. |
+| `diagram "Title" [width=N] [preset=clean\|manual] { ... }` | Title is required. Authored layout defaults to 900, or 1400 for wide/deep structures. Automatic layout under `clean` uses font-aware preferred widths, with a 900px minimum and no 1400px ceiling. Explicit widths are retained. Wide diagrams (≥ 1400) get larger margins and type. `preset=manual` selects explicit-only behavior (fixed gray cards, 12px gutters, no auto legend/width); `clean` is the default. |
 | `direction=down\|up\|right\|left` | Flow of inferred ranks; requires `layout=auto` for a non-default direction. |
 | `text-direction=auto\|ltr\|rtl` | Base direction of labels, independent of graph flow; also accepted on nodes and inherited by their children. |
 | `note "..."` | Subtitle under the title. |
@@ -164,7 +164,7 @@ Built-in kinds:
 | `decision` | Compact diamond, centered 15px bold question and optional code/prose. Labels wrap inside the central safe rectangle. |
 | `process` | Compact rounded process step, centered title/code/prose. |
 | `terminal` | Compact capsule for a start or outcome; multiline content uses capped rounded corners. |
-| `state` | Compact rounded state, centered title and optional code/prose; minimum height 48px. |
+| `state` | Compact rounded leaf state, or a composite frame containing child states with a separate title/action header; minimum leaf height 48px. |
 | `initial` / `final` | Filled 20px initial dot / 28px final bullseye; IDs and styling, no title or text body. |
 | `choice` | A 28px diamond without a title, or a compact labeled diamond up to 180px wide. |
 | `package` | White frame with a gray head strip and mono name. Holds children. |
@@ -200,14 +200,18 @@ Containers and sections use the same rules recursively. Edges between their
 descendants order the containing siblings. Explicit rows retain their cells,
 weights and order; sections, dividers, text, gaps and rows are boundaries that
 automatic placement cannot cross. Edges across these boundaries still route,
-but do not override the authored structure. Existing width inference applies
-after placement: three columns can widen an unpinned canvas to 1400px.
+but do not override the authored structure. After placement, `sizing.rs`
+uses the selected fonts to compute preferred widths, weighted-row needs,
+tree extents, rank widths, nested padding, header width, and outside lanes.
+Automatic canvases under `clean` start at 900px and grow to fit. Explicit
+`width=` and `preset=manual` preserve authored canvas sizing.
 
 There is no crossing minimization or saved-position state. In horizontal
-flow, ranks split the region width equally and peers stack vertically. In
+flow, unpinned `clean` canvases pack ranks at preferred widths and center the
+region; explicit widths retain equal rank allocations. Peers stack vertically. In
 upward flow, ranks reverse and retain the downward row-wrapping policy.
 Disconnected regions retain their authored order in every direction. Long
-horizontal chains may need an explicit larger `width=`.
+horizontal chains can grow the automatic canvas beyond 1400px.
 Cycles and dense graphs may still need routing hints. Run `just preview-auto` for the review gallery.
 
 ### Decision trees
@@ -229,7 +233,9 @@ A consecutive automatic region made entirely of `decision`, `process`, or
 decision, and exactly one incoming directed edge for every other node.
 The question centers over its subtree in any of the four directions;
 source declaration order controls the order of sibling branches. Each
-subtree reserves space for its own descendants. Duplicate edges, merges,
+subtree reserves space for its own descendants. Unpinned `clean` canvases
+use variable node widths and subtree extents rather than equal leaf lanes;
+explicit widths retain the existing equal-lane policy. Duplicate edges, merges,
 cycles, undirected/bidirectional relations, or placement hints select the
 general graph layering instead. Existing cards keep their current layout.
 Separate trees with authored groups/sections to retain independent regions.
@@ -250,7 +256,7 @@ labels. A caption without clear space produces a warning instead of being
 silently omitted. Ordinary edge semantics remain unchanged: yes/no are
 labels, and branches can also use arbitrary categories or numeric ranges.
 
-### Flat state machines
+### State machines and composite scopes
 
 ```text
 diagram "Job" mode=state-machine direction=right {
@@ -273,9 +279,14 @@ graph semantics, including the current strongly connected component layout.
 State and pseudostate shapes are available in either mode. The machine
 checks are opt-in:
 
-- Exactly one initial marker, with one outgoing transition and no incoming
-  transitions. Multiple initial markers report the second declaration line.
-- No outgoing transitions from a final marker; a final marker is optional.
+- Exactly one initial marker in the root scope and in each composite state,
+  with one outgoing transition and no incoming transitions. Its target must
+  be a direct semantic member of the same scope. Multiple initial markers
+  report the second declaration line.
+- No outgoing transitions from a final marker; a final marker is optional in
+  each scope. A final can be entered from its own scope or a descendant
+  scope, closing the scope that contains it. Entry from an unrelated or
+  enclosing scope is rejected.
 - At least two outgoing transitions from each choice.
 - Every transition has one directed arrow and connects states/pseudostates,
   rather than structural containers.
@@ -289,7 +300,7 @@ checks. Guard syntax, mutual exclusion, event handling, and actions are not
 interpreted. `event [guard] / action`, `entry / action`, and `exit / action`
 are conventions for ordinary edge labels and text lines.
 
-A deterministic depth-first traversal starts at the initial marker and
+A deterministic depth-first traversal in each scope starts at its initial marker and
 orders adjacent states by declaration order. Back edges and self-loops
 are excluded only from placement constraints; all original transitions
 remain in the rendered scene. This spreads cycles across ranks instead of
@@ -298,10 +309,22 @@ for transition captions; unpinned self-loops try the cross axis first with
 clearance for an upright caption. Explicit `via=` and ports retain priority.
 
 All four directions and placement hints work. Authored rows and sections
-remain boundaries. Groups can organize one flat machine, with one initial
-marker across the diagram; they do not introduce composite-state scopes.
-Nested `state` blocks, history, fork/join, parallel regions, and simulation
-are not part of this first pass.
+remain boundaries. Groups organize nodes within the current scope. Nested
+`state` blocks introduce composite scopes; custom kinds with `shape=state`
+behave the same way. IDs are globally unique, so cross-boundary transitions
+use ordinary endpoint IDs without qualification.
+
+Composite frames have a title/action header, a divider, and padded channels
+around children. They are not limited by the 240px leaf-state width cap.
+Transitions between descendants order their immediate owners in each scope;
+original endpoints are retained for routing. Regular transitions can enter
+a composite, enter a descendant directly, leave a nested state, or connect
+a composite with its own descendants. Direct descendant entry makes its
+ancestors reachable without following their default initial paths. Declared
+transitions targeting a composite also traverse its initial path. A final
+marker does not create an implicit completion transition; completion/event
+labels remain authored text. History, fork/join, parallel regions, and
+simulation are future work. See `examples/state-composite.layup`.
 
 ### Predictable edits
 
@@ -321,8 +344,8 @@ Automatic placement is computed afresh, with no saved position state:
   Manual layout retains the original source-order palette cycle.
 
 This does not freeze coordinates across arbitrary edits. Longer labels can
-change row heights, added peers change cell widths, and three columns or deep
-nesting can trigger the existing 1400px canvas default. Pin `width=` to avoid
+change row heights, added peers change cell widths, and larger trees or
+longer horizontal chains grow an unpinned automatic canvas. Pin `width=` to avoid
 canvas-width changes. Earlier regions growing can move later regions down;
 new edges can alter ranks and route choices. Use explicit IDs and authored
 boundaries when identity and grouping matter. No position cache is required.

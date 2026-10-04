@@ -68,7 +68,7 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
         }
         plans.push(Some(plan));
     }
-    spread_ports(d, &mut plans);
+    spread_ports(d, scene, &mut plans);
 
     let mut taken: Vec<Seg> = Vec::new();
     let mut taken_bus: Vec<bool> = Vec::new();
@@ -96,7 +96,8 @@ pub fn route_all(d: &Diagram, scene: &mut Scene, warnings: &mut Vec<Warning>) {
             && e.to_side.is_none())
         .then(|| state_loop(scene, ra, d.direction, &obstacles, &avoid))
         .flatten();
-        let mut points = if let Some(points) = loop_points {
+        let local_points = containment_route(scene, e, plan.a, plan.b, &obstacles, &avoid);
+        let mut points = if let Some(points) = local_points.or(loop_points) {
             points
         } else {
             match plan.outside {
@@ -191,21 +192,74 @@ fn attach_outline(points: &mut [(f64, f64)], outline: crate::geometry::Outline, 
     }
     let i = if end { points.len() - 1 } else { 0 };
     let j = if end { i - 1 } else { 1 };
-    let (p, q) = (points[i], points[j]);
-    let side = if (p.0 - q.0).abs() < 0.001 {
-        if q.1 < p.1 { Side::Top } else { Side::Bottom }
-    } else if q.0 < p.0 {
-        Side::Left
-    } else {
-        Side::Right
+    let p = points[i];
+    let q = points[j];
+    let r = match outline {
+        crate::geometry::Outline::Rounded { rect, .. }
+        | crate::geometry::Outline::Diamond(rect)
+        | crate::geometry::Outline::Rectangle(rect) => rect,
     };
+    // The neighboring point can be inside a composite on a local
+    // transition. The original rectangular port identifies the side.
+    let sides = if (p.0 - q.0).abs() < 0.001 {
+        [
+            (Side::Top, (p.1 - r.y).abs()),
+            (Side::Bottom, (p.1 - r.bottom()).abs()),
+        ]
+    } else {
+        [
+            (Side::Left, (p.0 - r.x).abs()),
+            (Side::Right, (p.0 - r.right()).abs()),
+        ]
+    };
+    let side = sides
+        .into_iter()
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .unwrap()
+        .0;
     points[i] = outline.port(side, along(p, side));
+}
+
+/// A local transition meets a containing state from its interior. Ordinary
+/// port search assumes both endpoints are approached from outside, so try
+/// clear internal channels before that search.
+fn containment_route(
+    scene: &Scene,
+    e: &Edge,
+    a: usize,
+    b: usize,
+    obstacles: &[Rect],
+    avoid: &[Seg],
+) -> Option<Vec<(f64, f64)>> {
+    if e.via.is_some() || e.from_side.is_some() || e.to_side.is_some() {
+        return None;
+    }
+    let (parent, child, reverse) = if scene.is_descendant(a, b) {
+        (b, a, false)
+    } else if scene.is_descendant(b, a) {
+        (a, b, true)
+    } else {
+        return None;
+    };
+    let r = scene.nodes[child].rect;
+    let mut blocked = obstacles.to_vec();
+    blocked.extend(&scene.keepout);
+    for side in [Side::Left, Side::Right, Side::Bottom] {
+        let along = if vertical(side) { r.cx() } else { r.cy() };
+        let p = scene.nodes[child].outline.port(side, along);
+        let q = scene.nodes[parent].outline.port(side, along);
+        let points = if reverse { vec![q, p] } else { vec![p, q] };
+        if clear(&points, &blocked) && !overlaps_taken(&points, avoid) {
+            return Some(points);
+        }
+    }
+    None
 }
 
 /// Edges that leave or enter one node through the same point are moved
 /// apart along that side, in declaration order, unless every one is `bus`.
 /// A straight edge keeps both ends together so it stays straight.
-fn spread_ports(d: &Diagram, plans: &mut [Option<Plan>]) {
+fn spread_ports(d: &Diagram, scene: &Scene, plans: &mut [Option<Plan>]) {
     let mut groups: BTreeMap<(usize, u8, i64), Vec<(usize, bool)>> = BTreeMap::new();
     for (i, p) in plans.iter().enumerate() {
         let Some(p) = p else { continue };
@@ -227,7 +281,16 @@ fn spread_ports(d: &Diagram, plans: &mut [Option<Plan>]) {
         }
         let n = members.len() as f64;
         for (k, (i, is_target)) in members.iter().enumerate() {
-            let offset = (k as f64 - (n - 1.0) / 2.0) * SPREAD;
+            let member = plans[*i].as_ref().unwrap();
+            let (node, side) = if *is_target {
+                (member.b, member.s1)
+            } else {
+                (member.a, member.s0)
+            };
+            let rect = scene.nodes[node].rect;
+            let span = if vertical(side) { rect.w } else { rect.h };
+            let step = SPREAD.min((span - 16.0).max(0.0) / (n - 1.0));
+            let offset = (k as f64 - (n - 1.0) / 2.0) * step;
             let p = plans[*i].as_mut().unwrap();
             let straight = vertical(p.s0) == vertical(p.s1)
                 && (along(p.p0, p.s0) - along(p.p1, p.s1)).abs() < 0.5;
@@ -276,8 +339,8 @@ fn obstacles(scene: &Scene, a: usize, b: usize) -> Vec<Rect> {
                 && *i != b
                 && !anc_a.contains(i)
                 && !anc_b.contains(i)
-                && !scene.is_descendant(*i, a)
-                && !scene.is_descendant(*i, b)
+                && !(scene.is_descendant(*i, a) && !scene.is_descendant(b, a))
+                && !(scene.is_descendant(*i, b) && !scene.is_descendant(a, b))
         })
         .map(|(_, n)| n.rect)
         .collect()

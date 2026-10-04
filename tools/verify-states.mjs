@@ -24,6 +24,21 @@ cases.push(['Labeled choice', `diagram "Check access" mode=state-machine directi
   permitted -> grant "[allowed]"; permitted -> deny "[else]"
   grant -> end "close"; deny -> end "close"
 }`, 'light']);
+const composite = readFileSync('examples/state-composite.layup', 'utf8');
+for (const direction of ['down', 'up', 'right', 'left']) {
+  cases.push([`Composite states: ${direction}`, composite.replace('direction=right', `direction=${direction}`), 'light']);
+}
+cases.push(['Composite states: dark', composite, 'dark']);
+cases.push(['Composite states: CJK and RTL', composite.replace('"Connected"', '"متصل" text-direction=rtl').replace('entry / open(); exit / close()', 'دخول / فتح(); خروج / إغلاق()').replace('"Awaiting reply"', '"等待回复"').replace('"Retrying"', '"重试"'), 'light']);
+for (const direction of ['down', 'up', 'right', 'left']) {
+  cases.push([`Local composite transitions: ${direction}`, `diagram "Local transitions" mode=state-machine direction=${direction} {
+    initial root; state parent "Parent" { initial enter; state a "A"; state b "B"; enter -> a; a -> b }
+    root -> parent; b -> parent "reset"; parent -> a "resume"
+  }`, 'light']);
+}
+const wide = `diagram "Automatic tree sizing" layout=auto { decision root "Choose outcome"; ${Array.from({length: 16}, (_, i) => `terminal q${i} "Outcome ${i}"; root -> q${i} "${i}";`).join(' ')} }`;
+cases.push(['Automatic sizing: sixteen outcomes', wide, 'light']);
+cases.push(['Automatic sizing: compact states', machine.replace('width=1400', ''), 'light']);
 let html = '<!doctype html><meta charset=utf-8><title>State machine review</title><style>body{background:#eee;margin:24px;font:16px sans-serif}svg{display:block;max-width:100%;height:auto;background:white;margin-bottom:32px}</style>';
 for (const [label, source, theme] of cases) {
   const svg = execFileSync(resolve('target/debug/layup'), ['render', '-', '-o', '-', '--theme', theme, '--strict'], { input: source }).toString();
@@ -60,6 +75,12 @@ try {
         const r = text.getBBox();
         for (const outline of svg.querySelectorAll('.node .box')) {
           const box = outline.getBBox();
+          // Composite frames legitimately contain transitions and captions.
+          if ([...svg.querySelectorAll('.node .box')].some(other => {
+            if (other === outline) return false;
+            const r = other.getBBox();
+            return r.x > box.x && r.y > box.y && r.x + r.width < box.x + box.width && r.y + r.height < box.y + box.height;
+          })) continue;
           if (r.x >= box.x + box.width || r.x + r.width <= box.x || r.y >= box.y + box.height || r.y + r.height <= box.y) continue;
           // Sample the overlapped area to detect intersection with slopes.
           for (let x = Math.max(r.x, box.x); x <= Math.min(r.x + r.width, box.x + box.width); x += 2) {
@@ -77,8 +98,10 @@ try {
   assert.equal(result.diagrams, cases.length);
   assert.ok(result.count >= 25);
   const markers = await page.locator('circle.box').count();
-  assert.equal(markers, cases.length * 2);
+  assert.equal(markers, 62);
   await page.screenshot({ path: 'out/states/preview.png', fullPage: true });
+  await page.locator('svg').nth(10).screenshot({ path: 'out/states/composite.png' });
+  await page.locator('svg').nth(13).screenshot({ path: 'out/states/composite-international.png' });
   console.log(`Verified ${result.diagrams} state-machine diagrams and ${result.count} node text elements against their actual outlines.`);
 } finally {
   await browser.close();

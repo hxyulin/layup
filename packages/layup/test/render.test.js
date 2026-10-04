@@ -68,3 +68,19 @@ test('state machines match CLI output and preserve semantic diagnostics', () => 
   const source = 'diagram "Unreachable" mode=state-machine { initial s; state a; state b; s -> a }';
   assert.ok(engine.render(source).warnings.some(w => w.message.includes('unreachable')));
 });
+
+
+test('composite states and automatic sizing match CLI in every direction', () => {
+  const engine = loadSync();
+  const machine = readFileSync(new URL('examples/state-composite.layup', root), 'utf8');
+  for (const direction of ['down', 'up', 'right', 'left']) {
+    const source = machine.replace('direction=right', `direction=${direction}`);
+    const cli = execFileSync(new URL('target/debug/layup', root).pathname, ['render', '-', '-o', '-', '--strict'], { input: source }).toString();
+    const rendered = engine.render(source);
+    assert.equal(rendered.output, cli);
+    assert.deepEqual(rendered.warnings, []);
+    assert.match(rendered.output, /data-id="connected"/);
+    assert.match(rendered.output, /data-id="waiting"/);
+  }
+  assert.throws(() => engine.render('diagram "Missing scope initial" mode=state-machine { initial s; state parent { state child }; s -> parent }'), e => e instanceof LayupError && e.reason.includes('composite state `parent`'));
+});

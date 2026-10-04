@@ -71,3 +71,24 @@ diagram "Job lifecycle" mode=state-machine direction=right {
   active -> done "finish"
 }
 ```
+
+Composite states have their own initial paths and preserve the same viewer
+controls. Automatic width grows to fit the nested layout.
+
+```layup
+diagram "Connection" mode=state-machine direction=right {
+  initial start
+  state offline "Offline"
+  state connected "Connected" {
+    initial enter
+    state ready "Ready"
+    state sending "Sending"
+    enter -> ready
+    ready -> sending "send"
+    sending -> ready "ack"
+  }
+  start -> offline
+  offline -> connected "connect"
+  connected -> offline "disconnect"
+}
+```

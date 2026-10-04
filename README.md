@@ -136,7 +136,14 @@ follow the selected direction and peers occupy the perpendicular axis.
 `after=` is a direction-neutral alias of `below=`; `same-layer=` and `beside=`
 constrain peers. See `examples/directions.layup`, `examples/international.layup`,
 and `examples/right-to-left.layup`. The [next-capabilities roadmap](docs/ROADMAP.md)
-tracks decision nodes, state machines, and output formats.
+tracks layout, state machines, and output formats.
+
+Under the default `clean` preset, automatic layout computes the canvas width
+from font measurements, tree extents, rank widths, and container padding.
+The canvas starts at 900px and grows for wide trees or long horizontal
+chains. Compact nodes use content widths and trees pack uneven subtrees
+around their measured extents. Set `width=N` to keep a fixed canvas; authored
+rows and the `manual` preset retain their sizing policy.
 
 ### Decision trees and flowcharts
 
@@ -177,7 +184,7 @@ text against the rendered outlines.
 
 ### State machines
 
-`mode=state-machine` adds flat state-machine checks and enables automatic
+`mode=state-machine` adds state-machine checks and enables automatic
 layout by default. Use `state` for a rounded state, `initial` for the filled
 start dot, `final` for the bullseye, and `choice` for a diamond pseudostate:
 
@@ -202,7 +209,7 @@ guards. `choice allowed` draws a small unlabeled diamond; an optional title
 turns it into a larger labeled diamond. Put guard labels on outgoing edges.
 Initial and final markers take IDs and styling, without text bodies.
 
-Machine mode requires one initial marker with one outgoing transition,
+Machine mode requires one initial marker per scope with one outgoing transition,
 rejects transitions into an initial or out of a final marker, requires two
 or more outgoing transitions from a choice, and warns about states that
 cannot be reached from the initial marker. A continuously running machine
@@ -213,13 +220,42 @@ Cycles get forward placement from the initial marker while return
 transitions and self-loops remain visible. Node declaration order controls
 traversal; reordering edge statements preserves state placement. All four
 directions, explicit ports, placement hints, `layout=manual`, and authored
-rows remain available. Structural groups can organize a flat machine;
-composite-state semantics, parallel regions, history, and simulation are
-future work.
+rows remain available. Structural groups organize nodes without introducing
+a new machine scope.
+
+Nest states to make a composite with its own initial marker:
+
+```text
+diagram "Connection" mode=state-machine direction=right {
+  initial start
+  state offline "Offline"
+  state connected "Connected" {
+    initial enter
+    state ready "Ready"
+    state sending "Sending"
+    enter -> ready
+    ready -> sending "send"
+    sending -> ready "ack"
+  }
+  start -> offline
+  offline -> connected "connect"
+  connected -> offline "disconnect"
+}
+```
+
+A composite draws a rounded frame with a separate title/action header.
+Initial transitions stay within their own scope; regular transitions can
+enter a composite, target a descendant directly, or leave a nested state.
+IDs remain unique across the diagram. Final markers finish their containing
+scope; transitions can enter a final from that scope or a descendant scope.
+Reachability follows declared transitions and composite initial paths,
+without evaluating guards or actions. Parallel regions, history, and
+simulation remain future work.
 
 See [the job lifecycle](examples/state-machine.layup),
 [guarded choices](examples/state-choice.layup), and
-[multilingual states](examples/state-international.layup). Run
+[multilingual states](examples/state-international.layup), and
+[nested connection states](examples/state-composite.layup). Run
 `just state-test` for the Chromium review gallery.
 
 ### Fonts and measurement

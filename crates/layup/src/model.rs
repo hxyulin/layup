@@ -685,7 +685,7 @@ impl Builder {
             style.shape = Shape::Container;
             style.hollow = true;
         }
-        if style.shape.compact() && !children.is_empty() {
+        if style.shape.compact() && style.shape != Shape::State && !children.is_empty() {
             return Err(Error::at(
                 it.line,
                 "compact shapes cannot contain child blocks; use a group around the flow",
@@ -1278,6 +1278,10 @@ fn show(a: &Arg) -> String {
 }
 
 impl Node {
+    pub fn is_composite(&self) -> bool {
+        self.style.shape == Shape::State && !self.children.is_empty()
+    }
+
     pub fn is_container(&self) -> bool {
         matches!(self.style.shape, Shape::Package | Shape::Container) || !self.children.is_empty()
     }
@@ -1285,7 +1289,10 @@ impl Node {
 
 impl Node {
     pub fn body_width(&self, available: f64) -> f64 {
-        if self.style.shape == Shape::Choice && self.title.is_none() && self.lines.is_empty() {
+        if self.is_composite() {
+            available
+        } else if self.style.shape == Shape::Choice && self.title.is_none() && self.lines.is_empty()
+        {
             28.0
         } else {
             self.style.shape.node_width(available)

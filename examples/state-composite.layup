@@ -1,0 +1,29 @@
+diagram "Connection lifecycle" mode=state-machine direction=right {
+  initial start
+  state offline "Offline" gray
+  state connected "Connected" blue {
+    sub "entry / open(); exit / close()"
+    initial enter
+    state ready "Ready" green
+    state sending "Sending" yellow {
+      initial begin
+      state waiting "Awaiting reply" purple
+      state retry "Retrying" orange
+      final delivered
+      begin -> waiting
+      waiting -> retry "timeout"
+      retry -> waiting "retry"
+      waiting -> delivered "ack"
+    }
+    final complete
+    enter -> ready
+    ready -> sending "send"
+    sending -> ready "next"
+    sending -> complete "finished"
+  }
+  final stopped
+  start -> offline
+  offline -> connected "connect"
+  connected -> offline "disconnect"
+  connected -> stopped "shutdown"
+}
