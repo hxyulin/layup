@@ -117,6 +117,11 @@ In a checkout of the repository, `just wasm` builds `layup.wasm` into this
 directory and `just js-test` compares the package's output with the CLI.
 `npm pack` and `npm publish` rebuild the WebAssembly first.
 
+Repository development uses pnpm: run `pnpm install --frozen-lockfile` from
+the root. `pnpm docs:dev` starts the documentation and live browser editor;
+`pnpm --filter @hxyulin/layup test` runs package tests against the current
+WASM binary. See [the site development guide](../../docs/site/contributing.md).
+
 ## License
 
 MIT OR Apache-2.0. `layup.wasm` embeds IBM Plex fonts, licensed under the SIL

@@ -1,5 +1,5 @@
 // Checks the built site in Chromium: hydration, fonts, theming, and the
-// @hxyulin/layup/client interactions. Run `npx vitepress build` first; `just
+// @hxyulin/layup/client interactions. Run `pnpm build` first; `just
 // vitepress-test` does both.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ let page;
 const errors = [];
 
 before(async () => {
-  server = spawn('npx', ['vitepress', 'preview', '--port', String(PORT)], { stdio: 'ignore' });
+  server = spawn('pnpm', ['exec', 'vitepress', 'preview', '--port', String(PORT)], { stdio: 'ignore' });
   for (let i = 0; ; i++) {
     try {
       if ((await fetch(URL)).ok) break;

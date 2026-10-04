@@ -24,9 +24,11 @@ jobs:
       - uses: taiki-e/install-action@just
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
       - run: just js-test
       # Chromium's system libraries need root; the recipe then finds it installed.
-      - run: npm install --no-audit --no-fund && npx playwright install --with-deps chromium
+      - run: pnpm exec playwright install --with-deps chromium
         working-directory: examples/vitepress
       - run: just vitepress-test

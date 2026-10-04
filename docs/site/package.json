@@ -1,16 +1,19 @@
 {
-  "name": "@layup/vitepress-example",
+  "name": "@layup/docs",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "test": "node --test"
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@hxyulin/layup": "workspace:*",
+    "vue": "^3.5.22"
   },
   "devDependencies": {
-    "@hxyulin/layup": "workspace:*",
     "playwright": "^1.55.0",
-    "vitepress": "^1.6.0"
+    "vitepress": "1.6.4"
   }
 }

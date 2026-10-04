@@ -1,0 +1,7 @@
+packages:
+  - packages/layup
+  - examples/vitepress
+  - docs/site
+
+allowBuilds:
+  esbuild: true

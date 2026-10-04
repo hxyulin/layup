@@ -1,0 +1,14 @@
+{
+  "name": "layup-workspace",
+  "private": true,
+  "packageManager": "pnpm@12.9.1",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "wasm": "node tools/build-wasm.mjs",
+    "docs:dev": "pnpm wasm && pnpm --filter @layup/docs dev",
+    "docs:build": "pnpm wasm && pnpm --filter @layup/docs build",
+    "docs:preview": "pnpm --filter @layup/docs preview",
+    "docs:test": "pnpm docs:build && pnpm --filter @layup/docs test",
+    "test:js": "pnpm wasm && pnpm --filter @hxyulin/layup test"
+  }
+}

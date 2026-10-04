@@ -4,3 +4,5 @@ packages/layup/layup.wasm
 node_modules/
 examples/vitepress/.vitepress/dist/
 examples/vitepress/.vitepress/cache/
+docs/site/.vitepress/dist/
+docs/site/.vitepress/cache/

@@ -57,14 +57,13 @@ preview-incremental:
 
 # Build the WebAssembly engine into the npm package.
 wasm:
-    cargo build -p layup-wasm --profile wasm --target wasm32-unknown-unknown
-    cp target/wasm32-unknown-unknown/wasm/layup_wasm.wasm packages/layup/layup.wasm
-    cp crates/layup/src/presentation.js packages/layup/presentation.js
+    node tools/build-wasm.mjs
 
 # Test the npm package against the CLI.
 js-test: wasm
     cargo build -p layup-cli
-    cd packages/layup && npm install --no-audit --no-fund && node --test
+    pnpm install --frozen-lockfile
+    pnpm --filter @hxyulin/layup test
 
 # Browser checks and a multilingual preview using system CJK fallback and a synthetic user-font fixture.
 international-test:
@@ -84,11 +83,31 @@ state-test:
 
 # Run the VitePress example with the local package (http://localhost:5173).
 vitepress: wasm
-    cd examples/vitepress && npm install --no-audit --no-fund && npx vitepress dev
+    pnpm install --frozen-lockfile
+    pnpm --filter @layup/vitepress-example dev
 
 # Build the VitePress example and test it in Chromium (downloads Chromium once).
 vitepress-test: wasm
-    cd examples/vitepress && npm install --no-audit --no-fund && npx playwright install chromium && npx vitepress build && node --test
+    pnpm install --frozen-lockfile
+    pnpm --filter @layup/vitepress-example exec playwright install chromium
+    pnpm --filter @layup/vitepress-example build
+    pnpm --filter @layup/vitepress-example test
+
+# Run the public documentation and live editor at http://localhost:5173/layup/.
+docs-dev:
+    pnpm install --frozen-lockfile
+    pnpm docs:dev
+
+# Build the documentation with strictly checked diagrams and the current WASM engine.
+docs-build:
+    pnpm install --frozen-lockfile
+    pnpm docs:build
+
+# Check the production documentation in Chromium under its GitHub Pages base path.
+docs-test:
+    pnpm install --frozen-lockfile
+    pnpm --filter @layup/docs exec playwright install chromium
+    pnpm docs:test
 
 # Exercise presentation controls in standalone, inline, fullscreen and iframe views.
 presentation-test:

@@ -1,4 +1,4 @@
-# layup
+# <img src="docs/site/public/mark.svg" alt="" width="40" height="40" /> Layup
 
 An authored-layout diagram tool and Rust library. You write a
 `.layup` file that describes cards, containers, rows and typed edges;
@@ -25,6 +25,29 @@ progressive reveal, reusable models/views and versioned scene JSON. See the
 [presentation guide](docs/PRESENTATION.md) and
 [sequence reference](docs/SEQUENCE.md), or try the
 [combined request/retry demo](examples/presentation-model.layup).
+
+### Documentation and live editor
+
+The [documentation site](https://hxyulin.github.io/layup/) includes a DSL
+walkthrough, rendered examples, all diagram modes, presentation workflows,
+formats and API references. Its live editor compiles in a browser worker,
+with diagnostics, formatting, named views, local fonts, sharing and downloads.
+GitHub Actions builds, tests, and publishes the VitePress site to GitHub Pages
+on pushes to `main`.
+
+JavaScript development uses a pnpm workspace and one frozen lockfile:
+
+```sh
+rustup target add wasm32-unknown-unknown
+pnpm install --frozen-lockfile
+pnpm docs:dev       # http://localhost:5173/layup/
+pnpm docs:build     # rebuild WASM and generate the production site
+pnpm docs:preview
+```
+
+See [documentation development](docs/site/contributing.md) for browser tests,
+new examples, deployment and base-path overrides. These docs follow the
+checkout, including features added after the 0.3.0 version bump.
 
 ### Architecture
 

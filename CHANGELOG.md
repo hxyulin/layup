@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- VitePress/pnpm documentation site with DSL and diagram walkthroughs, formats/API references, a browser-worker WASM playground, editable examples, diagnostics, formatting, views, supplied fonts, downloads and UTF-8 share links; GitHub Pages build/test/deploy workflow.
 - Sequence diagrams with authored participant order, lifelines, self-messages, asynchronous/return arrows, notes and nested loop/opt/alt fragments; measured Unicode/RTL labels and supplied-font support.
 - Slide viewports with widescreen/standard/custom dimensions, uniform fit, padding and post-fit minimum-font-size diagnostics.
 - Cumulative presentation steps with stable edge IDs, highlights, speaker notes, keyboard navigation and inline/fullscreen/iframe controls.
