@@ -6,6 +6,10 @@ JavaScript loads the actual Rust engine compiled to WASM.
 
 ## CLI
 
+Install with `cargo install layup-cli --version 0.3.0 --locked`, or
+`cargo binstall layup-cli --version 0.3.0` for a supported prebuilt binary.
+See [getting started](/guide/getting-started#_3-render-a-file) for platform details.
+
 ```sh
 layup render diagram.layup --theme auto
 layup render diagram.layup --html --embed
@@ -23,6 +27,12 @@ to a neighboring SVG/HTML file; compile defaults to stdout. Use `--help` on
 each command for all options.
 
 ## Rust
+
+Add the published engine to your project:
+
+```sh
+cargo add layup@0.3.0
+```
 
 ```rust
 let compiled = layup::compile(source)?;
@@ -51,6 +61,12 @@ For types and exhaustive drawing contracts, build Rust docs with
 [crate sources](https://github.com/hxyulin/layup/tree/main/crates/layup/src).
 
 ## JavaScript and WASM
+
+The playground and the examples below use the current workspace adapter.
+The npm package is still at v0.2.0; build the repository's WASM package to use
+v0.3.0 features such as `compile`, `lint`, `format` and named views. See
+[local setup](/contributing#run-locally). The Rust crates and CLI are available
+as v0.3.0 on crates.io.
 
 ```js
 import { load } from '@hxyulin/layup';

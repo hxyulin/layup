@@ -97,7 +97,7 @@ diagram "Title" width=1950 {
 
 ### Diagram header
 
-The development checkout also supports [sequence diagrams](SEQUENCE.md),
+Version 0.3 also supports [sequence diagrams](SEQUENCE.md),
 [slide sizing, reveal steps, shared models/views and scene export](PRESENTATION.md).
 These guides extend the graph-oriented reference below.
 

@@ -20,3 +20,9 @@ clap = { version = "4", features = ["derive"] }
 
 [lints]
 workspace = true
+
+# Release archives are produced by .github/workflows/release.yml.
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ version }-{ target }.tar.gz"
+bin-dir = "{ name }-{ version }-{ target }/{ bin }{ binary-ext }"
+pkg-fmt = "tgz"

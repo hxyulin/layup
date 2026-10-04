@@ -33,13 +33,23 @@ changing strings or comments. **Download source** saves your current edits.
 
 ## 3. Render a file
 
-Install from the current checkout to use every feature shown in these docs:
+Install [Rust stable](https://rustup.rs/), then get the v0.3.0 CLI from crates.io:
 
 ```sh
-git clone https://github.com/hxyulin/layup.git
-cd layup
-cargo install --path crates/layup-cli
+cargo install layup-cli --version 0.3.0 --locked
 ```
+
+If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), you
+can install a prebuilt binary instead:
+
+```sh
+cargo binstall layup-cli --version 0.3.0
+```
+
+Prebuilt binaries cover Linux x86_64/ARM64 (glibc 2.35+), macOS Intel/Apple
+Silicon, and Windows x86_64. For other targets, use `cargo install` to build
+from source. Both methods install the `layup` command. Archives and checksums
+are on the [GitHub release](https://github.com/hxyulin/layup/releases/tag/v0.3.0).
 
 Save your source as `hello.layup`, then run:
 

@@ -77,20 +77,28 @@ The Rust engine also runs in JavaScript through WebAssembly.
 ## Quickstart
 
 Try the [playground](https://hxyulin.github.io/layup/playground.html) to edit
-examples and download diagrams without installing anything. The docs and
-examples here follow the development checkout; see the
-[changelog](CHANGELOG.md) for release history.
+examples and download diagrams without installing anything. The docs cover
+v0.3.0; see the [changelog](CHANGELOG.md) for release history.
 
 <details>
 <summary><strong>Install the CLI and render your first diagram</strong></summary>
 
-Install [Rust stable](https://rustup.rs/), then build the current checkout:
+Install [Rust stable](https://rustup.rs/), then install the CLI from crates.io:
 
 ```sh
-git clone https://github.com/hxyulin/layup.git
-cd layup
-cargo install --path crates/layup-cli --locked
+cargo install layup-cli --version 0.3.0 --locked
 ```
+
+Or use [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) to install a
+prebuilt binary:
+
+```sh
+cargo binstall layup-cli --version 0.3.0
+```
+
+Release binaries cover Linux x86_64/ARM64 (glibc 2.35+), macOS Intel/Apple Silicon,
+and Windows x86_64. Other targets can build with `cargo install`.
+The installed command is named `layup`.
 
 Save this as `hello.layup`:
 
@@ -133,6 +141,8 @@ For the local playground, use Rust stable, Node 22+, and the pnpm version
 pinned in [package.json](package.json):
 
 ```sh
+git clone https://github.com/hxyulin/layup.git
+cd layup
 rustup target add wasm32-unknown-unknown
 pnpm install --frozen-lockfile
 pnpm docs:dev  # http://localhost:5173/layup/

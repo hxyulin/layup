@@ -16,6 +16,16 @@ layup compile diagram.layup -o scene.json
 layup render model.layup --view detail --html
 ```
 
+For a prebuilt binary, use [cargo-binstall](https://github.com/cargo-bins/cargo-binstall):
+
+```sh
+cargo binstall layup-cli --version 0.3.0
+```
+
+Release binaries cover Linux x86_64/ARM64 (glibc 2.35+), macOS Intel/Apple Silicon,
+and Windows x86_64. Other targets can build from source with `cargo install`.
+See the [release archives and checksums](https://github.com/hxyulin/layup/releases/tag/v0.3.0).
+
 The installed executable is named `layup`. For use in Rust code, depend on
 `layup` instead of `layup-cli`.
 
@@ -23,7 +33,7 @@ Version 0.3 adds the `lint` and `fmt` commands.
 See the [language-tools guide](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-TOOLS.md)
 for recovery, lint rules, source positions, stdin and batch formatting.
 
-The development checkout adds `compile` for versioned scene JSON, and global
+Version 0.3 also adds `compile` for versioned scene JSON, and global
 `--view NAME` selection for shared models. Slide fitting and authored reveal
 plans use the same compiler as SVG/HTML rendering. See the
 [presentation and scene guide](https://github.com/hxyulin/layup/blob/main/docs/PRESENTATION.md)

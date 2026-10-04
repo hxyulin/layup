@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-10-04
 
+### Installation and documentation
+
+- Published CLI and Rust engine on crates.io; cargo-binstall metadata and GitHub release archives for Linux x86_64/ARM64, macOS Intel/Apple Silicon and Windows x86_64, with SHA-256 checksums and bundled-font licenses.
+- Themed README showcase, light/dark logo variants, consistent SVG toolbar icons and touch controls; contributor guidance, CODEOWNERS, issue/PR templates and actionlint/repository checks.
 - A compact source canvas for the slide pipeline example; resizable playground pane widths and shared height with pointer/keyboard controls. Example/share links and browser history update reused editors, and source edits recover when the selected view is removed.
 - VitePress/pnpm documentation site with DSL and diagram walkthroughs, formats/API references, a browser-worker WASM playground, editable examples, diagnostics, formatting, views, supplied fonts, downloads and UTF-8 share links; GitHub Pages build/test/deploy workflow.
+
+### Sequences, presentations and reusable models
+
 - Sequence diagrams with authored participant order, lifelines, self-messages, asynchronous/return arrows, notes and nested loop/opt/alt fragments; measured Unicode/RTL labels and supplied-font support.
 - Slide viewports with widescreen/standard/custom dimensions, uniform fit, padding and post-fit minimum-font-size diagnostics.
 - Cumulative presentation steps with stable edge IDs, highlights, speaker notes, keyboard navigation and inline/fullscreen/iframe controls.
@@ -11,8 +18,6 @@
 - Version-1 JSON scene export through Rust `scene::export`, CLI `compile` and JavaScript/WASM `compile`, including original geometry, hierarchy, source spans, slide transforms, reveal plans and sequence metadata without font payloads.
 - Rust model/scene struct additions and `Mode::Sequence` / `Item::Group` affect downstream struct literals and exhaustive matches.
 - Combined presentation demo, focused semantic/geometry tests, native/WASM parity and Chromium galleries.
-
-## 0.3.0
 
 ### Language tools
 

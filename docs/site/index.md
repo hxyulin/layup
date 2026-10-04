@@ -59,10 +59,10 @@ or an interactive walkthrough.
 
 [Browse rendered examples](/examples) · [Edit an example now](/playground)
 
-::: info Documentation version
-This site follows the source checkout. Sequence diagrams, presentation
-features, named views, and scene export were added after the 0.3.0 version
-bump. Build from the checkout to use the full feature set described here.
+::: info Layup v0.3.0
+Install with `cargo install layup-cli --version 0.3.0 --locked`, or use
+`cargo binstall layup-cli --version 0.3.0` for a prebuilt binary.
+The browser playground compiles with the same Rust engine.
 :::
 
 </div>

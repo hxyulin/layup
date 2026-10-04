@@ -116,6 +116,21 @@ documentation and repository checks. Build the WASM package before inspecting
 from each crate directory. Publish the engine before the CLI that depends on
 it. Publishing packages is a separate maintainer action from merging a PR.
 
+Run `cargo publish -p layup --dry-run` before publishing the engine. After it
+is available in the registry, dry-run and publish `layup-cli`. Verify a fresh
+`cargo install layup-cli --version VERSION --locked` using a temporary root.
+
+Commit the release notes and documentation, then push an annotated `vVERSION`
+tag. `.github/workflows/release.yml` builds and exercises native binaries on
+five platforms, packages them with `tools/package-release.mjs`, and publishes
+a GitHub release with SHA-256 checksums. Tag and package versions must match.
+Manual dispatch builds artifacts without creating a release when run on a
+branch. The CLI's `package.metadata.binstall` must match the archive URL and
+binary path. Verify `cargo binstall layup-cli --version VERSION` with
+`--strategies crate-meta-data --install-path out/release/binstall-test` so the
+check cannot silently fall back to a source build. Linux release builds use
+Ubuntu 22.04 for a glibc 2.35 baseline.
+
 ## Licensing
 
 Contributions use the repository's dual MIT/Apache-2.0 licensing. Retain third
