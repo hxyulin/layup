@@ -215,6 +215,25 @@ const FLAG_WORDS: &[&str] = &[
 
 pub fn build(src: &str) -> Result<Diagram, Error> {
     let stmts = parse(src)?;
+    let result = build_statements(&stmts);
+    result.map_err(|mut error| {
+        if let Ok(tokens) = crate::lexer::lex(src) {
+            if error.line.is_none() {
+                error.span = tokens
+                    .iter()
+                    .find(|t| !matches!(t.tok, crate::lexer::Tok::Newline))
+                    .or_else(|| tokens.last())
+                    .map(|t| Box::new(t.span));
+                error.line = error.span.as_ref().map(|s| s.line);
+            }
+            crate::diagnostic::locate(&mut error, &tokens);
+        }
+        error
+    })
+}
+
+fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
+    validate_numbers(stmts)?;
     let mut b = Builder {
         kinds: presets(),
         arrows: arrow_presets(),
@@ -224,11 +243,11 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         legend: None,
         legend_off: false,
     };
-    let (root, body) = match stmts.as_slice() {
+    let (root, body) = match stmts {
         [Stmt::Item(item)] if item.head == "diagram" => {
             (Some(item), item.body.clone().unwrap_or_default())
         }
-        _ => (None, stmts.clone()),
+        _ => (None, stmts.to_vec()),
     };
     reserve_explicit_ids(&body, &mut b.reserved);
     let mut d = Diagram {
@@ -310,7 +329,23 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
                     return Err(Error::at(
                         root.line,
                         format!("unexpected argument {} on `diagram`", show(other)),
-                    ));
+                    )
+                    .with_optional_help(if let Arg::Attr(key, _) = other {
+                        crate::diagnostic::suggestion(
+                            key,
+                            [
+                                "width",
+                                "title",
+                                "mode",
+                                "layout",
+                                "direction",
+                                "text-direction",
+                                "preset",
+                            ],
+                        )
+                    } else {
+                        None
+                    }));
                 }
             }
         }
@@ -354,10 +389,13 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
     for e in &d.edges {
         for id in [&e.from, &e.to] {
             if !b.ids.contains(id) {
-                return Err(Error::at(
-                    e.line,
-                    format!("edge refers to unknown node `{id}`"),
-                ));
+                return Err(
+                    Error::at(e.line, format!("edge refers to unknown node `{id}`"))
+                        .with_optional_help(crate::diagnostic::suggestion(
+                            id,
+                            b.ids.iter().map(String::as_str),
+                        )),
+                );
             }
         }
     }
@@ -387,6 +425,54 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
         auto_width(&mut d);
     }
     Ok(d)
+}
+
+fn validate_numbers(stmts: &[Stmt]) -> Result<(), Error> {
+    let mut stack: Vec<_> = stmts.iter().rev().collect();
+    while let Some(stmt) = stack.pop() {
+        let Stmt::Item(item) = stmt else {
+            continue;
+        };
+        for (arg, span) in item.args.iter().zip(&item.arg_spans) {
+            let invalid = match arg {
+                Arg::Attr(k, Value::Num(n))
+                    if k == "width" && item.head == "diagram" && *n <= 0.0 =>
+                {
+                    Some("width must be greater than zero")
+                }
+                Arg::Attr(k, Value::Num(n)) if k == "gutter" && *n < 0.0 => {
+                    Some("gutter must be zero or greater")
+                }
+                Arg::Value(Value::Num(n)) if item.head == "width" && *n <= 0.0 => {
+                    Some("width must be greater than zero")
+                }
+                Arg::Value(Value::Num(n)) if item.head == "gap" && *n < 0.0 => {
+                    Some("gap must be zero or greater")
+                }
+                Arg::Weights(weights)
+                    if item.head == "row" && weights.iter().any(|n| *n <= 0.0) =>
+                {
+                    Some("row weights must all be greater than zero")
+                }
+                Arg::Weights(weights)
+                    if item.head == "row" && !weights.iter().sum::<f64>().is_finite() =>
+                {
+                    Some("row weights must have a finite total")
+                }
+                Arg::Value(Value::Num(n)) if item.head == "row" && *n <= 0.0 => {
+                    Some("row weights must all be greater than zero")
+                }
+                _ => None,
+            };
+            if let Some(message) = invalid {
+                return Err(Error::located(*span, "semantic/number", message));
+            }
+        }
+        if let Some(body) = &item.body {
+            stack.extend(body.iter().rev());
+        }
+    }
+    Ok(())
 }
 
 struct Builder {
@@ -541,7 +627,7 @@ impl Builder {
                         "unknown block `{other}`; known: section, band, row, text, divider, gap, legend, style, arrow, and node kinds {}",
                         self.kind_list()
                     ),
-                ));
+                ).with_optional_help(crate::diagnostic::suggestion(other, self.kinds.keys().map(String::as_str).chain(["section", "band", "row", "text", "divider", "gap"]))));
             }
         }))
     }
@@ -621,7 +707,28 @@ impl Builder {
                     }
                     "gutter" => gutter = Some(num(v, it.line)?),
                     "align" => style.align = align_value(v, it.line)?,
-                    _ => return Err(Error::at(it.line, format!("unknown node attribute `{k}`"))),
+                    _ => {
+                        return Err(Error::at(it.line, format!("unknown node attribute `{k}`"))
+                            .with_optional_help(crate::diagnostic::suggestion(
+                                k,
+                                [
+                                    "below",
+                                    "after",
+                                    "same-layer",
+                                    "beside",
+                                    "id",
+                                    "title",
+                                    "name",
+                                    "tone",
+                                    "role",
+                                    "tag",
+                                    "href",
+                                    "text-direction",
+                                    "gutter",
+                                    "align",
+                                ],
+                            )));
+                    }
                 },
             }
         }
@@ -666,7 +773,21 @@ impl Builder {
             }
         };
         if !self.ids.insert(id.clone()) {
-            return Err(Error::at(it.line, format!("duplicate node id `{id}`")));
+            let span = it
+                .args
+                .iter()
+                .zip(&it.arg_spans)
+                .find_map(|(arg, span)| match arg {
+                    Arg::Value(Value::Ident(s)) if *s == id => Some(*span),
+                    Arg::Attr(k, v) if k == "id" && v.as_text() == id => Some(*span),
+                    _ => None,
+                })
+                .unwrap_or(it.head_span);
+            return Err(Error::located(
+                span,
+                "semantic/duplicate-id",
+                format!("duplicate node id `{id}`"),
+            ));
         }
         if !style.shape.marker()
             && style.shape != Shape::Choice
@@ -850,8 +971,9 @@ impl Builder {
     fn edge(&mut self, e: &EdgeStmt) -> Result<(), Error> {
         let kind = e.kind.clone().unwrap_or_else(|| "default".into());
         if !self.arrows.contains_key(&kind) {
-            return Err(Error::at(
-                e.line,
+            return Err(Error::located(
+                e.arrow_span,
+                "semantic/edge-kind",
                 format!("unknown edge kind `{kind}`; declare it with `arrow {kind} ...`"),
             ));
         }

@@ -2,11 +2,16 @@
 // length-prefixed JSON result out, every buffer freed with layup_free.
 
 export class LayupError extends Error {
-  constructor(reason, line) {
+  constructor(reason, line, diagnostic = {}) {
     super(line == null ? reason : `line ${line}: ${reason}`);
     this.name = 'LayupError';
     this.line = line;
     this.reason = reason;
+    this.column = diagnostic.column ?? null;
+    this.span = diagnostic.span ?? null;
+    this.code = diagnostic.code ?? null;
+    this.help = diagnostic.help ?? null;
+    this.related = diagnostic.related ?? [];
   }
 }
 
@@ -21,16 +26,22 @@ export function wrap(instance) {
     return [ptr, bytes.length];
   };
 
+  function fontOption(font) {
+    if (!(font instanceof Uint8Array)) throw new TypeError('fonts must contain Uint8Array font bytes');
+    // Bound spreads so large supplied fonts do not exhaust the stack.
+    let binary = '';
+    for (let i = 0; i < font.length; i += 8192) binary += String.fromCharCode(...font.subarray(i, i + 8192));
+    return `\nfont=${btoa(binary)}`;
+  }
+
   function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [] } = {}) {
     let options = `theme=${theme}\nformat=${format}`;
     if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
-    for (const font of fonts) {
-      if (!(font instanceof Uint8Array)) throw new TypeError('fonts must contain Uint8Array font bytes');
-      // Bound each spread operation so large CJK fonts do not exhaust the stack.
-      let binary = '';
-      for (let i = 0; i < font.length; i += 8192) binary += String.fromCharCode(...font.subarray(i, i + 8192));
-      options += `\nfont=${btoa(binary)}`;
-    }
+    for (const font of fonts) options += fontOption(font);
+    return invoke(source, options);
+  }
+
+  function invoke(source, options) {
     const [src, srcLen] = put(source);
     const [opt, optLen] = put(options);
     let out;
@@ -44,9 +55,18 @@ export function wrap(instance) {
     const json = decoder.decode(new Uint8Array(memory.buffer, out + 4, len));
     layup_free(out, len + 4);
     const result = JSON.parse(json);
-    if (result.error) throw new LayupError(result.error.message, result.error.line);
+    if (result.error) throw new LayupError(result.error.message, result.error.line, result.error);
     return result;
   }
 
-  return { render };
+  return {
+    render,
+    format(source) { return invoke(source, 'operation=format').output; },
+    lint(source, { fonts = [] } = {}) {
+      // Use the same font validation and transport as rendering.
+      let options = 'operation=lint';
+      for (const font of fonts) options += fontOption(font);
+      return invoke(source, options).diagnostics;
+    },
+  };
 }

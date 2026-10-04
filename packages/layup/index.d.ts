@@ -14,9 +14,28 @@ export interface RenderOptions {
   darkSelector?: string;
 }
 
+/** UTF-8 byte offsets, with 1-based Unicode scalar line/column positions. */
+export interface SourceSpan {
+  start: number;
+  end: number;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+}
+
 export interface Diagnostic {
   line: number | null;
   message: string;
+}
+
+export interface LintDiagnostic extends Diagnostic {
+  column: number | null;
+  severity: 'error' | 'warning';
+  code: string;
+  span: SourceSpan | null;
+  help: string | null;
+  related: { span: SourceSpan; message: string }[];
 }
 
 export interface RenderResult {
@@ -27,12 +46,21 @@ export interface RenderResult {
 export interface Layup {
   /** Throws `LayupError` for invalid source. */
   render(source: string, options?: RenderOptions): RenderResult;
+  /** Format valid syntax without changing comments, strings or statement order. Throws LayupError. */
+  format(source: string): string;
+  /** Collect recoverable syntax errors, or semantic/layout and authoring diagnostics. Does not throw for invalid DSL. */
+  lint(source: string, options?: Pick<RenderOptions, 'fonts'>): LintDiagnostic[];
 }
 
 export class LayupError extends Error {
   line: number | null;
   /** The message without its line prefix. */
   reason: string;
+  column: number | null;
+  span: SourceSpan | null;
+  code: string | null;
+  help: string | null;
+  related: { span: SourceSpan; message: string }[];
 }
 
 export function load(url?: string | URL): Promise<Layup>;

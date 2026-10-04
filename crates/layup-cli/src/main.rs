@@ -64,6 +64,30 @@ enum Cmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Check syntax, semantics, layout and authoring rules without writing output.
+    Lint {
+        /// DSL or Markdown files; `-` reads DSL from stdin.
+        #[arg(required = true)]
+        inputs: Vec<PathBuf>,
+        /// Emit one JSON array of diagnostics, with file names and source spans.
+        #[arg(long)]
+        json: bool,
+        /// Fail on warnings as well as errors.
+        #[arg(long)]
+        strict: bool,
+    },
+    /// Format DSL source, preserving comments and quoted text.
+    Fmt {
+        /// DSL files; defaults to stdin. Multiple files require --check or --write.
+        #[arg(default_value = "-")]
+        inputs: Vec<PathBuf>,
+        /// Fail if any file differs from canonical formatting; do not write.
+        #[arg(long, conflicts_with = "write")]
+        check: bool,
+        /// Replace files after all inputs pass syntax checks; cannot write stdin.
+        #[arg(long, conflicts_with = "check")]
+        write: bool,
+    },
     /// Render every `.layup` file in a directory tree (`.svg` next to each source).
     Build {
         /// Directory to scan.
@@ -142,6 +166,16 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             }
             Ok(ok)
         }
+        Cmd::Lint {
+            inputs,
+            json,
+            strict,
+        } => lint_files(&inputs, json, strict, &fonts),
+        Cmd::Fmt {
+            inputs,
+            check,
+            write,
+        } => format_files(&inputs, check, write),
         Cmd::Build {
             dir,
             html,
@@ -196,11 +230,18 @@ fn render_one(
     let compiled = match layup::compile_with_fonts(src, fonts) {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("{}: error: {e}", input.display());
+            eprintln!(
+                "{}",
+                layup::diagnostic::Diagnostic::from_error(&e).display(
+                    src,
+                    &input.display().to_string(),
+                    0
+                )
+            );
             return Ok(false);
         }
     };
-    report(input, &compiled.warnings);
+    report(input, src, 0, &compiled.warnings);
     if strict && !compiled.warnings.is_empty() {
         return Ok(false);
     }
@@ -233,18 +274,9 @@ fn check_one(
     fonts: &layup::text::Fonts,
 ) -> bool {
     let name = input.display();
-    let at = |line: Option<usize>, msg: &str| match fence {
-        Some(f) => format!("{name}:{}: {msg}", f + line.unwrap_or(0)),
-        None => match line {
-            Some(l) => format!("{name}: line {l}: {msg}"),
-            None => format!("{name}: {msg}"),
-        },
-    };
     match layup::compile_with_fonts(src, fonts) {
         Ok(c) => {
-            for w in &c.warnings {
-                eprintln!("{}", at(w.line, &format!("warning: {}", w.msg)));
-            }
+            report(input, src, fence.unwrap_or(0), &c.warnings);
             let label = fence.map_or(name.to_string(), |f| format!("{name}:{f}"));
             println!(
                 "{label}: {} warnings, {}x{}",
@@ -255,7 +287,14 @@ fn check_one(
             !(strict && !c.warnings.is_empty())
         }
         Err(e) => {
-            eprintln!("{}", at(e.line, &format!("error: {}", e.msg)));
+            eprintln!(
+                "{}",
+                layup::diagnostic::Diagnostic::from_error(&e).display(
+                    src,
+                    &name.to_string(),
+                    fence.unwrap_or(0)
+                )
+            );
             false
         }
     }
@@ -268,7 +307,8 @@ fn check_one(
 fn fences(src: &str) -> Vec<(usize, String)> {
     let mut out = Vec::new();
     let mut open: Option<(char, usize, bool, usize, String)> = None;
-    for (i, line) in src.lines().enumerate() {
+    for (i, original) in src.split_inclusive('\n').enumerate() {
+        let line = original.trim_end_matches(['\r', '\n']);
         let trimmed = line.trim_start();
         let marker = trimmed.chars().next().filter(|c| *c == '`' || *c == '~');
         let run = marker.map_or(0, |m| trimmed.chars().take_while(|c| *c == m).count());
@@ -280,8 +320,7 @@ fn fences(src: &str) -> Vec<(usize, String)> {
                     }
                     open = None;
                 } else if *layup {
-                    body.push_str(line);
-                    body.push('\n');
+                    body.push_str(original);
                 }
             }
             None if run >= 3 => {
@@ -294,13 +333,160 @@ fn fences(src: &str) -> Vec<(usize, String)> {
             None => {}
         }
     }
+    if let Some((_, _, true, start, body)) = open {
+        out.push((start, body));
+    }
     out
 }
 
-fn report(input: &Path, warnings: &[layup::Warning]) {
+fn report(input: &Path, source: &str, offset: usize, warnings: &[layup::Warning]) {
+    let tokens = layup::lexer::lex(source).unwrap_or_default();
     for w in warnings {
-        eprintln!("{}: warning: {w}", input.display());
+        let span = w
+            .line
+            .and_then(|line| {
+                tokens
+                    .iter()
+                    .find(|t| t.line == line && !matches!(t.tok, layup::lexer::Tok::Newline))
+            })
+            .map(|t| t.span);
+        let diagnostic = layup::diagnostic::Diagnostic {
+            severity: layup::diagnostic::Severity::Warning,
+            code: "layout",
+            message: w.msg.clone(),
+            span,
+            line: w.line,
+            help: None,
+            related: Vec::new(),
+        };
+        eprintln!(
+            "{}",
+            diagnostic.display(source, &input.display().to_string(), offset)
+        );
     }
+}
+
+fn lint_files(
+    inputs: &[PathBuf],
+    json: bool,
+    strict: bool,
+    fonts: &layup::text::Fonts,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let mut ok = true;
+    let mut output = Vec::new();
+    for input in inputs {
+        let source = read(input)?;
+        let blocks = if input
+            .extension()
+            .is_some_and(|e| e == "md" || e == "markdown")
+        {
+            fences(&source)
+        } else {
+            vec![(0, source.clone())]
+        };
+        for (offset, block) in blocks {
+            let diagnostics = layup::lint::lint_with_fonts(&block, fonts);
+            for mut d in diagnostics {
+                ok &= d.severity != layup::diagnostic::Severity::Error && !strict;
+                if json {
+                    let byte_offset: usize = source
+                        .split_inclusive('\n')
+                        .take(offset)
+                        .map(str::len)
+                        .sum();
+                    d.line = d.line.map(|l| l + offset);
+                    if let Some(s) = &mut d.span {
+                        s.start += byte_offset;
+                        s.end += byte_offset;
+                        s.line += offset;
+                        s.end_line += offset;
+                    }
+                    for (s, _) in &mut d.related {
+                        s.start += byte_offset;
+                        s.end += byte_offset;
+                        s.line += offset;
+                        s.end_line += offset;
+                    }
+                    output.push(format!(
+                        "{{\"file\":{},\"fenceLine\":{},\"diagnostic\":{}}}",
+                        layup::diagnostic::quote(&input.display().to_string()),
+                        if offset == 0 {
+                            "null".into()
+                        } else {
+                            offset.to_string()
+                        },
+                        d.json()
+                    ));
+                } else {
+                    eprintln!(
+                        "{}",
+                        d.display(&block, &input.display().to_string(), offset)
+                    );
+                }
+            }
+        }
+    }
+    if json {
+        println!("[{}]", output.join(","));
+    }
+    Ok(ok)
+}
+
+fn format_files(
+    inputs: &[PathBuf],
+    check: bool,
+    write: bool,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    if inputs.len() > 1 && !check && !write {
+        return Err("multiple formatter inputs require --check or --write".into());
+    }
+    if write && inputs.iter().any(|p| p.as_os_str() == "-") {
+        return Err("--write requires file paths; use `layup fmt -` for stdin".into());
+    }
+    if inputs.iter().filter(|p| p.as_os_str() == "-").count() > 1 {
+        return Err("stdin can be read only once".into());
+    }
+    let mut prepared = Vec::new();
+    let mut valid = true;
+    for input in inputs {
+        let source = read(input)?;
+        match layup::format::format(&source) {
+            Ok(formatted) => prepared.push((input, source, formatted)),
+            Err(e) => {
+                eprintln!(
+                    "{}",
+                    layup::diagnostic::Diagnostic::from_error(&e).display(
+                        &source,
+                        &input.display().to_string(),
+                        0
+                    )
+                );
+                valid = false;
+            }
+        }
+    }
+    // No source is overwritten when any input has invalid syntax.
+    if !valid {
+        return Ok(false);
+    }
+    let mut clean = true;
+    for (input, source, formatted) in prepared {
+        if check {
+            if source != formatted {
+                eprintln!("{}: needs formatting", input.display());
+                clean = false;
+            }
+        } else if write {
+            if source != formatted {
+                std::fs::write(input, formatted)
+                    .map_err(|e| format!("{}: {e}", input.display()))?;
+                eprintln!("formatted {}", input.display());
+            }
+        } else {
+            print!("{formatted}");
+        }
+    }
+    Ok(clean)
 }
 
 fn read(path: &Path) -> Result<String, Box<dyn std::error::Error>> {

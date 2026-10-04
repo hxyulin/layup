@@ -65,6 +65,11 @@ should follow concrete use cases.
 
 ## Agreed next stages
 
+Language tooling is implemented: source spans, recovering syntax diagnostics,
+CLI/JavaScript linting, and formatting that preserves comments and strings.
+See [the language-tools guide](LANGUAGE-TOOLS.md). Multiple semantic errors,
+editor completion/LSP support and incremental parsing are possible follow-ups.
+
 1. Automatic sizing/packing and composite states: implemented and covered by
    geometry, semantic, CLI/WASM parity, and browser checks.
 2. JSON scene export, then PNG/PDF: expose a versioned scene contract and add

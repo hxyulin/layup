@@ -10,14 +10,15 @@ See [the language and design reference](https://github.com/hxyulin/layup/blob/ma
 reference and the iframe protocol. The `examples/` directory includes architecture diagrams and a minimal
 `hello.layup`.
 
-### New in 0.2
+### New in 0.3
 
-Opt-in automatic layout (`layout=auto`) with placement hints, routing around
-obstacles, node links, SVGs about a fifteenth of their former size, `layup
-check` for Markdown, and a WebAssembly package with a VitePress integration
-(the [`@hxyulin/layup`](https://github.com/hxyulin/layup/blob/main/packages/layup/README.md) npm package and
-`examples/vitepress`). The [changelog](https://github.com/hxyulin/layup/blob/main/CHANGELOG.md) lists everything,
-including API changes.
+Automatic graph flow in all four directions, Unicode/RTL text with optional
+user fonts, decision trees, state machines with composite scopes, and
+font-aware automatic sizing. Source tooling now includes recovering syntax
+diagnostics, typo suggestions, linting, and formatting in the CLI and
+JavaScript/WASM API. The [changelog](CHANGELOG.md) covers the features and
+API changes, and the [language-tools guide](docs/LANGUAGE-TOOLS.md) explains
+the new tooling.
 
 ### Architecture
 
@@ -36,7 +37,7 @@ The `layup` crate is the layout engine. The `layup-cli` crate provides the
 `layup` command.
 
 ```sh
-cargo install layup-cli --version 0.2.0 --locked
+cargo install layup-cli --version 0.3.0 --locked
 ```
 
 Or build and install from a source checkout:
@@ -58,12 +59,20 @@ layup render diagram.layup --html --embed     # no toolbar, for an <iframe>
 layup render - -o - < diagram.layup           # stdin to stdout
 layup check docs/**/*.layup --strict          # CI: warnings fail
 layup check docs/*.md                         # every ```layup block in Markdown
+layup lint diagram.layup --json               # source diagnostics for tools
+layup fmt diagram.layup --check               # formatting check, without writing
 layup build docs/                             # every .layup gets an .svg beside it
 ```
 
 `layup check` (and every render) reports text that overflows its box,
 edges that cross a node, edges that share a line, and label chips that
 sit on a node, each with the source line.
+
+Layup 0.3 provides `layup lint` for recovering syntax checks,
+semantic/layout diagnostics and authoring rules, and `layup fmt` for source
+formatting that preserves comments and quoted text. Errors include source
+ranges, excerpts and typo suggestions. See [the language-tools guide](docs/LANGUAGE-TOOLS.md)
+for Rust/JavaScript APIs, JSON locations and syntax compatibility.
 
 ### A small example
 
@@ -300,7 +309,7 @@ estimated widths; non-CJK missing glyphs produce diagnostics.
 
 ```toml
 [dependencies]
-layup = "0.2.0"
+layup = "0.3.0"
 ```
 
 ```rust

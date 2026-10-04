@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
+
+### Language tools
+
+- UTF-8 source spans, Unicode scalar columns, lossless comment tokens and statement-boundary parser recovery with a nesting limit.
+- Source excerpts, diagnostic codes, related locations and typo suggestions in CLI errors; structured spans and help in WASM/JavaScript errors.
+- `layup lint` with Markdown-aware JSON locations, existing layout checks and authoring rules for unused declarations, conflicting flags, ignored bodies and duplicate transitions.
+- `layup fmt` with stdin/stdout, `--check`, preflighted batch `--write`, and comment/string/order preservation; JavaScript `format` and `lint` APIs.
+- Hyphenated typed arrow kinds, compact left arrows and decimal exponents; malformed escapes, duplicate attributes, non-finite literals and invalid geometry numbers now fail explicitly.
+- Rust API additions to `Error`, lexer tokens and generic syntax nodes affect downstream struct literals and exhaustive patterns.
+
+### Layout and state machines
 
 - Font-aware automatic canvas growth for wide trees, long horizontal chains, and nested containers; explicit widths and manual presets retain authored sizing.
 - Variable widths and measured subtree packing for compact nodes on automatic canvases.
@@ -12,10 +23,14 @@
 - Deterministic machine cycle placement, extra transition-label space, and self-loops with caption clearance.
 - State-machine examples, semantic/geometry tests, CLI/WASM parity, and browser visual/interaction checks.
 
+### Decisions and flowcharts
+
 - Decision, process, and terminal shapes with compact bodies, diamond-safe text wrapping, and outline-aware arrow attachment.
 - Subtree placement for decision trees in all four directions, with general graph fallback for merges, cycles, mixed kinds, and placement hints.
 - Upright branch captions that avoid actual node outlines; warnings when no clear caption placement exists.
 - Decision examples, geometry/routing regressions, WASM parity tests, and Chromium visual checks.
+
+### Directions and international text
 
 - Automatic graph flow in all four directions, separate from `text-direction=auto|ltr|rtl`.
 - Unicode line breaking for CJK, hard newlines, and nonbreaking spaces; combining-mark and Arabic/Hebrew shaping.

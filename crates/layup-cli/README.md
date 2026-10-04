@@ -3,16 +3,23 @@
 The `layup` command-line tool, powered by the [layup layout engine](https://crates.io/crates/layup).
 
 ```sh
-cargo install layup-cli --version 0.2.0 --locked
+cargo install layup-cli --version 0.3.0 --locked
 layup render diagram.layup
 layup render diagram.layup --html
 layup check diagram.layup --strict
 layup check guide.md --strict      # each ```layup block, at its Markdown line
+layup lint diagram.layup --json    # structured source diagnostics
+layup fmt diagram.layup --check   # formatting check without writing
+layup fmt diagram.layup --write   # format in place after syntax validation
 layup build docs/
 ```
 
 The installed executable is named `layup`. For use in Rust code, depend on
 `layup` instead of `layup-cli`.
+
+Version 0.3 adds the `lint` and `fmt` commands.
+See the [language-tools guide](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-TOOLS.md)
+for recovery, lint rules, source positions, stdin and batch formatting.
 
 See the [project README](https://github.com/hxyulin/layup#readme) for examples,
 font details, and documentation. Licensed under MIT OR Apache-2.0.

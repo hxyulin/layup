@@ -18,6 +18,22 @@ const { output, warnings } = layup.render(source, { theme: 'auto' });
 `html`, or `embed` for iframe HTML without the toolbar). Invalid source throws
 `LayupError`, which has a `line`. Warnings are returned as `{ line, message }`.
 
+Version 0.3 adds language tools with the same implementation as the CLI:
+
+```js
+const formatted = layup.format(source);
+const diagnostics = layup.lint(source, { fonts: [] });
+```
+
+`format` preserves comments, quoted text and statement order and throws for
+invalid syntax. `lint` returns structured errors and warnings, collecting
+recoverable syntax errors and checking valid documents for semantic, layout
+and authoring issues. Diagnostics and render errors include `column`, UTF-8
+byte `span`, `code`, `help` and `related` locations. Columns count one-based
+Unicode scalars. `LayupError` keeps its `line`, `reason` and message format.
+See [the language-tools guide](../../docs/LANGUAGE-TOOLS.md) for rules and
+source-position conventions.
+
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 

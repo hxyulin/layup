@@ -29,7 +29,8 @@ export default function layup(md, options = {}) {
       svg = output;
     } catch (e) {
       if (!(e instanceof LayupError)) throw e;
-      const message = `${where(e.line)}: layup error: ${e.reason}`;
+      const location = `${where(e.line)}${e.column == null ? '' : `:${e.column}`}`;
+      const message = `${location}: layup error: ${e.reason}${e.help ? `\nhelp: ${e.help}` : ''}`;
       if (strict) throw new Error(message);
       console.error(message);
       return `<pre class="layup-error">${md.utils.escapeHtml(message)}</pre>\n`;

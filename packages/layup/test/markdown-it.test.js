@@ -24,12 +24,12 @@ test('vitepress output survives Vue compilation', () => {
 
 test('reports errors at the Markdown line', () => {
   const md = new MarkdownIt().use(layup, { strict: true });
-  assert.throws(() => md.render('x\n\n```layup\ndiagram "T" {\n  a -> b\n}\n```\n', { relativePath: 'guide.md' }), /^Error: guide\.md:5: layup error: /);
+  assert.throws(() => md.render('x\n\n```layup\ndiagram "T" {\n  a -> b\n}\n```\n', { relativePath: 'guide.md' }), /^Error: guide\.md:5:3: layup error: /);
   const shown = new MarkdownIt().use(layup);
   const original = console.error;
   console.error = () => {};
   try {
-    assert.match(shown.render('```layup\ndiagram {\n```\n'), /<pre class="layup-error">markdown:2: layup error: /);
+    assert.match(shown.render('```layup\ndiagram {\n```\n'), /<pre class="layup-error">markdown:2:9: layup error: /);
   } finally {
     console.error = original;
   }

@@ -1,6 +1,6 @@
 [package]
 name = "layup"
-version = "0.2.0"
+version = "0.3.0"
 description = "Layout engine for authored diagrams rendered to SVG and interactive HTML"
 edition.workspace = true
 license.workspace = true
@@ -19,6 +19,7 @@ unicode-ident = "1"
 unicode-linebreak = "0.1.5"
 unicode-script = "0.5"
 unicode-segmentation = "1.12"
+unicode-width = { version = "0.2.2", default-features = false }
 
 [lints]
 workspace = true

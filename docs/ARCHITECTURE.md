@@ -27,6 +27,8 @@ validates documentation diagrams and examples with warnings treated as errors.
 
 1. **Read syntax.** `lexer.rs` tokenizes the source; `parser.rs` builds generic
    items and edge statements. Syntax is separate from node-kind semantics.
+   Tokens and syntax nodes carry UTF-8 byte spans and scalar columns. The
+   recovering parser collects sibling errors; compilation uses strict parsing.
 2. **Resolve semantics.** `model.rs` builds a typed `Diagram`, resolves styles
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
    legend. `machine.rs` adds opt-in scoped-machine validation and unreachable
@@ -55,6 +57,12 @@ Library callers can inspect `Compiled::warnings` and choose their own policy.
 
 ## Rendering
 
+`diagnostic.rs` shares source excerpts and JSON diagnostics across frontends.
+`format.rs` uses lossless token slices after syntax validation, without model
+resolution. `lint.rs` returns recovering syntax errors, or compiles valid
+syntax and adds authoring rules to existing warnings. Semantic validation
+still stops at its first error. See [the language-tools guide](LANGUAGE-TOOLS.md).
+
 `svg::render` serializes the compiled scene into an SVG with theme variables,
 semantic node and edge attributes, and embedded font data. `html::render`
 wraps that SVG with pan, zoom, selection, theme controls, and iframe messaging.
@@ -76,6 +84,7 @@ revisions, checksums, and the separate SIL OFL license.
 | Change | Starting point |
 | --- | --- |
 | Syntax | `lexer.rs`, `parser.rs` |
+| Source diagnostics, linting, formatting | `diagnostic.rs`, `lint.rs`, `format.rs` |
 | Node kinds, defaults, themes | `model.rs`, `style.rs` |
 | Shape boundaries, ports, safe label areas | `geometry.rs` |
 | Flat machine checks and cycle placement constraints | `machine.rs` |

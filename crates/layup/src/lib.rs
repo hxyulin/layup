@@ -14,10 +14,13 @@
 
 mod arrange;
 pub mod check;
+pub mod diagnostic;
+pub mod format;
 pub mod geometry;
 pub mod html;
 pub mod layout;
 pub mod lexer;
+pub mod lint;
 mod machine;
 pub mod model;
 pub mod parser;
@@ -33,6 +36,11 @@ use std::fmt;
 pub struct Error {
     pub line: Option<usize>,
     pub msg: String,
+    /// Boxed to keep errors small without enlarging successful `Result` values.
+    pub span: Option<Box<diagnostic::Span>>,
+    pub code: &'static str,
+    pub help: Option<String>,
+    pub related: Vec<(diagnostic::Span, String)>,
 }
 
 impl Error {
@@ -40,6 +48,10 @@ impl Error {
         Error {
             line: None,
             msg: msg.into(),
+            span: None,
+            code: "semantic",
+            help: None,
+            related: Vec::new(),
         }
     }
 
@@ -47,6 +59,10 @@ impl Error {
         Error {
             line: Some(line),
             msg: msg.into(),
+            span: None,
+            code: "semantic",
+            help: None,
+            related: Vec::new(),
         }
     }
 
@@ -54,7 +70,36 @@ impl Error {
         Error {
             line: Some(line),
             msg: format!("syntax: {}", msg.into()),
+            span: None,
+            code: "syntax",
+            help: None,
+            related: Vec::new(),
         }
+    }
+    pub fn located(span: diagnostic::Span, code: &'static str, msg: impl Into<String>) -> Self {
+        Self {
+            line: Some(span.line),
+            msg: msg.into(),
+            span: Some(Box::new(span)),
+            code,
+            help: None,
+            related: Vec::new(),
+        }
+    }
+
+    pub fn with_help(mut self, help: impl Into<String>) -> Self {
+        self.help = Some(help.into());
+        self
+    }
+
+    pub(crate) fn with_optional_help(mut self, help: Option<String>) -> Self {
+        self.help = help;
+        self
+    }
+
+    pub fn with_related(mut self, span: diagnostic::Span, message: impl Into<String>) -> Self {
+        self.related.push((span, message.into()));
+        self
     }
 }
 

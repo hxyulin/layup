@@ -16,9 +16,12 @@ use layup::Theme;
 /// Options are `key=value` lines: `theme` (`light`, `dark`, `auto`),
 /// `format` (`svg`, `html`, `embed`), `darkSelector` (SVG only), and repeated
 /// `font` entries holding base64-encoded fallback OpenType/TrueType bytes.
+/// `operation=lint` returns a diagnostics array; `operation=format` returns
+/// formatted source in `output`. Both use the same length-prefixed JSON ABI.
 pub fn render(src: &str, options: &str) -> String {
     let mut theme = Theme::Light;
     let mut format = "svg";
+    let mut operation = "render";
     let mut dark_selector = None;
     let mut fonts = layup::text::Fonts::new();
     for (key, value) in options.lines().filter_map(|l| l.split_once('=')) {
@@ -28,6 +31,7 @@ pub fn render(src: &str, options: &str) -> String {
                 None => return error(None, &format!("unknown theme {value:?}")),
             },
             "format" if ["svg", "html", "embed"].contains(&value) => format = value,
+            "operation" if ["render", "format", "lint"].contains(&value) => operation = value,
             "darkSelector" => dark_selector = Some(value),
             "font" => {
                 let bytes = match STANDARD.decode(value) {
@@ -46,9 +50,26 @@ pub fn render(src: &str, options: &str) -> String {
             _ => return error(None, &format!("unknown option {key}={value}")),
         }
     }
+    if operation == "format" {
+        return match layup::format::format(src) {
+            Ok(output) => format!("{{\"output\":{},\"warnings\":[]}}", string(&output)),
+            Err(e) => source_error(&e),
+        };
+    }
+    if operation == "lint" {
+        let diagnostics = layup::lint::lint_with_fonts(src, &fonts);
+        return format!(
+            "{{\"diagnostics\":[{}]}}",
+            diagnostics
+                .iter()
+                .map(layup::diagnostic::Diagnostic::json)
+                .collect::<Vec<_>>()
+                .join(",")
+        );
+    }
     let compiled = match layup::compile_with_fonts(src, &fonts) {
         Ok(c) => c,
-        Err(e) => return error(e.line, &e.msg),
+        Err(e) => return source_error(&e),
     };
     let output = match format {
         "svg" => layup::svg::render_with(
@@ -67,6 +88,13 @@ pub fn render(src: &str, options: &str) -> String {
     }
     json.push_str("]}");
     json
+}
+
+fn source_error(error: &layup::Error) -> String {
+    format!(
+        "{{\"error\":{}}}",
+        layup::diagnostic::Diagnostic::from_error(error).json()
+    )
 }
 
 fn error(line: Option<usize>, msg: &str) -> String {

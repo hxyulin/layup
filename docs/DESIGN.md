@@ -67,6 +67,12 @@ Files end in `.layup`. The syntax is brace-structured, one item per line
 (or `;`), with `//` comments. Identifiers may contain `-`, `.`, `:` and
 `/` so crate names and paths need no quoting.
 
+Source-aware lexing, recovering parsing, diagnostics, lint rules and syntax
+formatting are described in [the language-tools guide](LANGUAGE-TOOLS.md).
+Strings support `\"`, `\\`, `\n`, `\t` and `\r` escapes; unknown escapes and
+duplicate attributes are rejected. Numbers support finite decimal fractions
+and exponents. Typed arrow names may contain hyphens.
+
 ```
 diagram "Title" width=1950 {
   note "One-line subtitle under the title."
