@@ -13,12 +13,12 @@ The shared language defines comments, values, declarations, references,
 annotations, and scope boundaries. Diagram grammars define the objects,
 relationships, content, and ordered events that make sense in that diagram.
 
-This is the proposed next language revision. An opt-in graph checkpoint is
+This is the proposed next language revision. The shared document/graph checkpoint is
 implemented in the current checkout: see the
 [experimental guide](site/guide/language-v1.md) and
-[canonical fixture](../examples/language-v1.layup). It covers the versioned
-document shell, shared values/annotations/references, scoped graph objects,
-explicit kinds, and multi-diagram selection. Views/defaults, the other diagram
+[canonical fixture](../examples/language-v1.layup). It covers the optional-revision document shell, exact choice/integer/float values,
+open annotations, opaque unavailable bodies, sibling recovery, scoped graph
+objects and multi-diagram selection. Views/defaults, the other diagram
 grammars, ports, and the proposed document JSON input remain planned. The
 [current language reference](DESIGN.md) and [public DSL reference](site/reference/dsl.md)
 continue to describe unversioned syntax. Examples here use `text` fences because
@@ -44,9 +44,8 @@ the document describes the complete target design, beyond the implemented subset
 A replacement-language file contains one or more named diagrams. An optional
 `layup 1` header asserts a source-language revision, independent of package and
 scene versions. Once migration is complete, an absent header also uses the new
-grammar. Unknown revisions are errors; there is no legacy fallback. The current
-first checkpoint still requires the header to opt in until all existing diagram
-features have been ported.
+grammar. Unknown revisions are errors; there is no legacy fallback. The current checkpoint accepts named diagrams with or without the assertion.
+Title-only legacy sources retain existing diagram features during migration.
 
 ```text
 layup 1
@@ -168,8 +167,9 @@ lines. Record keys are identifiers or strings. Duplicate keys and attributes
 are errors. Strings retain the current `\"`, `\\`, `\n`, `\t`, and `\r` escapes
 and literal multiline contents. A later Unicode escape addition must reject
 surrogate and out-of-range values; it is not required for this revision.
-Unknown escapes remain errors. Numbers retain decimal/exponent support and
-finite-value checks. Geometry adds its own positivity and bound constraints.
+Unknown escapes remain errors. Decimal integers preserve signed/unsigned 64-bit values exactly; decimal-point
+and exponent literals are finite floats. Tagged JSON represents integers as
+decimal strings for JavaScript consumers. Geometry adds its own positivity and bound constraints.
 
 No construct accepts two ways of assigning the same property in one declaration.
 For example, a positional label plus `label=` is an error. The initial revision

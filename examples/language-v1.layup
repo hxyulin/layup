@@ -1,29 +1,28 @@
-// Revision-one graph grammar: global annotations, values and references.
+// Named document grammar (optional `layup 1` assertion): global annotations, values and references.
 /* Comments can span lines and nest:
    /* shared trivia */ they do not add a scope or carry annotation semantics.
 */
-layup 1
 
 @doc(text="Scoped services and their source locations.")
-diagram services "Service calls" kind=graph layout=manual {
+diagram services "Service calls" type=graph layout=manual {
   // Definitions can follow their uses; attributes are order independent.
   row weights=[1, 1] {
     group backend "Backend" {
-      @source(uri="src/api.rs", symbol="API::run", range={startLine: 8, startColumn: 1, endLine: 12, endColumn: 2})
+      @source(uri="src/api.rs", symbol="API::run", range={start-line: 8, start-column: 1, end-line: 12, end-column: 2})
       @meta(namespace="analysis", value={public: true, tags: [entry, "HTTP"], score: 0.9, extra: null})
-      node "API::run(&self)" "API" kind=service {
+      node "API::run(&self)" "API" style=service {
         code "fn run(&self)"
       }
-      node cache "Backend cache" tone=/* explicit palette */green // local ID
-      edge lookup "API::run(&self)" -> cache "Lookup" kind=calls
+      node cache "Backend cache" palette=/* explicit palette */green // local ID
+      edge lookup "API::run(&self)" -> cache "Lookup" style=calls
     }
     group frontend "Frontend" {
-      node red "Client" kind=service
-      node cache "Frontend cache" tone=green
+      node red "Client" style=service
+      node cache "Frontend cache" palette=green
       red -> cache "Read"
     }
   }
-  edge request frontend.red -> backend."API::run(&self)" "Request" kind=calls
-  node-kind service tone=blue base=node
-  edge-kind calls stroke=dashed tone=purple
+  edge request frontend.red -> backend."API::run(&self)" "Request" style=calls
+  node-style service palette=blue base=node
+  edge-style calls stroke-style=dashed palette=purple
 }

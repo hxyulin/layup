@@ -231,7 +231,44 @@ final done;start->a;a->done "完成"}; root ->parent // entry
 }
 
 fn normalized_svg(compiled: &layup::Compiled) -> String {
-    let svg = layup::svg::render(compiled, layup::Theme::Light);
+    let mut svg = layup::svg::render(compiled, layup::Theme::Light);
+    if let Some(document) = &compiled.document {
+        fn semantic(value: &mut serde_json::Value) {
+            match value {
+                serde_json::Value::Object(fields) => {
+                    if fields
+                        .get("span")
+                        .is_some_and(|span| span.get("start").is_some())
+                    {
+                        fields.remove("span");
+                        fields.remove("valueSpan");
+                    }
+                    if fields.contains_key("arguments") && fields.contains_key("name") {
+                        fields.remove("raw");
+                    }
+                    for (key, value) in fields.iter_mut() {
+                        if key != "metadata" && !(key == "value" && value.get("type").is_some()) {
+                            semantic(value);
+                        }
+                    }
+                }
+                serde_json::Value::Array(values) => {
+                    for value in values {
+                        semantic(value);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let original = serde_json::to_string(document).unwrap();
+        let mut normalized = serde_json::to_value(document).unwrap();
+        semantic(&mut normalized);
+        // Source locations/spelling change after formatting; retain every semantic value.
+        svg = svg.replace(
+            &layup::svg::esc(&original),
+            &layup::svg::esc(&normalized.to_string()),
+        );
+    }
     // The document namespace includes authored source line numbers. Ignore
     // only that namespace while comparing every rendered shape and glyph.
     let start = svg.find("layup-").unwrap();

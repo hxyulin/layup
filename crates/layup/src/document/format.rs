@@ -3,7 +3,7 @@ use crate::Error;
 
 pub(super) fn format(source: &str) -> Result<String, Error> {
     super::parse(source)?;
-    let tokens = lex::lex(source)?;
+    let tokens = lex::document_tokens(source)?;
     let mut output = String::new();
     let mut line = String::new();
     let mut blocks = 0usize;
@@ -21,6 +21,14 @@ pub(super) fn format(source: &str) -> Result<String, Error> {
     for located in tokens {
         let raw = &source[located.span.start..located.span.end];
         match &located.token {
+            Token::Opaque(_) => {
+                if !line.is_empty() {
+                    line.push(' ');
+                }
+                line.push_str(raw);
+                flush(&mut output, &mut line, blocks + collections);
+                previous = Token::Newline;
+            }
             Token::Eof => flush(&mut output, &mut line, blocks + collections),
             Token::Newline => {
                 flush(&mut output, &mut line, blocks + collections);

@@ -19,6 +19,9 @@ pub struct Info {
     pub language_version: u32,
     pub diagram_id: String,
     pub diagrams: Vec<String>,
+    pub manifest: Vec<ManifestEntry>,
+    pub targets: Vec<TargetInfo>,
+    pub diagnostics: Vec<Json>,
     pub diagram: EntityInfo,
     pub objects: BTreeMap<String, EntityInfo>,
     pub relationships: BTreeMap<String, EntityInfo>,
@@ -32,6 +35,89 @@ pub struct EntityInfo {
     pub documentation: Option<String>,
     pub source_locations: Vec<SourceLocation>,
     pub metadata: BTreeMap<String, Json>,
+    pub annotations: Vec<Annotation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ManifestEntry {
+    pub id: String,
+    pub diagram_type: String,
+    pub status: String,
+    pub reason: Option<String>,
+    pub annotations: Vec<Annotation>,
+    pub span: Span,
+}
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TargetInfo {
+    pub diagram_id: String,
+    pub category: String,
+    pub span: Span,
+    pub annotations: Vec<Annotation>,
+}
+fn targets(document: &Document) -> Result<Vec<TargetInfo>, Error> {
+    fn visit(
+        body: &[GraphStatement],
+        diagram: &str,
+        output: &mut Vec<TargetInfo>,
+    ) -> Result<(), Error> {
+        for statement in body {
+            let (category, span, values) = match statement {
+                GraphStatement::Node(n) => ("object", n.span, &n.annotations),
+                GraphStatement::Edge(e) => ("relationship", e.span, &e.annotations),
+                GraphStatement::NodeKind(k) | GraphStatement::EdgeKind(k) => {
+                    ("style", k.span, &k.annotations)
+                }
+                GraphStatement::Row {
+                    annotations, span, ..
+                } => ("layout", *span, annotations),
+                GraphStatement::Content {
+                    annotations, span, ..
+                } => ("content", *span, annotations),
+            };
+            if category != "object"
+                && category != "relationship"
+                && values.iter().any(|a| a.name == "source")
+            {
+                return Err(fail(
+                    span,
+                    "document/annotation",
+                    "@source requires a diagram, object or relationship target",
+                ));
+            }
+            annotations(values)?;
+            if !values.is_empty() {
+                output.push(TargetInfo {
+                    diagram_id: diagram.into(),
+                    category: category.into(),
+                    span,
+                    annotations: values.clone(),
+                });
+            }
+            match statement {
+                GraphStatement::Node(n) => visit(&n.body, diagram, output)?,
+                GraphStatement::Row { body, .. } => visit(body, diagram, output)?,
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+    let mut output = Vec::new();
+    for diagram in &document.diagrams {
+        if let Body::Graph(body) = &diagram.body {
+            visit(body, &diagram.id, &mut output)?;
+        }
+    }
+    Ok(output)
+}
+
+pub(super) fn validate_annotations(document: &Document) -> Result<(), Error> {
+    for diagram in &document.diagrams {
+        annotations(&diagram.annotations)?;
+    }
+    targets(document)?;
+    Ok(())
 }
 
 fn fail(span: Span, code: &'static str, message: impl Into<String>) -> Error {
@@ -39,15 +125,16 @@ fn fail(span: Span, code: &'static str, message: impl Into<String>) -> Error {
 }
 fn text(value: &Value, span: Span) -> Result<String, Error> {
     match value {
-        Value::Word(s) | Value::String(s) => Ok(s.clone()),
+        Value::Choice(s) | Value::String(s) => Ok(s.clone()),
         _ => Err(fail(span, "document/value", "expected a word or string")),
     }
 }
 fn old(value: &Value, span: Span) -> Result<OldValue, Error> {
     match value {
-        Value::Word(s) => Ok(OldValue::Ident(s.clone())),
+        Value::Choice(s) => Ok(OldValue::Ident(s.clone())),
         Value::String(s) => Ok(OldValue::Str(s.clone())),
-        Value::Number(n) => Ok(OldValue::Num(*n)),
+        Value::Integer(n) => Ok(OldValue::Num(n.as_f64())),
+        Value::Float(n) => Ok(OldValue::Num(*n)),
         _ => Err(fail(
             span,
             "document/value",
@@ -55,9 +142,32 @@ fn old(value: &Value, span: Span) -> Result<OldValue, Error> {
         )),
     }
 }
+// Source vocabulary maps onto the existing renderer while its geometry contract stays stable.
+fn property(name: &str) -> &str {
+    match name {
+        "style" => "kind",
+        "palette" => "tone",
+        "font-family" => "font",
+        "text-align" => "align",
+        "text-direction" => "textdir",
+        "stroke-style" => "stroke",
+        "flow-direction" => "direction",
+        "same-rank" => "same-layer",
+        "route-side" => "via",
+        other => other,
+    }
+}
 fn allowed(attrs: &Attributes, names: &[&str]) -> Result<(), Error> {
+    let mut used = BTreeSet::new();
     for (name, a) in attrs {
-        if !names.contains(&name.as_str()) {
+        if !used.insert(property(name)) {
+            return Err(fail(
+                a.span,
+                "document/attribute",
+                format!("property `{name}` is assigned more than once"),
+            ));
+        }
+        if !names.contains(&property(name)) {
             return Err(fail(
                 a.span,
                 "document/attribute",
@@ -68,15 +178,18 @@ fn allowed(attrs: &Attributes, names: &[&str]) -> Result<(), Error> {
     Ok(())
 }
 fn attr_text(attrs: &Attributes, name: &str) -> Result<Option<String>, Error> {
-    attrs.get(name).map(|a| text(&a.value, a.span)).transpose()
+    attrs
+        .iter()
+        .find(|(key, _)| property(key) == name)
+        .map(|(_, a)| text(&a.value, a.span))
+        .transpose()
 }
 fn json_value(value: &Value, span: Span) -> Result<Json, Error> {
     Ok(match value {
-        Value::Word(s) | Value::String(s) => json!(s),
-        Value::Number(n) if n.fract() == 0.0 && *n >= 0.0 && *n < u64::MAX as f64 => {
-            json!(*n as u64)
-        }
-        Value::Number(n) => json!(n),
+        Value::Choice(s) | Value::String(s) => json!(s),
+        Value::Integer(super::Integer::Signed(n)) => json!(n),
+        Value::Integer(super::Integer::Unsigned(n)) => json!(n),
+        Value::Float(n) => json!(n),
         Value::Bool(b) => json!(b),
         Value::Null => Json::Null,
         Value::List(values) => Json::Array(
@@ -101,7 +214,10 @@ fn json_value(value: &Value, span: Span) -> Result<Json, Error> {
     })
 }
 fn annotations(values: &[Annotation]) -> Result<EntityInfo, Error> {
-    let mut info = EntityInfo::default();
+    let mut info = EntityInfo {
+        annotations: values.to_vec(),
+        ..Default::default()
+    };
     for annotation in values {
         let args = &annotation.arguments;
         let required = |key| {
@@ -138,14 +254,35 @@ fn annotations(values: &[Annotation]) -> Result<EntityInfo, Error> {
                 let range = args
                     .get("range")
                     .map(|a| -> Result<crate::input::SourceRange, Error> {
-                        let range: crate::input::SourceRange =
-                            serde_json::from_value(json_value(&a.value, a.span)?).map_err(|e| {
-                                fail(
-                                    a.span,
-                                    "document/annotation",
-                                    format!("invalid source range: {e}"),
-                                )
-                            })?;
+                        let range: crate::input::SourceRange = serde_json::from_value({
+                            let mut value = json_value(&a.value, a.span)?;
+                            if let Some(fields) = value.as_object_mut() {
+                                for (source, wire) in [
+                                    ("start-line", "startLine"),
+                                    ("start-column", "startColumn"),
+                                    ("end-line", "endLine"),
+                                    ("end-column", "endColumn"),
+                                ] {
+                                    if let Some(value) = fields.remove(source)
+                                        && fields.insert(wire.into(), value).is_some()
+                                    {
+                                        return Err(fail(
+                                            a.span,
+                                            "document/annotation",
+                                            format!("duplicate range property `{source}`"),
+                                        ));
+                                    }
+                                }
+                            }
+                            value
+                        })
+                        .map_err(|e| {
+                            fail(
+                                a.span,
+                                "document/annotation",
+                                format!("invalid source range: {e}"),
+                            )
+                        })?;
                         if [
                             range.start_line,
                             range.start_column,
@@ -200,13 +337,7 @@ fn annotations(values: &[Annotation]) -> Result<EntityInfo, Error> {
                     ));
                 }
             }
-            _ => {
-                return Err(fail(
-                    annotation.span,
-                    "document/annotation",
-                    format!("unknown annotation @{}", annotation.name),
-                ));
-            }
+            _ => {}
         }
     }
     Ok(info)
@@ -365,7 +496,7 @@ impl<'a> Builder<'a> {
     ) -> Result<String, Error> {
         let reference = match value {
             Value::Reference(r) => r.clone(),
-            Value::Word(s) | Value::String(s) if !s.is_empty() => Reference {
+            Value::Choice(s) | Value::String(s) if !s.is_empty() => Reference {
                 root: false,
                 segments: vec![s.clone()],
             },
@@ -426,8 +557,8 @@ impl<'a> Builder<'a> {
             definition
                 .attributes
                 .iter()
-                .filter(|(key, _)| key.as_str() != "base")
-                .map(|(k, v)| (k.clone(), v.clone())),
+                .filter(|(key, _)| property(key) != "base")
+                .map(|(k, v)| (property(k).into(), v.clone())),
         );
         visiting.remove(name);
         Ok((base, attributes))
@@ -462,10 +593,11 @@ impl<'a> Builder<'a> {
         }
         for (key, a) in attrs
             .iter()
-            .filter(|(key, _)| key.as_str() == "shape")
-            .chain(attrs.iter().filter(|(key, _)| key.as_str() != "shape"))
+            .filter(|(key, _)| property(key) == "shape")
+            .chain(attrs.iter().filter(|(key, _)| property(key) != "shape"))
         {
-            let flag = match key.as_str() {
+            let key = property(key);
+            let flag = match key {
                 "fill" => Some(match text(&a.value, a.span)?.as_str() {
                     "hollow" => "hollow",
                     "solid" => "filled",
@@ -498,7 +630,7 @@ impl<'a> Builder<'a> {
             if let Some(flag) = flag {
                 args.push(Arg::Value(OldValue::Ident(flag.into())));
             } else {
-                args.push(Arg::Attr(key.clone(), old(&a.value, a.span)?));
+                args.push(Arg::Attr(key.into(), old(&a.value, a.span)?));
             }
         }
         Ok(args)
@@ -554,8 +686,8 @@ impl<'a> Builder<'a> {
                         base = "group".into();
                     }
                     for (key, value) in &node.attributes {
-                        if ["tone", "fill", "font", "align", "role"].contains(&key.as_str()) {
-                            style_attrs.insert(key.clone(), value.clone());
+                        if ["tone", "fill", "font", "align", "role"].contains(&property(key)) {
+                            style_attrs.insert(property(key).into(), value.clone());
                         }
                     }
                     self.serial += 1;
@@ -565,9 +697,10 @@ impl<'a> Builder<'a> {
                     self.styles.push(item("style", style_args, None, node.span));
                     let mut args = vec![attr("id", &id), attr("title", &node.title)];
                     for (key, a) in &node.attributes {
-                        match key.as_str() {
+                        let key = property(key);
+                        match key {
                             "href" | "gutter" => {
-                                args.push(Arg::Attr(key.clone(), old(&a.value, a.span)?))
+                                args.push(Arg::Attr(key.into(), old(&a.value, a.span)?))
                             }
                             "textdir" => args
                                 .push(Arg::Attr("text-direction".into(), old(&a.value, a.span)?)),
@@ -617,6 +750,7 @@ impl<'a> Builder<'a> {
                     attributes,
                     body,
                     span,
+                    ..
                 } => {
                     allowed(attributes, &["weights", "gutter"])?;
                     let mut args = Vec::new();
@@ -631,7 +765,8 @@ impl<'a> Builder<'a> {
                         let weights = values
                             .iter()
                             .map(|v| match v {
-                                Value::Number(n) if *n > 0.0 => Ok(*n),
+                                Value::Integer(n) if n.as_f64() > 0.0 => Ok(n.as_f64()),
+                                Value::Float(n) if *n > 0.0 => Ok(*n),
                                 _ => Err(fail(
                                     a.span,
                                     "document/value",
@@ -665,7 +800,9 @@ impl<'a> Builder<'a> {
                     }
                     result.push(item("row", args, Some(self.lower(body, scope)?), *span));
                 }
-                GraphStatement::Content { kind, text, span } => {
+                GraphStatement::Content {
+                    kind, text, span, ..
+                } => {
                     if scope.is_empty() && kind != "text" {
                         return Err(fail(
                             *span,
@@ -724,9 +861,10 @@ impl<'a> Builder<'a> {
             args.push(attr("label", label));
         }
         for (key, a) in &edge.attributes {
-            match key.as_str() {
+            let key = property(key);
+            match key {
                 "source-side" | "target-side" | "via" | "tone" => args.push(Arg::Attr(
-                    match key.as_str() {
+                    match key {
                         "source-side" => "from",
                         "target-side" => "to",
                         other => other,
@@ -786,10 +924,15 @@ fn lower(document: &Document, options: &CompileOptions) -> Result<Lowered, Error
     }
     let mut outputs = Vec::new();
     for diagram in &document.diagrams {
+        let Body::Graph(body) = &diagram.body else {
+            annotations(&diagram.annotations)?;
+            continue;
+        };
         allowed(
             &diagram.attributes,
             &[
                 "kind",
+                "type",
                 "width",
                 "layout",
                 "direction",
@@ -798,7 +941,6 @@ fn lower(document: &Document, options: &CompileOptions) -> Result<Lowered, Error
                 "subtitle",
             ],
         )?;
-        let Body::Graph(body) = &diagram.body;
         let mut builder = Builder {
             paths: BTreeMap::new(),
             node_kinds: BTreeMap::new(),
@@ -843,14 +985,15 @@ fn lower(document: &Document, options: &CompileOptions) -> Result<Lowered, Error
         let mut body = builder.lower(body, &[])?;
         let mut args = vec![attr("title", &diagram.title)];
         for (key, a) in &diagram.attributes {
-            if key == "kind" || key == "subtitle" {
+            let key = property(key);
+            if key == "kind" || key == "type" || key == "subtitle" {
                 continue;
             }
             args.push(Arg::Attr(
                 if key == "textdir" {
                     "text-direction".into()
                 } else {
-                    key.clone()
+                    key.into()
                 },
                 old(&a.value, a.span)?,
             ));
@@ -912,6 +1055,32 @@ fn lower(document: &Document, options: &CompileOptions) -> Result<Lowered, Error
                 language_version: document.version,
                 diagram_id: diagram.id.clone(),
                 diagrams: document.diagrams.iter().map(|d| d.id.clone()).collect(),
+                manifest: document
+                    .diagrams
+                    .iter()
+                    .map(|d| ManifestEntry {
+                        id: d.id.clone(),
+                        diagram_type: d.diagram_type.clone(),
+                        status: if d.id == diagram.id {
+                            "selected"
+                        } else if matches!(d.body, Body::Opaque { .. }) {
+                            "skipped"
+                        } else {
+                            "supported"
+                        }
+                        .into(),
+                        reason: matches!(d.body, Body::Opaque { .. })
+                            .then(|| "body grammar unavailable".into()),
+                        annotations: d.annotations.clone(),
+                        span: d.span,
+                    })
+                    .collect(),
+                targets: targets(document)?,
+                diagnostics: document
+                    .warnings
+                    .iter()
+                    .map(|d| serde_json::from_str(&d.json()).expect("diagnostic JSON"))
+                    .collect(),
                 diagram: evidence,
                 objects: builder.objects,
                 relationships: builder.relationships,
@@ -919,20 +1088,46 @@ fn lower(document: &Document, options: &CompileOptions) -> Result<Lowered, Error
             semantic_kinds: builder.semantic_kinds,
         });
     }
-    let index = match &options.diagram {
-        Some(id) => document
-            .diagrams
-            .iter()
-            .position(|d| &d.id == id)
+    let selected = match &options.diagram {
+        Some(id) => {
+            let diagram = document
+                .diagrams
+                .iter()
+                .find(|d| &d.id == id)
+                .ok_or_else(|| {
+                    fail(
+                        document.diagrams[0].span,
+                        "document/diagram",
+                        format!("unknown diagram `{id}`"),
+                    )
+                })?;
+            if matches!(diagram.body, Body::Opaque { .. }) {
+                return Err(fail(
+                    diagram.type_span,
+                    "diagram/unavailable-selection",
+                    format!(
+                        "cannot render diagram `{id}`: type `{}` is unavailable",
+                        diagram.diagram_type
+                    ),
+                ));
+            }
+            id.as_str()
+        }
+        None => outputs
+            .first()
+            .map(|output| output.info.diagram_id.as_str())
             .ok_or_else(|| {
                 fail(
                     document.diagrams[0].span,
-                    "document/diagram",
-                    format!("unknown diagram `{id}`"),
+                    "diagram/no-renderable-diagram",
+                    "document has no supported diagram to render; use the inspect or format API",
                 )
             })?,
-        None => 0,
     };
+    let index = outputs
+        .iter()
+        .position(|output| output.info.diagram_id == selected)
+        .expect("validated selected diagram");
     Ok(outputs.swap_remove(index))
 }
 
@@ -989,6 +1184,19 @@ pub(super) fn compile(
             node.kind = kind.clone();
         }
     }
+    compiled
+        .warnings
+        .extend(document.warnings.iter().map(|d| crate::Warning {
+            line: d.line,
+            msg: format!(
+                "[{}] {}{}",
+                d.code,
+                d.message,
+                d.help
+                    .as_ref()
+                    .map_or(String::new(), |help| format!("; {help}"))
+            ),
+        }));
     compiled.document = Some(info);
     Ok(compiled)
 }

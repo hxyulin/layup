@@ -224,12 +224,12 @@ fn compile_document(
     options: &CompileOptions,
     fonts: &text::Fonts,
 ) -> Result<Compiled, Error> {
-    if document::is_versioned(src) {
+    if document::is_document(src) {
         return document::compile(src, options, fonts);
     }
     if options.diagram.is_some() {
         return Err(Error::new(
-            "diagram selection requires a `layup 1` document",
+            "diagram selection requires a named diagram document",
         ));
     }
     compile_statements(&parser::parse(src)?, options, fonts)

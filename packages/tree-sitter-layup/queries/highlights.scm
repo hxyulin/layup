@@ -12,6 +12,7 @@
 (declaration_keyword) @keyword
 (connection_keyword) @keyword
 (declaration keyword: (identifier) @type)
+(annotation_argument name: (identifier) @property)
 (attribute name: (identifier) @property)
 (record_entry name: (identifier) @property)
 (record_entry name: (string) @property)
@@ -22,3 +23,5 @@
 ["=" ":"] @operator
 ["@" "." "::" "/" "," ";"] @punctuation.delimiter
 ["{" "}" "[" "]" "(" ")"] @punctuation.bracket
+
+(annotation_argument value: (reference (identifier) @constant))

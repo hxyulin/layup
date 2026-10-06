@@ -5,7 +5,7 @@ export interface CompileOptions {
   fonts?: readonly Uint8Array[];
   /** Select a named view of a shared model; the first authored view is the default. */
   view?: string;
-  /** Select a diagram in a `layup 1` document; defaults to the first declaration. */
+  /** Select a named diagram; defaults to the first supported declaration. */
   diagram?: string;
 }
 
@@ -55,6 +55,8 @@ export interface Layup {
   render(source: string, options?: RenderOptions): RenderResult;
   /** Format valid syntax without changing comments, strings or statement order. Throws LayupError. */
   format(source: string): string;
+  /** Parse with recovery, preserving unavailable bodies and exact tagged values. No layout is performed. */
+  inspect(source: string): DocumentInspection;
   /** Collect recoverable syntax errors, or semantic/layout and authoring diagnostics. Does not throw for invalid DSL. */
   lint(source: string, options?: CompileOptions): LintDiagnostic[];
   /** Return a versioned scene with geometry, drawing items, source spans, and presentation metadata. Throws LayupError. */
@@ -227,7 +229,65 @@ export interface SequenceInfo {
   readonly messages: readonly { readonly id: string; readonly asynchronous: boolean; readonly line: number; readonly span: SourceSpan }[];
   readonly annotations: readonly { readonly kind: string; readonly label: string; readonly rect: Rect; readonly line: number; readonly span: SourceSpan }[];
 }
+/** Integers use decimal strings here to avoid JavaScript Number rounding. */
+export type DocumentValue =
+  | { readonly type: 'choice' | 'string'; readonly value: string }
+  | { readonly type: 'integer'; readonly value: string }
+  | { readonly type: 'float'; readonly value: number }
+  | { readonly type: 'bool'; readonly value: boolean }
+  | { readonly type: 'null' }
+  | { readonly type: 'list'; readonly value: readonly DocumentValue[] }
+  | { readonly type: 'record'; readonly value: { readonly [key: string]: DocumentValue } }
+  | { readonly type: 'reference'; readonly value: { readonly root: boolean; readonly segments: readonly string[] } };
+export interface DocumentAttribute {
+  readonly value: DocumentValue;
+  readonly span: SourceSpan;
+  readonly valueSpan: SourceSpan;
+}
+export interface DocumentAnnotation {
+  readonly name: string;
+  readonly raw: string;
+  readonly arguments: { readonly [key: string]: DocumentAttribute };
+  readonly span: SourceSpan;
+}
+export interface SyntaxTarget {
+  readonly annotations: readonly DocumentAnnotation[];
+  readonly span: SourceSpan;
+}
+export type DocumentStatement =
+  | { readonly type: 'node'; readonly value: SyntaxTarget & { readonly declaration: string; readonly id: string; readonly title: string; readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'edge'; readonly value: SyntaxTarget & { readonly id: string | null; readonly from: DocumentReference; readonly to: DocumentReference; readonly arrow: string; readonly label: string | null; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'node-kind' | 'edge-kind'; readonly value: SyntaxTarget & { readonly id: string; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'row'; readonly value: SyntaxTarget & { readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'content'; readonly value: SyntaxTarget & { readonly kind: string; readonly text: string } };
+export interface DocumentReference { readonly root: boolean; readonly segments: readonly string[] }
+export interface SyntaxDiagram extends SyntaxTarget {
+  readonly id: string;
+  readonly title: string;
+  readonly diagramType: string;
+  readonly typeSpan: SourceSpan;
+  readonly attributes: { readonly [key: string]: DocumentAttribute };
+  readonly body: { readonly type: 'graph'; readonly value: readonly DocumentStatement[] }
+    | { readonly type: 'opaque'; readonly value: { readonly raw: string; readonly span: SourceSpan } };
+}
+export interface DocumentInspection {
+  readonly document: {
+    readonly version: 1;
+    readonly source: string;
+    readonly valueSpans: readonly { readonly span: SourceSpan; readonly kind: DocumentValue['type'] }[];
+    readonly diagrams: readonly SyntaxDiagram[];
+  };
+  readonly diagnostics: readonly LintDiagnostic[];
+}
+export interface DocumentManifestEntry extends SyntaxTarget {
+  readonly id: string;
+  readonly diagramType: string;
+  readonly status: 'selected' | 'supported' | 'skipped';
+  readonly reason: string | null;
+}
+
 export interface DocumentEntityInfo {
+  readonly annotations: readonly DocumentAnnotation[];
   readonly path: readonly string[] | null;
   readonly authoredId: string | null;
   readonly documentation: string | null;
@@ -238,6 +298,9 @@ export interface DocumentInfo {
   readonly languageVersion: 1;
   readonly diagramId: string;
   readonly diagrams: readonly string[];
+  readonly manifest: readonly DocumentManifestEntry[];
+  readonly diagnostics: readonly LintDiagnostic[];
+  readonly targets: readonly (SyntaxTarget & { readonly diagramId: string; readonly category: 'object' | 'relationship' | 'style' | 'layout' | 'content' })[];
   readonly diagram: DocumentEntityInfo;
   readonly objects: { readonly [renderId: string]: DocumentEntityInfo };
   readonly relationships: { readonly [renderId: string]: DocumentEntityInfo };

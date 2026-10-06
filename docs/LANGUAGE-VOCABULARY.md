@@ -3,8 +3,10 @@
 This review covers the existing DSL, the implemented document/graph checkpoint,
 and the sequence, state, ER, view, and presentation syntax in the language
 design. Its spellings are the agreed design for the replacement language; they
-are not yet the parser's accepted keywords. The current implementation remains
-documented in the [experimental guide](site/guide/language-v1.md).
+are implemented for diagram selectors, style declarations, palette/typography
+and direction properties in the shared document checkpoint. Independent paint
+channels and the remaining body grammars still require renderer/migration work.
+The current implementation is documented in the [experimental guide](site/guide/language-v1.md).
 
 The replacement will become the only source grammar. Unversioned source will
 use it; an optional `layup 1` header will assert the language revision rather
@@ -205,7 +207,7 @@ source locations and documentation are derived from it, rather than replacing
 or discarding the original annotations. Data values use the shared value
 grammar. Unknown arguments do not bind object references or run expressions;
 preserve a syntactic reference as an unresolved value if one is supplied.
-An extension schema can explicitly opt into shared reference resolution.
+A future extension schema can explicitly opt into shared reference resolution.
 Wire serialization must distinguish unresolved references from strings and
 ordinary records instead of inserting ambiguous magic keys into user data.
 

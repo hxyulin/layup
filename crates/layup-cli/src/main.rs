@@ -50,6 +50,11 @@ impl From<ThemeArg> for layup::Theme {
 
 #[derive(Subcommand)]
 enum Cmd {
+    /// Inspect a named document, preserving opaque bodies and recovering syntax errors.
+    Inspect {
+        /// Input DSL file, or `-` for stdin.
+        input: PathBuf,
+    },
     /// Render a diagram to SVG (default) or interactive HTML.
     Render {
         /// Input `.layup` or graph `.json` file, or `-` for stdin.
@@ -215,6 +220,15 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                 eprintln!("wrote {}", output.display());
             }
             Ok(true)
+        }
+        Cmd::Inspect { input } => {
+            let result = layup::document::inspect(&read(&input)?);
+            println!("{result:#}");
+            Ok(!result["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|d| d["severity"] == "error"))
         }
         Cmd::Check { inputs, strict } => {
             let mut ok = true;

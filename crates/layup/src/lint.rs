@@ -21,23 +21,41 @@ pub fn lint_with_options(
     options: &crate::CompileOptions,
     fonts: &Fonts,
 ) -> Vec<Diagnostic> {
-    if crate::document::is_versioned(source) {
-        return match crate::compile_with_options(source, options, fonts) {
-            Err(error) => vec![Diagnostic::from_error(&error)],
-            Ok(compiled) => compiled
-                .warnings
-                .iter()
-                .map(|warning| Diagnostic {
-                    severity: Severity::Warning,
-                    code: "layout",
-                    message: warning.msg.clone(),
-                    line: warning.line,
-                    span: None,
-                    help: None,
-                    related: Vec::new(),
-                })
-                .collect(),
-        };
+    if crate::document::is_document(source) {
+        let parsed = crate::document::parse_recovering(source);
+        let mut diagnostics = parsed
+            .errors
+            .iter()
+            .map(Diagnostic::from_error)
+            .collect::<Vec<_>>();
+        diagnostics.extend(parsed.document.warnings.iter().cloned());
+        if !parsed.errors.is_empty() {
+            return diagnostics;
+        }
+        match crate::compile_with_options(source, options, fonts) {
+            Err(error) => diagnostics.insert(0, Diagnostic::from_error(&error)),
+            Ok(compiled) => diagnostics.extend(
+                compiled
+                    .warnings
+                    .iter()
+                    .take(
+                        compiled
+                            .warnings
+                            .len()
+                            .saturating_sub(parsed.document.warnings.len()),
+                    )
+                    .map(|warning| Diagnostic {
+                        severity: Severity::Warning,
+                        code: "layout",
+                        message: warning.msg.clone(),
+                        line: warning.line,
+                        span: None,
+                        help: None,
+                        related: Vec::new(),
+                    }),
+            ),
+        }
+        return diagnostics;
     }
     let parsed = crate::parser::parse_recovering(source);
     if !parsed.errors.is_empty() {

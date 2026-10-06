@@ -3,7 +3,8 @@
 use std::fmt::Write as _;
 use unicode_width::UnicodeWidthStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Span {
     pub start: usize,
     pub end: usize,

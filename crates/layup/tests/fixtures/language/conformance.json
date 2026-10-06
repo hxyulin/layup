@@ -1,0 +1,98 @@
+[
+  {
+    "name": "optional revision",
+    "valid": true,
+    "source": "diagram main type=graph { node api \"API\" }"
+  },
+  {
+    "name": "asserted revision and contextual names",
+    "valid": true,
+    "source": "layup 1\ndiagram main type=graph {\nnode node\nnode row\nnode->row\n}"
+  },
+  {
+    "name": "Unicode and quoted references",
+    "valid": true,
+    "source": "diagram 国际 type=graph {\ngroup 后端 { node \"API::run(&self)\" }\nnode معالجة\nمعالجة -> ::后端.\"API::run(&self)\"\n}"
+  },
+  {
+    "name": "inline annotation attachment",
+    "valid": true,
+    "source": "@company.generated() diagram main type=graph {\n@company.rank(value=3) node api\n}"
+  },
+  {
+    "name": "multiline collection whitespace",
+    "valid": true,
+    "source": "diagram main type=graph {\n@company.data(\nvalue\n=\n{names\n:\n[\nentry\n,\n\"HTTP\"\n,\n], active: true, extra: null}\n,\n)\nnode api\n}"
+  },
+  {
+    "name": "exact numeric variants",
+    "valid": true,
+    "source": "diagram main type=graph {\n@company.data(min=-9223372036854775808,max=18446744073709551615,large=9007199254740993,float=1.0,exponent=2e3,choice=blue)\nnode api\n}"
+  },
+  {
+    "name": "decimal shorthand floats",
+    "valid": true,
+    "source": "diagram main type=graph { @company.data(a=1.,b=.5,c=-.5) node api }"
+  },
+  {
+    "name": "nested comments and literal code",
+    "valid": true,
+    "source": "/* 注释 /* nested */ */\r\ndiagram main type=/* type */graph {\r\nnode api { code \"/* literal */ // literal\\n\\\"quoted\\\"\" } // explanation\r\n}"
+  },
+  {
+    "name": "quoted diagram envelope and ordered attributes",
+    "valid": true,
+    "source": "diagram \"future diagram\" custom-property={x: 1} type=vendor.timeline {}\ndiagram main type=graph { node api }"
+  },
+  {
+    "name": "record keys are data rather than IDs",
+    "valid": true,
+    "source": "diagram main type=graph { @company.data(value={\"\": 1, \"line\\nkey\": 2, true: 3, span: {start: 1, end: 2}, raw: \"keep\"}) node api }"
+  },
+  {
+    "name": "opaque foreign body",
+    "valid": true,
+    "opaque": true,
+    "source": "@company.owner(team=design)\ndiagram future type=company.timeline custom-property={mode: draft} {\nlaunch => 2027-01-01 ? punctuation\n\"quoted } \\q\"\n/* } /* nested */ */\n{ foreign => syntax }\n}\ndiagram main type=graph { node api }"
+  },
+  {
+    "name": "unknown revisions fail",
+    "valid": false,
+    "source": "layup 2\ndiagram main type=graph {}"
+  },
+  {
+    "name": "revision must be an integer",
+    "valid": false,
+    "source": "layup 1.0\ndiagram main type=graph {}"
+  },
+  {
+    "name": "orphan annotation",
+    "valid": false,
+    "source": "diagram main type=graph { @company.owner() }"
+  },
+  {
+    "name": "duplicate keys",
+    "valid": false,
+    "source": "diagram main type=graph { @company.data(value={x: 1, x: 2}) node api }"
+  },
+  {
+    "name": "integer overflow is explicit",
+    "valid": false,
+    "source": "diagram main type=graph { @company.data(value=18446744073709551616) node api }"
+  },
+  {
+    "name": "unfinished attribute recovers",
+    "valid": false,
+    "source": "diagram main type=graph {\nnode broken width=\nnode valid \"Valid\"\nvalid -> target\n}"
+  },
+  {
+    "name": "invalid escape",
+    "valid": false,
+    "source": "diagram main type=graph { node api \"\\q\" }"
+  },
+  {
+    "name": "unbalanced opaque body",
+    "valid": false,
+    "source": "diagram future type=vendor.timeline { nested { }"
+  }
+]

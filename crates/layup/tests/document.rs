@@ -95,7 +95,7 @@ fn rejects_ambiguous_names_duplicate_attributes_and_ignored_bodies() {
             "node-kind a base=b\nnode-kind b base=a\nnode x",
             "document/kind-cycle",
         ),
-        ("@doc(text=\"orphan\")\nrow {}", "document/syntax"),
+        ("@doc(text=\"orphan\")", "document/syntax"),
         (
             "@doc(text=\"one\")\n@doc(text=\"two\")\nnode a",
             "document/annotation",
@@ -169,7 +169,29 @@ fn formatting_preserves_comments_values_references_and_is_idempotent() {
     assert!(formatted.contains("backend.\"API::run(&self)\""));
     let before = scene(source, None);
     let after = scene(&formatted, None);
-    assert_eq!(before["document"], after["document"]);
+    fn semantic(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(fields) => {
+                for key in ["span", "valueSpan", "raw"] {
+                    fields.remove(key);
+                }
+                for value in fields.values_mut() {
+                    semantic(value);
+                }
+            }
+            serde_json::Value::Array(values) => {
+                for value in values {
+                    semantic(value);
+                }
+            }
+            _ => {}
+        }
+    }
+    let mut before_document = before["document"].clone();
+    let mut after_document = after["document"].clone();
+    semantic(&mut before_document);
+    semantic(&mut after_document);
+    assert_eq!(before_document, after_document);
     assert_eq!(before["width"], after["width"]);
     assert_eq!(before["height"], after["height"]);
     assert!(document::parse(&formatted).is_ok());
@@ -323,4 +345,213 @@ fn block_comment_diagnostics_and_limits_are_explicit() {
         "document/comment"
     );
     assert!(compile("no/* comments cannot join identifier tokens */de a").is_err());
+}
+
+#[test]
+fn shared_language_conformance_and_formatting() {
+    let cases: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/language/conformance.json")).unwrap();
+    for case in cases.as_array().unwrap() {
+        let source = case["source"].as_str().unwrap();
+        let parsed = document::parse_recovering(source);
+        assert_eq!(
+            parsed.errors.is_empty(),
+            case["valid"].as_bool().unwrap(),
+            "{}: {:?}",
+            case["name"],
+            parsed.errors
+        );
+        if parsed.errors.is_empty() {
+            let formatted = document::format(source).unwrap();
+            assert_eq!(
+                document::format(&formatted).unwrap(),
+                formatted,
+                "{}",
+                case["name"]
+            );
+            assert!(document::parse(&formatted).is_ok(), "{}", case["name"]);
+        } else {
+            assert!(document::format(source).is_err(), "{}", case["name"]);
+        }
+    }
+}
+
+#[test]
+fn optional_revision_asserts_the_same_document_and_rejects_float_revisions() {
+    let source = "diagram main type=graph { node api \"API\" }";
+    assert_eq!(layup::compile(source).unwrap().scene.nodes.len(), 1);
+    let quoted = "diagram \"future\" custom-property={x: 1} type = vendor.timeline {}\ndiagram main type=graph { node api }";
+    assert_eq!(
+        layup::compile(quoted).unwrap().document.unwrap().diagram_id,
+        "main"
+    );
+    assert!(
+        layup::compile("diagram \"type=graph\" { node api }")
+            .unwrap()
+            .document
+            .is_none()
+    );
+    assert_eq!(
+        layup::compile(&format!("layup 1\n{source}"))
+            .unwrap()
+            .scene
+            .nodes
+            .len(),
+        1
+    );
+    for version in ["1.0", "1e0", "2", "true"] {
+        assert_eq!(
+            layup::compile(&format!("layup {version}\n{source}"))
+                .err()
+                .unwrap()
+                .code,
+            "document/version"
+        );
+    }
+}
+
+#[test]
+fn annotation_values_are_exact_typed_and_preserved_on_every_target() {
+    let source = "diagram main type=graph {\n@company.rank(value=9007199254740993)\n@company.rank(value=18446744073709551615)\nnode api\n@company.layout(value={mode: manual, small: -9223372036854775808, float: 1.0, target: ::api})\nrow { node worker }\n@company.style()\nnode-style service\n}";
+    let doc = document::parse(source).unwrap();
+    let compiled = layup::compile(source).unwrap();
+    let json = serde_json::to_value(compiled.document.unwrap()).unwrap();
+    let node = &json["objects"]["object:[\"api\"]"]["annotations"];
+    assert_eq!(node.as_array().unwrap().len(), 2);
+    assert_eq!(
+        node[0]["arguments"]["value"]["value"],
+        serde_json::json!({"type":"integer","value":"9007199254740993"})
+    );
+    assert_eq!(
+        node[1]["arguments"]["value"]["value"]["value"],
+        "18446744073709551615"
+    );
+    assert_eq!(json["targets"].as_array().unwrap().len(), 3);
+    for span in &doc.value_spans {
+        assert!(!source[span.span.start..span.span.end].is_empty());
+    }
+    let formatted = document::format(source).unwrap();
+    assert!(formatted.contains("9007199254740993"));
+    assert!(formatted.contains("18446744073709551615"));
+    assert!(formatted.contains("-9223372036854775808"));
+    assert!(formatted.contains("float: 1.0"));
+    let inspected = document::inspect(source);
+    let row = &inspected["document"]["diagrams"][0]["body"]["value"][1]["value"];
+    assert_eq!(
+        row["annotations"][0]["arguments"]["value"]["value"]["value"]["target"]["type"],
+        "reference"
+    );
+}
+
+#[test]
+fn opaque_bodies_are_lossless_skipped_and_warn_without_hiding_valid_siblings() {
+    let raw = "{\nlaunch => 2027-01-01 ? punctuation\n\"quoted } \\q\"\n/* } /* nested */ */\n{ foreign => syntax }\n}";
+    let source = format!(
+        "@company.owner(team=design)\ndiagram future type=company.timeline custom-property=true {raw}\ndiagram main type=graph {{ node api }}"
+    );
+    let parsed = document::parse(&source).unwrap();
+    assert!(
+        matches!(&parsed.diagrams[0].body, document::Body::Opaque {raw: actual, ..} if actual == raw)
+    );
+    let formatted = document::format(&source).unwrap();
+    assert!(formatted.contains(raw));
+    let compiled = layup::compile(&source).unwrap();
+    assert_eq!(compiled.scene.nodes.len(), 1);
+    assert_eq!(compiled.warnings.len(), 1);
+    let info = compiled.document.unwrap();
+    assert_eq!(info.diagram_id, "main");
+    assert_eq!(info.manifest[0].status, "skipped");
+    assert_eq!(info.manifest[0].annotations.len(), 1);
+    let selected = CompileOptions {
+        diagram: Some("future".into()),
+        ..Default::default()
+    };
+    assert_eq!(
+        layup::compile_with_options(&source, &selected, &Fonts::default())
+            .err()
+            .unwrap()
+            .code,
+        "diagram/unavailable-selection"
+    );
+    let lint = layup::lint::lint(&source);
+    assert_eq!(lint[0].code, "diagram/unrecognized-type");
+    assert!(lint[0].span.is_some());
+    assert!(document::parse("diagram future type=unknown {}").is_ok());
+    assert_eq!(
+        layup::compile("diagram future type=unknown {}")
+            .err()
+            .unwrap()
+            .code,
+        "diagram/no-renderable-diagram"
+    );
+    assert!(
+        document::parse("diagram future type=unknown {}\ndiagram future type=graph {}").is_err()
+    );
+    assert!(layup::compile(&source.replace("node api", "node api width=invalid")).is_err());
+}
+
+#[test]
+fn typo_hints_are_conservative_and_never_change_extension_meanings() {
+    let source = "diagram typo type=garph {}\ndiagram main type=graph {\n@sorce(uri=\"a.rs\")\nnode a\n@vendor.sorce(uri=\"b.rs\")\nnode b\n}";
+    let diagnostics = layup::lint::lint(source);
+    assert_eq!(diagnostics.len(), 2);
+    assert_eq!(diagnostics[0].code, "diagram/unrecognized-type");
+    assert!(diagnostics[0].help.as_deref().unwrap().contains("graph"));
+    assert_eq!(diagnostics[1].code, "annotation/possible-typo");
+    let info = layup::compile(source).unwrap().document.unwrap();
+    assert_eq!(info.objects["object:[\"a\"]"].source_locations.len(), 0);
+    assert_eq!(info.objects["object:[\"a\"]"].annotations[0].name, "sorce");
+    assert!(compile("@source(unknown=1)\nnode a").is_err());
+    assert!(compile("@source(uri=\"a.rs\") row {}").is_err());
+}
+
+#[test]
+fn recovering_parser_keeps_siblings_and_collects_independent_errors() {
+    let source = "diagram main type=graph {\nnode broken width=\nnode valid \"Valid\"\nunknown directive\nnode later\n}\ndiagram next type=graph { node other }";
+    let parsed = document::parse_recovering(source);
+    assert_eq!(parsed.errors.len(), 2);
+    assert_eq!(parsed.document.diagrams.len(), 2);
+    let document::Body::Graph(body) = &parsed.document.diagrams[0].body else {
+        panic!("graph")
+    };
+    assert_eq!(body.len(), 2);
+    assert!(document::parse(source).is_err());
+    assert!(document::format(source).is_err());
+    assert_eq!(layup::lint::lint(source).len(), 2);
+}
+
+#[test]
+fn lexer_recovery_preserves_later_declarations_and_precise_spans() {
+    let source =
+        "diagram main type=graph {\nnode a \"bad\\q\"\nnode valid\nnode b ?\nnode later\n}";
+    let parsed = document::parse_recovering(source);
+    assert_eq!(parsed.errors.len(), 2, "{:?}", parsed.errors);
+    let document::Body::Graph(body) = &parsed.document.diagrams[0].body else {
+        panic!("graph")
+    };
+    assert!(
+        body.iter()
+            .any(|item| matches!(item, document::GraphStatement::Node(node) if node.id == "valid"))
+    );
+    assert!(
+        body.iter()
+            .any(|item| matches!(item, document::GraphStatement::Node(node) if node.id == "later"))
+    );
+    let span = parsed.errors[1].span.as_deref().unwrap();
+    assert_eq!(&source[span.start..span.end], "?");
+    assert_eq!((span.line, span.column), (4, 8));
+    assert_eq!(layup::lint::lint(source).len(), 2);
+}
+
+#[test]
+fn reviewed_style_vocabulary_preserves_inheritance_and_source_ranges() {
+    let source = "diagram main type=graph layout=auto flow-direction=right {\nnode-style parent palette=blue\nnode-style service base=parent palette=green font-family=mono\n@source(uri=\"a.rs\",range={start-line:1,start-column:1,end-line:2,end-column:1})\nnode api style=service palette=purple text-direction=ltr\nnode worker\nedge e api -> worker style=calls stroke-style=solid\nedge-style calls palette=blue stroke-style=dashed\n}";
+    let compiled = layup::compile(source).unwrap();
+    assert_eq!(compiled.scene.nodes[0].tone, layup::style::Tone::Purple);
+    let api = &compiled.document.as_ref().unwrap().objects["object:[\"api\"]"];
+    assert_eq!(
+        api.source_locations[0].range.as_ref().unwrap().start_line,
+        1
+    );
+    assert!(layup::compile(&source.replace("palette=purple", "palette=purple tone=blue")).is_err());
 }

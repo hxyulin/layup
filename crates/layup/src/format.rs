@@ -6,7 +6,7 @@ use crate::{
 };
 
 pub fn format(source: &str) -> Result<String, Error> {
-    if crate::document::is_versioned(source) {
+    if crate::document::is_document(source) {
         return crate::document::format(source);
     }
     crate::parser::parse(source)?;

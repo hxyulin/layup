@@ -27,11 +27,11 @@ diagram calls "Calls" type=graph background-color="#fff" {
       (identifier)
       (identifier))
     (arguments
-      (attribute
+      (annotation_argument
         (identifier)
         (string
           (string_content)))
-      (attribute
+      (annotation_argument
         (identifier)
         (record
           (record_entry
@@ -502,11 +502,11 @@ diagram future type=company-custom {
     (annotation_name
       (identifier))
     (arguments
-      (attribute
+      (annotation_argument
         (identifier)
         (string
           (string_content)))
-      (attribute
+      (annotation_argument
         (identifier)
         (record
           (record_entry

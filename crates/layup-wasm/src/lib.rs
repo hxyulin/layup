@@ -18,7 +18,8 @@ use layup::Theme;
 /// `font` entries holding base64-encoded fallback OpenType/TrueType bytes.
 /// `operation=lint` returns a diagnostics array; `operation=format` returns
 /// formatted source in `output`. `operation=compile` returns versioned scene
-/// JSON in `scene`. `view` selects a reusable model view. All operations use
+/// JSON in `scene`. `operation=inspect` returns a typed partial document and
+/// diagnostics without layout. `view` selects a reusable model view. All operations use
 /// the same length-prefixed JSON ABI.
 /// `input=graph` accepts versioned semantic graph JSON for render/compile.
 pub fn render(src: &str, options: &str) -> String {
@@ -36,7 +37,7 @@ pub fn render(src: &str, options: &str) -> String {
                 None => return error(None, &format!("unknown theme {value:?}")),
             },
             "format" if ["svg", "html", "embed"].contains(&value) => format = value,
-            "operation" if ["render", "format", "lint", "compile"].contains(&value) => {
+            "operation" if ["render", "format", "lint", "compile", "inspect"].contains(&value) => {
                 operation = value
             }
             "darkSelector" => dark_selector = Some(value),
@@ -65,6 +66,9 @@ pub fn render(src: &str, options: &str) -> String {
             None,
             "graph input supports only render and compile operations",
         );
+    }
+    if operation == "inspect" {
+        return layup::document::inspect(src).to_string();
     }
     if operation == "format" {
         return match layup::format::format(src) {

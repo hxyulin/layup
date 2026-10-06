@@ -79,3 +79,31 @@ test('inline and nested multiline comments preserve native/WASM formatting and s
   assert.throws(() => engine.compile(invalid), e => e instanceof LayupError && e.code === 'document/comment');
   assert.equal(engine.lint(invalid)[0].code, 'document/comment');
 });
+
+test('optional revision, opaque diagrams and inspection preserve exact values', () => {
+  const input = 'diagram future type=vendor.timeline { launch => 2027-01-01 ? custom }\ndiagram main type=graph {\n@vendor.data(choice=blue, integer=9007199254740993, max=18446744073709551615, float=1.0) node api\n}';
+  const scene = engine.compile(input);
+  assert.equal(scene.document.diagramId, 'main');
+  assert.deepEqual(scene.document.manifest.map(entry => entry.status), ['skipped', 'selected']);
+  const annotations = scene.document.objects['object:["api"]'].annotations;
+  assert.deepEqual(annotations[0].arguments.integer.value, { type: 'integer', value: '9007199254740993' });
+  assert.equal(BigInt(annotations[0].arguments.max.value.value), 18446744073709551615n);
+  assert.deepEqual(annotations[0].arguments.choice.value, { type: 'choice', value: 'blue' });
+  assert.deepEqual(annotations[0].arguments.float.value, { type: 'float', value: 1 });
+  const inspected = engine.inspect(input);
+  const native = cli(['inspect', '-'], input);
+  assert.equal(native.status, 0, native.stderr);
+  assert.deepEqual(inspected, JSON.parse(native.stdout));
+  assert.equal(inspected.document.diagrams[0].body.type, 'opaque');
+  assert.equal(inspected.document.diagrams[0].body.value.raw, '{ launch => 2027-01-01 ? custom }');
+  assert.equal(inspected.diagnostics[0].code, 'diagram/unrecognized-type');
+  assert.match(engine.format(input), /\{ launch => 2027-01-01 \? custom \}/);
+  assert.throws(() => engine.compile(input, { diagram: 'future' }), error => error.code === 'diagram/unavailable-selection');
+  assert.throws(() => engine.compile('layup 1.0\ndiagram main type=graph {}'), error => error.code === 'document/version');
+  const invalid = 'diagram main type=graph {\nnode broken width=\nnode valid\nunknown directive\nnode later\n}';
+  const recovery = engine.inspect(invalid);
+  assert.equal(recovery.diagnostics.filter(d => d.severity === 'error').length, 2);
+  assert.deepEqual(recovery.document.diagrams[0].body.value.map(item => item.value.id), ['valid', 'later']);
+  assert.equal(cli(['inspect', '-'], invalid).status, 1);
+  assert.deepEqual(engine.lint(invalid), JSON.parse(cli(['lint', '-', '--json'], invalid).stdout).map(row => row.diagnostic));
+});

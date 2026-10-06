@@ -53,7 +53,8 @@ running JavaScript. Keep `src/scanner.c` with `src/parser.c`: the scanner handle
 nested comments and string content. Compiled libraries and Node binaries are
 ignored.
 
-Tests cover corpus trees, highlight captures, every canonical example and
+Tests share valid document syntax fixtures with the Rust parser and cover
+corpus trees, highlight captures, every canonical example and
 checkpoint, query compilation, incremental edits and malformed-input recovery.
 CI also verifies that regenerating the parser produces the committed sources.
 When editing the grammar, use `pnpm syntax:generate`, review corpus changes,

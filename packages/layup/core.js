@@ -78,6 +78,7 @@ export function wrap(instance) {
 
   return {
     render,
+    inspect(source) { return invoke(source, 'operation=inspect'); },
     format(source) { return invoke(source, 'operation=format').output; },
     lint(source, { fonts = [], view, diagram } = {}) {
       return invoke(source, compileOptions('operation=lint', fonts, view, diagram)).diagnostics;

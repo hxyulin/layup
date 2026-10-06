@@ -23,6 +23,11 @@ The package is currently available from the repository. It has not been
 published to npm. Tree-sitter highlighting is an editor integration; the
 documentation playground continues to use its existing editor.
 
+Named documents have an optional `layup 1` revision assertion. See
+[shared document syntax](/guide/language-v1) for extensions and exact typed values.
+Use `layup inspect document.layup` or `engine.inspect(source)` to examine
+unavailable diagram bodies and partial syntax with diagnostics, without layout.
+
 ## Lint a source file or Markdown
 
 ```sh

@@ -17,6 +17,7 @@ layup render model.layup --view detail -o detail.svg
 layup compile model.layup --view detail -o detail.json
 layup check docs/*.md --strict
 layup lint diagram.layup --json
+layup inspect document.layup
 layup fmt diagram.layup --check
 layup build docs/ --html
 ```
@@ -124,3 +125,25 @@ reimplementation: CLI and browser parity tests exercise the same engine.
 The [package README](https://github.com/hxyulin/layup/blob/main/packages/layup/README.md)
 and [TypeScript definitions](https://github.com/hxyulin/layup/blob/main/packages/layup/index.d.ts)
 describe the module exports and complete scene types.
+
+
+## Named document inspection (current checkout)
+
+`layup::document::parse(source)` accepts named document syntax with an optional
+`layup 1` revision assertion. `document::parse_recovering(source)` returns a
+partial typed document and errors; `document::inspect(source)` returns the JSON
+inspection contract. In JavaScript, `engine.inspect(source)` returns the same
+`{document, diagnostics}` object. These operations preserve opaque bodies and
+extension annotations without measuring text or requiring a renderer.
+
+Values distinguish choices, strings, signed/unsigned 64-bit integers, finite
+floats, booleans, null, lists, records and references. Tagged JSON integers use
+decimal strings to retain exact values in JavaScript. Source and value spans
+remain UTF-8 byte offsets and Unicode scalar positions. Compilation rejects
+syntax errors even when inspection recovers valid siblings.
+
+`Scene.document` includes a supported/selected/skipped manifest, rich document
+diagnostics, ordered annotations on rendered objects and annotated non-rendered
+targets. Full opaque bodies appear in inspection, rather than rendered metadata.
+See [named document syntax](/guide/language-v1) for detailed behavior and the
+remaining body-grammar migration checkpoints.

@@ -218,7 +218,7 @@ const FLAG_WORDS: &[&str] = &[
 ];
 
 pub fn build(src: &str) -> Result<Diagram, Error> {
-    if crate::document::is_versioned(src) {
+    if crate::document::is_document(src) {
         return crate::document::build(src);
     }
     let result = (|| {

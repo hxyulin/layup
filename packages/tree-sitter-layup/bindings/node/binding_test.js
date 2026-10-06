@@ -114,3 +114,11 @@ test('leading comment markers in code strings stay content across edits', () => 
   assert.equal(tree.rootNode.toString(), parser().parse(updated).rootNode.toString());
   assert.equal(tree.rootNode.descendantsOfType(['line_comment', 'block_comment']).length, 0);
 });
+
+const conformance = JSON.parse(readFileSync(path.join(root, 'crates/layup/tests/fixtures/language/conformance.json'), 'utf8'));
+for (const fixture of conformance.filter(fixture => fixture.valid && !fixture.opaque)) {
+  test(`shared language: ${fixture.name}`, () => {
+    const tree = parser().parse(fixture.source);
+    assert.equal(tree.rootNode.hasError, false, tree.rootNode.toString());
+  });
+}

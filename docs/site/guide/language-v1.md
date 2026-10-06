@@ -1,169 +1,199 @@
-# Experimental language revision
+# Named documents and shared syntax
 
-The current checkout implements the first graph checkpoint of a new Layup
-language. Start a file with `layup 1` to opt in. Published 0.3.0 packages and
-unversioned files use the [existing DSL](/reference/dsl).
+The current checkout implements Layup's shared document language and scoped
+graph grammar. A file can start directly with a named diagram. An optional
+`layup 1` header asserts the supported source revision; it does not select a
+dialect. Unknown revisions and non-integer revision numbers are errors.
+These additions will ship after the published 0.3.0 packages.
 
-The shared document grammar owns comments, values, annotations, names, and
-references. A diagram's `kind` selects its body grammar. This checkpoint
-implements `kind=graph`; sequence, state-machine, and ER grammars report an
-explicit unsupported-kind error until their own parsers are implemented.
+The shared language owns comments, values, annotations, names, references and
+diagram envelopes. `type` selects a diagram's body grammar. Graph bodies are
+implemented; unavailable types are preserved as opaque source with a warning.
+Title-only legacy diagrams continue to support the existing sequence, state,
+view and presentation features while their document grammars are migrated.
 
 ## Try a graph
 
 ```layup source
-layup 1
-
-@doc(text="An API dispatches work to a worker.")
-diagram services "Service calls" kind=graph layout=auto direction=right {
-  node red "API" kind=service
+diagram services "Service calls" type=graph layout=auto flow-direction=right {
+  node red "API" style=service
   @source(uri="src/worker.rs", symbol="Worker::run")
-  node "Worker::run(&self)" "Worker" kind=service
-  edge dispatch red -> "Worker::run(&self)" "Dispatch" kind=calls
+  node "Worker::run(&self)" "Worker" style=service
+  edge dispatch red -> "Worker::run(&self)" "Dispatch" style=calls
 
-  node-kind service tone=blue base=node
-  edge-kind calls stroke=dashed tone=purple
+  node-style service palette=blue base=node
+  edge-style calls stroke-style=dashed palette=purple
 }
 ```
 
 The first name after `diagram`, `node`, `group`, `package`, or `crate` is its
-required ID. A second quoted string is the display label; otherwise the label
-defaults to the ID. A quoted first name is still an ID. Empty IDs are errors.
-Names such as `red` and `row` are ordinary IDs, independent of colors or kinds.
+required ID. A second quoted string is the display label; otherwise it defaults
+to the ID. Quoted first names remain IDs. IDs cannot be empty or contain control
+characters. Keywords and palette names such as `node`, `row` and `red` are
+contextual and can be IDs. Quote literal `true`, `false` and `null` names.
 
-Style properties use attributes: `tone=blue`, `fill=hollow`, `font=mono`,
-`align=center`, and `stroke=dashed`. `node-kind` and `edge-kind` declarations
-belong directly to the diagram. Their `base` may refer forward to another
-kind; inheritance cycles and duplicate kinds are errors. Attributes override
-the base regardless of their order. Instantiate a node with `node ID kind=NAME`
-and a relationship with `kind=NAME`; a kind never adds a statement keyword.
+Styles use attributes such as `palette=blue`, `font-family=mono`,
+`text-align=center` and `stroke-style=dashed`. Style declarations belong
+at diagram level. Bases may refer forward; cycles and duplicates are errors.
+Attribute order never changes meaning. Prototype spellings such as `kind`,
+`tone`, `node-kind` and `edge-kind` remain accepted during feature migration;
+assigning the same property through two spellings is an error. Independent
+paint channels from the vocabulary design remain a renderer checkpoint.
 
-`edge dispatch ...` declares a named relationship. `red -> worker` declares an
-anonymous one. Both support `->`, `<-`, `<->`, and `--`. A single optional quoted
-caption follows the endpoints. `source-side` and `target-side` refer to semantic
-endpoints: `a <- b` has source `b`; bidirectional and undirected edges retain
-written endpoint order. `via` sets the route's preferred side.
+A named `edge ID ...` can be referenced by future views or steps. Anonymous
+connections use the endpoints directly. Both accept `->`, `<-`, `<->` and `--`
+and one optional quoted caption. `source-side` and `target-side` refer to
+semantic endpoints; for `a <- b`, the source is `b`. `route-side` sets the
+preferred route side. Text direction and flow direction are separate properties.
 
 ## Scopes and names
 
-Named nodes and containers introduce scopes. Rows arrange content without
-adding a scope:
+Named objects introduce semantic scopes. Rows arrange content without creating
+a scope:
 
 ```layup source
-layup 1
-diagram caches "Scoped caches" kind=graph {
+diagram caches "Scoped caches" type=graph {
   row weights=[1, 1] {
-    group backend "Backend" {
-      node cache "Backend cache" tone=green
-    }
-    group frontend "Frontend" {
-      node cache "Frontend cache" tone=blue
-    }
+    group backend "Backend" { node cache "Backend cache" palette=green }
+    group frontend "Frontend" { node cache "Frontend cache" palette=blue }
   }
   edge sync frontend.cache -> ::backend.cache "Synchronize"
 }
 ```
 
 `backend.cache` has two path segments. `backend."worker.v2"` has a literal
-second segment containing a dot. `"backend.cache"` is one literal name, not a
-qualified path. `::` starts at the diagram root. Unqualified lookup searches
-the current scope and then ancestors; once a prefix matches, lookup stays with
-that object. Siblings may reuse names; duplicate names in one scope and
-ancestor-name shadowing are rejected, including forward declarations.
+second segment containing a dot. `"backend.cache"` is one literal name.
+`::` starts at the diagram root. Relative lookup searches the current scope
+and ancestors; once a prefix matches, lookup stays with that object. Siblings
+can reuse local names. Duplicate names in a scope and ancestor-name shadowing
+are rejected, including forward declarations.
 
-Bare names use Unicode identifiers with internal single hyphens. Quote names
-containing dots, slashes, `::`, spaces, or code punctuation. Quote literal
-`true`, `false`, and `null` IDs. Case and Unicode spelling remain exact.
+Bare names use Unicode identifiers with internal single hyphens. Quote dots,
+slashes, `::`, spaces and code punctuation. Case and Unicode spelling are exact.
 
-## Shared values and annotations
+## Comments and values
 
-Statements end at a newline or semicolon. `//` comments work outside strings,
-including after a declaration on the same line. `/* ... */` comments work
-between tokens and across lines, and can nest up to 128 levels:
+Newlines and semicolons separate statements; a closing brace ends the final
+statement. `//` comments work after declarations and `/* … */` comments can
+span lines and nest to 128 levels. Newlines inside block comments do not end
+statements. Comments never carry annotation semantics. Strings keep comment
+markers literally and support multiline content and `\"`, `\\`, `\n`, `\t`,
+`\r` escapes. Unsupported escapes and unclosed comments/strings are errors.
 
-```text
-node api "API" tone=/* explicit palette */blue // inline explanation
-/* A longer explanation.
-   /* Nested comments are allowed. */
-*/
-node worker "Worker"
-```
+Values distinguish choices, strings, integers, floats, booleans, null, lists,
+records and syntactic references. Bare `blue` is a choice; `"blue"` is a string.
+`1` is an integer; `1.0` and `1e0` are floats. Integers preserve exact signed
+64-bit negative and unsigned 64-bit nonnegative values. Overflow is an error;
+quote larger identifiers. Floats must be finite. Geometry validates its own
+ranges and converts numeric values only when building the renderer model.
 
-Comments act as whitespace; newlines inside a block comment do not terminate
-a statement. Delimiters inside strings remain literal. Formatting retains block
-comment contents and internal newlines; an unclosed block comment is an error.
-Comments have no annotation semantics.
+Collections allow newlines around separators and trailing commas. Record keys
+are data strings, can be empty, and do not introduce object IDs. Record keys
+and attributes cannot repeat. The shared nesting limit is 128, and each
+annotation is limited to 1 MiB. Formatting preserves numeric spelling,
+comments, string content, references and statement/event order.
 
-Values include strings, finite numbers, bare enum words, booleans, `null`,
-comma-separated lists, and records. Lists and records support newlines and
-trailing commas. Duplicate attributes and record keys are errors.
+## Annotations and extensions
 
-Annotations attach to the next diagram, node, or relationship in the same
-block. They do not inherit into children. An orphan annotation or annotation
-before a row, content item, or kind declaration is an error.
+Annotations use `@name(key=value, ...)`, with parentheses even when empty.
+Names may be dotted, such as `@company.analysis(...)`. They attach to the next
+construct in the same block, including styles, layout and content items.
+Blank lines and comments preserve attachment; a closing brace does not.
+Annotations can appear on the same line as their target and never inherit.
 
 ```text
 @source(uri="src/api.rs", symbol="API::run",
-  range={startLine: 8, startColumn: 1, endLine: 12, endColumn: 2})
+  range={start-line: 8, start-column: 1, end-line: 12, end-column: 2})
 @source(uri="src/lib.rs", symbol="exports::API")
 @doc(text="Accepts a request.")
+@company.analysis(confidence=0.92, generated=true, count=9007199254740993)
 @meta(namespace="analysis", value={public: true, tags: [entry, "HTTP"], extra: null})
 node "API::run(&self)" "API"
 ```
 
-`@source` is repeatable. Ranges use 1-based lines and Unicode scalar columns,
-with an exclusive end. `@doc` is a singleton. `@meta` accepts opaque data and
-is unique per namespace on each target. Unknown annotations or arguments and
-invalid ranges are errors. These code locations remain separate from the
-original DSL byte spans exported for declarations.
+`@source`, `@doc` and `@meta` retain strict argument and cardinality checks.
+Source evidence is repeatable and targets diagrams, objects or relationships;
+ranges use 1-based lines/scalar columns and an exclusive end. `@doc` is a
+singleton and `@meta` is unique per namespace. These locations describe original
+code, separately from the declaration's DSL span.
 
-Node bodies support `code`, `text`, and one `tag`, each followed by a quoted
-string, plus nested graph objects. Content has no body. Labels containing
-`[brackets]` remain literal; use an explicit `tag` item for a tag. Compact
-shapes reject child diagrams.
+Unknown annotations preserve their name, raw spelling, arguments, repeated
+occurrences, attachment and spans. They have no rendering effect. A strong
+unqualified typo such as `@sorce` receives a warning without being interpreted
+as `@source`. Namespaced extensions do not warn merely for being unknown.
+Opaque reference values in extension arguments are preserved without lookup.
+A public host schema-registration API remains a separate checkpoint.
 
-## Select and export
+## Unavailable diagram types
 
-A document can contain several graph diagrams. The first is the default;
-selection is explicit in the CLI or API:
+```text
+@company.owner(team=design)
+diagram roadmap "Roadmap" type=company.timeline {
+  launch => 2027-01-01 ? extension-specific punctuation
+}
+diagram services "Services" type=graph { node api "API" }
+```
+
+The unavailable diagram retains its envelope and balanced raw body. Braces
+inside quoted strings or comments do not end the body. Shared quoting/comment
+boundaries still apply, and malformed boundaries are document errors.
+Formatting preserves the entire opaque block byte-for-byte. Its ID participates
+in duplicate checks, and registered envelope annotations still validate.
+
+Rendering defaults to the first supported diagram and warns about all skipped
+entries. Explicitly selecting an unavailable diagram is an error. Supported
+siblings are validated before selection, so selecting one cannot hide another
+supported diagram's errors. `--strict` makes skip warnings fail CI. A document
+with no supported diagram can be inspected and formatted but cannot render.
+Typo hints only use a unique strong match in the same namespace.
+
+## Inspect, select and export
 
 ```sh
+layup inspect document.layup
 layup render document.layup --diagram services --theme auto
 layup compile document.layup --diagram services -o services.json
-layup lint document.layup --diagram services --json
+layup lint document.layup --json
 layup fmt document.layup --check
 ```
 
 ```js
+const inspection = engine.inspect(source);
 const scene = engine.compile(source, { diagram: 'services' });
-const { output } = engine.render(source, { diagram: 'services', format: 'html' });
+const { output, warnings } = engine.render(source, { diagram: 'services', format: 'html' });
 ```
 
-Markdown fences accept `diagram=services`; plugin options may set a default
-`diagram`. All diagrams are validated before selection; choosing one does
-not hide an invalid declaration in another. Formatting preserves token
-spellings and comments. The revision-one linter currently reports the first
-error, then layout warnings after a successful compilation.
+Inspection returns `{document, diagnostics}` without layout. It exposes the
+original source, typed diagrams, raw opaque bodies, annotations and value spans.
+Recovery retains valid siblings and reports independent syntax/lexical errors;
+the returned partial document does not make erroneous source renderable.
+CLI inspection writes JSON and exits unsuccessfully if errors are present.
+Formatting requires valid shared syntax but does not require an available body
+renderer or successful semantic resolution.
 
-Scene JSON retains its version-1 geometry contract and adds `document`,
-`objectPath`, and `authoredId`. Node/edge IDs are opaque renderer IDs: use exact
-`objectPath` segments and the selected `document.diagramId` for authored object
-identity. `document` contains documentation and annotations indexed by render
-ID. SVG and HTML carry the same information in `data-layup-document` metadata.
+Tagged values in inspection and annotation exports use forms such as
+`{type: "choice", value: "blue"}`, `{type: "integer", value: "9007199254740993"}`
+and `{type: "float", value: 1.0}`. Integer strings prevent JavaScript `Number`
+rounding; use `BigInt(value.value)` when arithmetic is needed. Convenience
+`@meta` JSON remains ordinary JSON, so use the authoritative tagged annotation
+values for integers outside JavaScript's exact range. Reference tags distinguish
+unresolved paths from strings and records.
 
-Try the [complete scoped example in the playground](/playground?example=language-v1).
-The playground currently renders the first diagram; use the CLI or API to
-select another diagram.
+Scene JSON retains version-1 geometry and adds document metadata: a manifest
+of supported/selected/skipped diagrams, diagnostics, ordered annotations and
+annotated non-rendered targets. SVG and HTML carry the same document metadata.
+Full unavailable bodies are available through inspection, not embedded in
+rendered exports. Renderer IDs remain opaque; use `document.diagramId`,
+`objectPath` segments and `authoredId` for authored identity.
 
-## What remains
+Markdown fences accept `diagram=services`. The playground renders the default
+supported diagram. Try the [scoped example](/playground?example=language-v1).
 
-This is an executable first checkpoint, not a migration of all Layup features.
-Defaults, views, steps, slides, explicit legends, additional layout containers,
-ports, and other diagram grammars remain on the design roadmap. Unsupported
-constructs are rejected rather than ignored. Existing examples and these
-features continue to work in unversioned syntax.
+## Remaining checkpoints
 
-The proposed new document JSON input is also pending. Existing semantic graph
-JSON and `compileModel`/`renderModel` retain their separate input contract.
-See the [full design](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-DESIGN.md)
-for the target syntax and implementation checkpoints.
+Defaults, views, steps, slides, explicit legends, independent paint overrides,
+ports and additional diagram body grammars still require migration. The
+proposed document JSON input remains pending; current graph JSON and
+`compileModel`/`renderModel` retain their separate contract. See the
+[language design](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-DESIGN.md)
+and [vocabulary review](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-VOCABULARY.md).
