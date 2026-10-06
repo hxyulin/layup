@@ -57,6 +57,17 @@ WASM build step to install it.
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 
+## Revision-one graph syntax (unreleased)
+
+The current checkout accepts an opt-in `layup 1` document through the existing
+`compile`, `render`, `format`, and `lint` methods. It adds explicit IDs, scoped
+references, source/doc/metadata annotations, order-independent kinds, and
+multiple graph diagrams. Select one with `{ diagram: 'services' }`; Markdown
+fences accept `diagram=services`. Scene JSON exports authored `objectPath`
+segments separately from opaque render IDs. Other diagram grammars, views and
+new document JSON input remain pending. See the
+[experimental guide](https://github.com/hxyulin/layup/blob/main/docs/site/guide/language-v1.md).
+
 ## Structured input and Cargo analysis (unreleased)
 
 The current checkout accepts version-1 semantic graph objects through

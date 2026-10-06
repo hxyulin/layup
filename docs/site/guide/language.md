@@ -1,5 +1,9 @@
 # The source language
 
+The examples below use the unversioned DSL. To try the new shared document
+rules and graph grammar in the current checkout, see
+[experimental language revision](/guide/language-v1).
+
 The DSL has three main ingredients: items, nested blocks, and relationships.
 Items end at a newline or semicolon. Braces group content, and `//` begins a
 comment outside a quoted string.

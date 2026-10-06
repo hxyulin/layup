@@ -47,6 +47,9 @@ diagram "Dispatch" layout=auto {
 include `fonts`, `view`, `theme`, and `strict`; `view=NAME` on a fence overrides
 the default selected view.
 
+In the current checkout, [revision-one documents](/guide/language-v1) also
+support a default `diagram` plugin option and a `diagram=ID` fence flag.
+
 ````markdown
 ```layup view=detail
 model "Services" {

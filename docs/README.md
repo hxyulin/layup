@@ -19,6 +19,8 @@ GitHub Pages setup and content maintenance.
 Repository-focused Markdown references remain available:
 
 - [Language and design reference](DESIGN.md)
+- [Draft language redesign](LANGUAGE-DESIGN.md)
+- [Language vocabulary review](LANGUAGE-VOCABULARY.md)
 - [Architecture](ARCHITECTURE.md)
 - [Language tools](LANGUAGE-TOOLS.md)
 - [Sequences](SEQUENCE.md)

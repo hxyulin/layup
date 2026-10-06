@@ -1,0 +1,29 @@
+// Revision-one graph grammar: global annotations, values and references.
+/* Comments can span lines and nest:
+   /* shared trivia */ they do not add a scope or carry annotation semantics.
+*/
+layup 1
+
+@doc(text="Scoped services and their source locations.")
+diagram services "Service calls" kind=graph layout=manual {
+  // Definitions can follow their uses; attributes are order independent.
+  row weights=[1, 1] {
+    group backend "Backend" {
+      @source(uri="src/api.rs", symbol="API::run", range={startLine: 8, startColumn: 1, endLine: 12, endColumn: 2})
+      @meta(namespace="analysis", value={public: true, tags: [entry, "HTTP"], score: 0.9, extra: null})
+      node "API::run(&self)" "API" kind=service {
+        code "fn run(&self)"
+      }
+      node cache "Backend cache" tone=/* explicit palette */green // local ID
+      edge lookup "API::run(&self)" -> cache "Lookup" kind=calls
+    }
+    group frontend "Frontend" {
+      node red "Client" kind=service
+      node cache "Frontend cache" tone=green
+      red -> cache "Read"
+    }
+  }
+  edge request frontend.red -> backend."API::run(&self)" "Request" kind=calls
+  node-kind service tone=blue base=node
+  edge-kind calls stroke=dashed tone=purple
+}

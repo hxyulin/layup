@@ -21,6 +21,24 @@ pub fn lint_with_options(
     options: &crate::CompileOptions,
     fonts: &Fonts,
 ) -> Vec<Diagnostic> {
+    if crate::document::is_versioned(source) {
+        return match crate::compile_with_options(source, options, fonts) {
+            Err(error) => vec![Diagnostic::from_error(&error)],
+            Ok(compiled) => compiled
+                .warnings
+                .iter()
+                .map(|warning| Diagnostic {
+                    severity: Severity::Warning,
+                    code: "layout",
+                    message: warning.msg.clone(),
+                    line: warning.line,
+                    span: None,
+                    help: None,
+                    related: Vec::new(),
+                })
+                .collect(),
+        };
+    }
     let parsed = crate::parser::parse_recovering(source);
     if !parsed.errors.is_empty() {
         return parsed.errors.iter().map(Diagnostic::from_error).collect();

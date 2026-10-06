@@ -1,5 +1,23 @@
 # Next diagram capabilities
 
+The [vocabulary review](LANGUAGE-VOCABULARY.md) defines the proposed names and
+direct replacement policy for the next source grammar. Complete the existing
+feature migration before making it the only parser; permanent legacy syntax
+support is not required.
+
+The document boundary will also preserve arbitrary namespaced annotations and
+opaque bodies for unavailable diagram types. Unknown types warn and skip by
+default, with typo hints for strong matches; explicitly selecting an unavailable
+diagram remains an error. Known syntax and registered annotation schemas stay
+strict. These behaviors are designed but not yet implemented in the checkpoint.
+
+The [draft language redesign](LANGUAGE-DESIGN.md) proposes shared syntax,
+annotations and scopes with a typed grammar per diagram kind. The current
+checkout implements its opt-in graph checkpoint; see the
+[experimental guide](site/guide/language-v1.md). Other grammars, views/defaults,
+ports, and new document JSON remain planned. Unversioned files keep their
+existing syntax.
+
 Direction and international text are the first foundation: automatic graph
 flow supports down, up, right and left, independently of the base direction
 of labels. Unicode line breaking handles CJK prose without spaces. CJK fonts

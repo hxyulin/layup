@@ -194,6 +194,7 @@ fn selected_views_and_presentation_are_exported_together() {
         source,
         &layup::CompileOptions {
             view: Some("detail".into()),
+            ..Default::default()
         },
         &layup::text::Fonts::default(),
     )

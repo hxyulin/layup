@@ -41,6 +41,7 @@ pub fn render(src: &str, options: &str) -> String {
             }
             "darkSelector" => dark_selector = Some(value),
             "view" => compile_options.view = Some(value.into()),
+            "diagram" => compile_options.diagram = Some(value.into()),
             "input" if value == "graph" => graph_input = true,
             "font" => {
                 let bytes = match STANDARD.decode(value) {
@@ -205,6 +206,7 @@ mod tests {
             src,
             &layup::CompileOptions {
                 view: Some("detail".into()),
+                ..Default::default()
             },
             &layup::text::Fonts::new(),
         )

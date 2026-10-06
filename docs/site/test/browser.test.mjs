@@ -74,7 +74,7 @@ test('all documentation routes and in-site links exist', async () => {
   const icon = await fetch(`${site}mark.svg`);
   assert.equal(icon.status, 200);
   assert.match(icon.headers.get('content-type'), /image\/svg\+xml/);
-  const paths = ['', 'examples', 'playground', 'contributing', 'guide/getting-started', 'guide/language', 'guide/layout', 'guide/styling', 'guide/presentations', 'guide/models', 'guide/formats', 'guide/markdown', 'guide/tooling', 'reference/api', 'reference/dsl', 'diagrams/architecture', 'diagrams/decisions', 'diagrams/states', 'diagrams/sequences'];
+  const paths = ['', 'examples', 'playground', 'contributing', 'guide/getting-started', 'guide/language', 'guide/language-v1', 'guide/layout', 'guide/styling', 'guide/presentations', 'guide/models', 'guide/formats', 'guide/markdown', 'guide/tooling', 'reference/api', 'reference/dsl', 'diagrams/architecture', 'diagrams/decisions', 'diagrams/states', 'diagrams/sequences'];
   const links = new Set();
   for (const path of paths) {
     const response = await fetch(`${site}${path ? `${path}.html` : ''}`);
@@ -145,7 +145,7 @@ test('formatting preserves strings and comments, and Tab leaves the editor', asy
 
 test('all canonical examples render; named views and presentation steps work', async () => {
   await openEditor();
-  for (const id of ['architecture', 'decisions', 'states', 'composite', 'sequence', 'international', 'rtl', 'slides', 'models', 'presentation']) {
+  for (const id of ['architecture', 'decisions', 'states', 'composite', 'sequence', 'international', 'rtl', 'slides', 'models', 'language-v1', 'presentation']) {
     await editor().getByLabel('Example', { exact: true }).selectOption(id);
     await ready();
     assert.ok(await preview().locator('.node').count(), id);

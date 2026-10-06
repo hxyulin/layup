@@ -179,7 +179,7 @@ console.log(scene.nodes, scene.edges, scene.presentation.steps);
 
 ```rust
 let fonts = layup::text::Fonts::default();
-let options = layup::CompileOptions { view: Some("walkthrough".into()) };
+let options = layup::CompileOptions { view: Some("walkthrough".into()), ..Default::default() };
 let compiled = layup::compile_with_options(source, &options, &fonts)?;
 let json = layup::scene::export(&compiled)?;
 # Ok::<(), layup::Error>(())

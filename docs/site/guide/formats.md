@@ -83,7 +83,8 @@ Check the schema version before interpreting it.
 | `viewport` | Rendered dimensions and optional slide transform |
 | `nodes` | IDs, kinds, parents, rectangles, outlines, tones, links, source spans |
 | `edges` | IDs, endpoints, path points, style, captions, source spans |
-| Node/edge `sourceLocations`, `metadata`; root `provenance` | Original code locations and analysis evidence for structured graph inputs; empty/null for DSL |
+| Node/edge `sourceLocations`, `metadata`; root `provenance` | Code locations and analysis evidence from structured graph input or revision-one annotations; provenance belongs to structured graph input |
+| `document`, node `objectPath`, edge `authoredId` | Revision-one language/diagram identity, exact path segments, annotations, and named relationship IDs; null for unversioned DSL and graph JSON |
 | `items`, `keepout` | Ordered drawing operations and reserved rectangles |
 | `views`, `selectedView` | Available views and current selection |
 | `presentation` | Versioned visibility and highlight steps |

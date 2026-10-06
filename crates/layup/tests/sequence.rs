@@ -265,6 +265,7 @@ fn selected_sequence_views_keep_message_identity_and_authored_order() {
     ] {
         let options = layup::CompileOptions {
             view: Some(view.into()),
+            ..Default::default()
         };
         let c = layup::compile_with_options(source, &options, &fonts).unwrap();
         assert!(c.warnings.is_empty(), "{:?}", c.warnings);

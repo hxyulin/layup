@@ -5,6 +5,8 @@ export interface LayupMarkdownOptions {
   fonts?: readonly Uint8Array[];
   /** Default named view; a fence `view=NAME` flag takes precedence. */
   view?: string;
+  /** Default revision-one diagram; a fence `diagram=NAME` flag takes precedence. */
+  diagram?: string;
   /** Default `auto`. */
   theme?: Theme;
   /** Follow a host class such as `.dark` instead of `prefers-color-scheme`. */

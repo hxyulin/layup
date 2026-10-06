@@ -218,6 +218,9 @@ const FLAG_WORDS: &[&str] = &[
 ];
 
 pub fn build(src: &str) -> Result<Diagram, Error> {
+    if crate::document::is_versioned(src) {
+        return crate::document::build(src);
+    }
     let result = (|| {
         let mut resolved = crate::views::resolve(&parse(src)?, None)?;
         crate::presentation::extract(&mut resolved.statements)?;
@@ -247,8 +250,16 @@ pub fn build(src: &str) -> Result<Diagram, Error> {
 }
 
 pub(crate) fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
+    build_statements_with_tags(stmts, true)
+}
+
+pub(crate) fn build_statements_with_tags(
+    stmts: &[Stmt],
+    legacy_tags: bool,
+) -> Result<Diagram, Error> {
     validate_numbers(stmts)?;
     let mut b = Builder {
+        legacy_tags,
         kinds: presets(),
         arrows: arrow_presets(),
         ids: BTreeSet::new(),
@@ -515,6 +526,7 @@ fn validate_numbers(stmts: &[Stmt]) -> Result<(), Error> {
 }
 
 struct Builder {
+    legacy_tags: bool,
     kinds: BTreeMap<String, NodeStyle>,
     arrows: BTreeMap<String, ArrowStyle>,
     ids: BTreeSet<String>,
@@ -771,7 +783,8 @@ impl Builder {
                 },
             }
         }
-        if let Some(t) = &title
+        if self.legacy_tags
+            && let Some(t) = &title
             && tag.is_none()
             && let Some((tg, rest)) = split_tag(t)
         {
@@ -1080,7 +1093,7 @@ impl Builder {
                 _ => return Err(Error::at(e.line, "numbers are not valid edge arguments")),
             }
         }
-        if e.left && edge.from_side.is_some() {
+        if e.left && !e.right && edge.from_side.is_some() {
             // `a <- b from=top` reads from b's point of view; swap the ports.
             std::mem::swap(&mut edge.from_side, &mut edge.to_side);
         }

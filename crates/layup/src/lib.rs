@@ -15,6 +15,7 @@
 mod arrange;
 pub mod check;
 pub mod diagnostic;
+pub mod document;
 pub mod format;
 pub mod geometry;
 pub mod html;
@@ -159,6 +160,8 @@ impl Theme {
 pub struct Compiled {
     /// Original structured input, when compiled through `input::compile`.
     pub input: Option<input::Graph>,
+    /// Revision-one authored identities and annotations, when present.
+    pub document: Option<document::Info>,
     pub diagram: model::Diagram,
     pub scene: layout::Scene,
     pub warnings: Vec<Warning>,
@@ -183,6 +186,7 @@ impl Compiled {
 #[derive(Debug, Clone, Default)]
 pub struct CompileOptions {
     pub view: Option<String>,
+    pub diagram: Option<String>,
 }
 
 pub fn compile(src: &str) -> Result<Compiled, Error> {
@@ -220,6 +224,14 @@ fn compile_document(
     options: &CompileOptions,
     fonts: &text::Fonts,
 ) -> Result<Compiled, Error> {
+    if document::is_versioned(src) {
+        return document::compile(src, options, fonts);
+    }
+    if options.diagram.is_some() {
+        return Err(Error::new(
+            "diagram selection requires a `layup 1` document",
+        ));
+    }
     compile_statements(&parser::parse(src)?, options, fonts)
 }
 
@@ -227,6 +239,15 @@ pub(crate) fn compile_statements(
     statements: &[parser::Stmt],
     options: &CompileOptions,
     fonts: &text::Fonts,
+) -> Result<Compiled, Error> {
+    compile_lowered(statements, options, fonts, true)
+}
+
+pub(crate) fn compile_lowered(
+    statements: &[parser::Stmt],
+    options: &CompileOptions,
+    fonts: &text::Fonts,
+    legacy_tags: bool,
 ) -> Result<Compiled, Error> {
     let mut resolved = views::resolve(statements, options.view.as_deref())?;
     let steps = presentation::extract(&mut resolved.statements)?;
@@ -247,7 +268,7 @@ pub(crate) fn compile_statements(
     };
     let mut diagram = match &sequence_document {
         Some(document) => document.diagram.clone(),
-        None => model::build_statements(&resolved.statements)?,
+        None => model::build_statements_with_tags(&resolved.statements, legacy_tags)?,
     };
     if diagram.mode == model::Mode::StateMachine {
         machine::check(&diagram, &mut warnings);
@@ -319,6 +340,7 @@ pub(crate) fn compile_statements(
     let slide = slide.map(|s| s.plan(&scene, &mut warnings));
     Ok(Compiled {
         input: None,
+        document: None,
         diagram,
         scene,
         warnings,

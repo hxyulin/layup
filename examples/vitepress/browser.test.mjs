@@ -6,15 +6,15 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
 
-const PORT = 4174;
-const URL = `http://localhost:${PORT}/`;
+const PORT = Number(process.env.LAYUP_VITEPRESS_TEST_PORT || 4174);
+const URL = `http://127.0.0.1:${PORT}/`;
 let server;
 let browser;
 let page;
 const errors = [];
 
 before(async () => {
-  server = spawn('pnpm', ['exec', 'vitepress', 'preview', '--port', String(PORT)], { stdio: 'ignore' });
+  server = spawn('pnpm', ['exec', 'vitepress', 'preview', '--host', '127.0.0.1', '--port', String(PORT), '--strictPort'], { stdio: 'ignore', detached: process.platform !== 'win32' });
   for (let i = 0; ; i++) {
     try {
       if ((await fetch(URL)).ok) break;
@@ -31,7 +31,9 @@ before(async () => {
 
 after(async () => {
   await browser?.close();
-  server?.kill();
+  if (server?.pid) {
+    try { if (process.platform === 'win32') server.kill(); else process.kill(-server.pid, 'SIGTERM'); } catch {}
+  }
 });
 
 const svg = (n = 0) => page.locator('.layup-diagram svg.layup').nth(n);

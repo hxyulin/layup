@@ -6,6 +6,9 @@ use crate::{
 };
 
 pub fn format(source: &str) -> Result<String, Error> {
+    if crate::document::is_versioned(source) {
+        return crate::document::format(source);
+    }
     crate::parser::parse(source)?;
     let tokens = lex_lossless(source)?;
     let mut out = String::new();

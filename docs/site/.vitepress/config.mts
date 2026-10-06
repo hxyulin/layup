@@ -32,6 +32,7 @@ export default defineConfig({
       { text: 'Learn Layup', items: [
         { text: 'Getting started', link: '/guide/getting-started' },
         { text: 'The source language', link: '/guide/language' },
+        { text: 'Experimental language revision', link: '/guide/language-v1' },
         { text: 'Layout and routing', link: '/guide/layout' },
         { text: 'Styling and international text', link: '/guide/styling' },
       ] },

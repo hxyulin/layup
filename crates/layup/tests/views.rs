@@ -301,6 +301,7 @@ fn native_compilation_uses_selected_view_and_preserves_authored_references() {
         SOURCE,
         &layup::CompileOptions {
             view: Some("detail".into()),
+            ..Default::default()
         },
         &layup::text::Fonts::default(),
     )
@@ -331,6 +332,7 @@ fn formatting_keeps_every_view_semantically_identical() {
     for view in ["overview", "detail"] {
         let options = layup::CompileOptions {
             view: Some(view.into()),
+            ..Default::default()
         };
         let fonts = layup::text::Fonts::default();
         let before = layup::compile_with_options(SOURCE, &options, &fonts).unwrap();
@@ -363,6 +365,7 @@ fn view_local_steps_compile_and_shared_steps_with_excluded_targets_fail() {
         source,
         &layup::CompileOptions {
             view: Some("first".into()),
+            ..Default::default()
         },
         &fonts,
     )
@@ -374,6 +377,7 @@ fn view_local_steps_compile_and_shared_steps_with_excluded_targets_fail() {
         source,
         &layup::CompileOptions {
             view: Some("second".into()),
+            ..Default::default()
         },
         &fonts,
     )
@@ -404,6 +408,7 @@ fn selected_composite_view_retains_state_scope_and_semantic_validation() {
         source,
         &layup::CompileOptions {
             view: Some("invalid".into()),
+            ..Default::default()
         },
         &layup::text::Fonts::default(),
     );
@@ -437,6 +442,7 @@ fn edge_ids_stay_stable_across_views_and_skip_explicit_reservations() {
         source,
         &layup::CompileOptions {
             view: Some("pair".into()),
+            ..Default::default()
         },
         &fonts,
     )
@@ -471,6 +477,7 @@ fn sequence_views_filter_participants_and_keep_message_ids_inside_fragments() {
         source,
         &layup::CompileOptions {
             view: Some("request".into()),
+            ..Default::default()
         },
         &layup::text::Fonts::default(),
     )
@@ -527,6 +534,7 @@ fn sequence_views_filter_targeted_notes_with_excluded_participants() {
         source,
         &layup::CompileOptions {
             view: Some("request".into()),
+            ..Default::default()
         },
         &layup::text::Fonts::default(),
     )

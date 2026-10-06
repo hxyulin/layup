@@ -16,6 +16,9 @@ struct Cli {
     /// Select a named view from a reusable model document.
     #[arg(long, global = true)]
     view: Option<String>,
+    /// Select a diagram from a revision-one document (defaults to the first).
+    #[arg(long, global = true)]
+    diagram: Option<String>,
     #[command(subcommand)]
     cmd: Cmd,
 }
@@ -148,7 +151,10 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
             .add_fallback(bytes)
             .map_err(|e| format!("{}: {e}", path.display()))?;
     }
-    let options = layup::CompileOptions { view: cli.view };
+    let options = layup::CompileOptions {
+        view: cli.view,
+        diagram: cli.diagram,
+    };
     match cli.cmd {
         Cmd::Render {
             input,

@@ -51,7 +51,7 @@ For supplied fonts and a named view:
 ```rust
 let mut fonts = layup::text::Fonts::default();
 fonts.add_fallback(std::fs::read("CJK-Regular.ttf")?)?;
-let options = layup::CompileOptions { view: Some("detail".into()) };
+let options = layup::CompileOptions { view: Some("detail".into()), ..Default::default() };
 let compiled = layup::compile_with_options(source, &options, &fonts)?;
 ```
 
@@ -102,7 +102,12 @@ const diagnostics = engine.lint(source);
 | `renderModel(model, options)` | SVG/HTML/embed and warnings from semantic graph input (current checkout) |
 
 Render accepts `theme`, `format`, `darkSelector`, `fonts`, and `view`.
-Compile/lint accept `fonts` and `view`. Font bytes are `Uint8Array` values.
+Compile/lint accept `fonts` and `view`. In the current checkout these operations
+also accept `diagram` to select a diagram in a
+[`layup 1` document](/guide/language-v1); the CLI uses `--diagram ID` and Rust
+uses `CompileOptions.diagram`. `layup::document::parse` exposes its typed syntax
+tree, and `Compiled.document` exposes selected identity and annotation data.
+Font bytes are `Uint8Array` values.
 `LayupError` includes rich source locations, diagnostic code, help, and
 related ranges.
 

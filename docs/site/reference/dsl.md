@@ -1,5 +1,10 @@
 # DSL reference
 
+This page describes the unversioned DSL. The current checkout also has an
+opt-in [revision-one graph grammar](/guide/language-v1), with explicit IDs,
+scoped references, annotations, and named attributes. It is experimental and
+has not been published in the 0.3.0 packages.
+
 Items end with a newline or semicolon; braces introduce a body. Quoted strings
 contain display text, bare IDs reference semantic objects, and `key=value`
 sets an attribute. See [the language walkthrough](/guide/language) for syntax

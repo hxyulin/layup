@@ -34,19 +34,23 @@ export function wrap(instance) {
     return `\nfont=${btoa(binary)}`;
   }
 
-  function compileOptions(options, fonts, view) {
+  function compileOptions(options, fonts, view, diagram) {
     if (view !== undefined) {
       if (typeof view !== 'string' || /[\r\n]/.test(view)) throw new TypeError('view must be a single-line string');
       options += `\nview=${view}`;
+    }
+    if (diagram !== undefined) {
+      if (typeof diagram !== 'string' || /[\r\n]/.test(diagram)) throw new TypeError('diagram must be a single-line string');
+      options += `\ndiagram=${diagram}`;
     }
     for (const font of fonts) options += fontOption(font);
     return options;
   }
 
-  function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [], view } = {}) {
+  function render(source, { theme = 'light', format = 'svg', darkSelector, fonts = [], view, diagram } = {}) {
     let options = `theme=${theme}\nformat=${format}`;
     if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
-    return invoke(source, compileOptions(options, fonts, view));
+    return invoke(source, compileOptions(options, fonts, view, diagram));
   }
 
   function graphSource(model) {
@@ -75,19 +79,19 @@ export function wrap(instance) {
   return {
     render,
     format(source) { return invoke(source, 'operation=format').output; },
-    lint(source, { fonts = [], view } = {}) {
-      return invoke(source, compileOptions('operation=lint', fonts, view)).diagnostics;
+    lint(source, { fonts = [], view, diagram } = {}) {
+      return invoke(source, compileOptions('operation=lint', fonts, view, diagram)).diagnostics;
     },
-    compile(source, { fonts = [], view } = {}) {
-      return invoke(source, compileOptions('operation=compile', fonts, view)).scene;
+    compile(source, { fonts = [], view, diagram } = {}) {
+      return invoke(source, compileOptions('operation=compile', fonts, view, diagram)).scene;
     },
-    compileModel(model, { fonts = [], view } = {}) {
-      return invoke(graphSource(model), compileOptions('operation=compile\ninput=graph', fonts, view)).scene;
+    compileModel(model, { fonts = [], view, diagram } = {}) {
+      return invoke(graphSource(model), compileOptions('operation=compile\ninput=graph', fonts, view, diagram)).scene;
     },
-    renderModel(model, { theme = 'light', format = 'svg', darkSelector, fonts = [], view } = {}) {
+    renderModel(model, { theme = 'light', format = 'svg', darkSelector, fonts = [], view, diagram } = {}) {
       let options = `input=graph\ntheme=${theme}\nformat=${format}`;
       if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
-      return invoke(graphSource(model), compileOptions(options, fonts, view));
+      return invoke(graphSource(model), compileOptions(options, fonts, view, diagram));
     },
   };
 }

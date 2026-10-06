@@ -5,6 +5,8 @@ export interface CompileOptions {
   fonts?: readonly Uint8Array[];
   /** Select a named view of a shared model; the first authored view is the default. */
   view?: string;
+  /** Select a diagram in a `layup 1` document; defaults to the first declaration. */
+  diagram?: string;
 }
 
 export interface RenderOptions extends CompileOptions {
@@ -164,6 +166,8 @@ export interface TextRun {
 }
 export interface SceneNode {
   readonly id: string;
+  /** Authored path segments for revision-one DSL; renderer IDs remain opaque. */
+  readonly objectPath: readonly string[] | null;
   readonly kind: string;
   readonly parentId: string | null;
   readonly rect: Rect;
@@ -177,6 +181,8 @@ export interface SceneNode {
 }
 export interface SceneEdge {
   readonly id: string;
+  /** Named revision-one relationship ID; null for anonymous or legacy edges. */
+  readonly authoredId: string | null;
   readonly from: string;
   readonly to: string;
   readonly kind: string;
@@ -221,6 +227,21 @@ export interface SequenceInfo {
   readonly messages: readonly { readonly id: string; readonly asynchronous: boolean; readonly line: number; readonly span: SourceSpan }[];
   readonly annotations: readonly { readonly kind: string; readonly label: string; readonly rect: Rect; readonly line: number; readonly span: SourceSpan }[];
 }
+export interface DocumentEntityInfo {
+  readonly path: readonly string[] | null;
+  readonly authoredId: string | null;
+  readonly documentation: string | null;
+  readonly sourceLocations: readonly SourceLocation[];
+  readonly metadata: { readonly [namespace: string]: JsonValue };
+}
+export interface DocumentInfo {
+  readonly languageVersion: 1;
+  readonly diagramId: string;
+  readonly diagrams: readonly string[];
+  readonly diagram: DocumentEntityInfo;
+  readonly objects: { readonly [renderId: string]: DocumentEntityInfo };
+  readonly relationships: { readonly [renderId: string]: DocumentEntityInfo };
+}
 export interface Scene {
   readonly version: 1;
   readonly units: 'svg-user-units';
@@ -234,6 +255,7 @@ export interface Scene {
   readonly contentRight: number;
   readonly viewport: { readonly width: number; readonly height: number; readonly slide: SlideTransform | null };
   readonly selectedView: string | null;
+  readonly document: DocumentInfo | null;
   readonly provenance: AnalysisProvenance | null;
   readonly views: readonly SceneView[];
   readonly nodes: readonly SceneNode[];

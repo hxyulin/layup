@@ -73,6 +73,14 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
             esc(&input.analysis(c).to_string())
         );
     }
+    if let Some(document) = &c.document {
+        writeln!(
+            s,
+            "  <metadata data-layup-document=\"1\">{}</metadata>",
+            esc(&serde_json::to_string(document).expect("document information is serializable"))
+        )
+        .unwrap();
+    }
     let _ = writeln!(
         s,
         "  <metadata>{}</metadata>",

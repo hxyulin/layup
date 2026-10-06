@@ -19,6 +19,7 @@ fn structured_input_preserves_symbols_hierarchy_views_and_original_locations() {
     let source = graph().to_string();
     let options = CompileOptions {
         view: Some("detail".into()),
+        ..Default::default()
     };
     let compiled = input::compile_json(&source, &options, &Fonts::new()).unwrap();
     let result: Value = serde_json::from_str(&scene::export(&compiled).unwrap()).unwrap();

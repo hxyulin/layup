@@ -75,17 +75,45 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
             ("line", source_line(node.line)),
             ("span", source_span(node.span)),
             (
+                "objectPath",
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.objects.get(&node.id))
+                    .map_or("null".into(), |n| {
+                        serde_json::to_string(&n.path).expect("paths are serializable")
+                    }),
+            ),
+            (
                 "sourceLocations",
-                input_nodes.get(node.id.as_str()).map_or("[]".into(), |n| {
-                    serde_json::to_string(&n.source_locations)
-                        .expect("source locations are serializable")
-                }),
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.objects.get(&node.id))
+                    .map(|n| {
+                        serde_json::to_string(&n.source_locations)
+                            .expect("source locations are serializable")
+                    })
+                    .unwrap_or_else(|| {
+                        input_nodes.get(node.id.as_str()).map_or("[]".into(), |n| {
+                            serde_json::to_string(&n.source_locations)
+                                .expect("source locations are serializable")
+                        })
+                    }),
             ),
             (
                 "metadata",
-                input_nodes.get(node.id.as_str()).map_or("{}".into(), |n| {
-                    serde_json::to_string(&n.metadata).expect("JSON metadata is serializable")
-                }),
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.objects.get(&node.id))
+                    .map(|n| serde_json::to_string(&n.metadata).expect("metadata is serializable"))
+                    .unwrap_or_else(|| {
+                        input_nodes.get(node.id.as_str()).map_or("{}".into(), |n| {
+                            serde_json::to_string(&n.metadata)
+                                .expect("JSON metadata is serializable")
+                        })
+                    }),
             ),
         ]));
     }
@@ -132,17 +160,43 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
             ("line", source_line(edge.line)),
             ("span", source_span(edge.span)),
             (
+                "authoredId",
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.relationships.get(&edge.id))
+                    .map_or("null".into(), |e| optional(e.authored_id.as_deref())),
+            ),
+            (
                 "sourceLocations",
-                input_edges.get(edge.id.as_str()).map_or("[]".into(), |e| {
-                    serde_json::to_string(&e.source_locations)
-                        .expect("source locations are serializable")
-                }),
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.relationships.get(&edge.id))
+                    .map(|e| {
+                        serde_json::to_string(&e.source_locations)
+                            .expect("source locations are serializable")
+                    })
+                    .unwrap_or_else(|| {
+                        input_edges.get(edge.id.as_str()).map_or("[]".into(), |e| {
+                            serde_json::to_string(&e.source_locations)
+                                .expect("source locations are serializable")
+                        })
+                    }),
             ),
             (
                 "metadata",
-                input_edges.get(edge.id.as_str()).map_or("{}".into(), |e| {
-                    serde_json::to_string(&e.metadata).expect("JSON metadata is serializable")
-                }),
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.relationships.get(&edge.id))
+                    .map(|e| serde_json::to_string(&e.metadata).expect("metadata is serializable"))
+                    .unwrap_or_else(|| {
+                        input_edges.get(edge.id.as_str()).map_or("{}".into(), |e| {
+                            serde_json::to_string(&e.metadata)
+                                .expect("JSON metadata is serializable")
+                        })
+                    }),
             ),
         ]));
     }
@@ -306,6 +360,11 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
         ),
         ("selectedView", optional(compiled.selected_view.as_deref())),
         ("views", array(views)),
+        (
+            "document",
+            serde_json::to_string(&compiled.document)
+                .expect("document information is serializable"),
+        ),
         ("nodes", array(nodes)),
         ("edges", array(edges)),
         ("items", array(items)),

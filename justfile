@@ -128,6 +128,10 @@ sequence-test:
 analysis-test: wasm
     node tools/verify-code-analysis.mjs
 
+# Review revision-one scopes, code locations and opaque IDs in Chromium.
+language-test: wasm
+    node tools/verify-language-v1.mjs
+
 # Regenerate light/dark README previews from canonical examples.
 showcase:
     pnpm showcase

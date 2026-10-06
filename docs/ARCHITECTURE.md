@@ -39,6 +39,14 @@ package relationships and production targets without building the workspace.
    items and edge statements. Syntax is separate from node-kind semantics.
    Tokens and syntax nodes carry UTF-8 byte spans and scalar columns. The
    recovering parser collects sibling errors; compilation uses strict parsing.
+   A `layup 1` header dispatches to `document/`, whose shared lexer/value/reference
+   parser builds a typed document and graph statements. Its validator resolves
+   scoped paths, annotations and kind inheritance across every diagram before
+   selection. A backend adapter lowers the selected graph into the existing
+   model/layout pipeline; legacy parser rules do not interpret the new syntax.
+   `Compiled::document` retains authored path segments and evidence independently
+   of opaque renderer IDs and original DSL source spans. Additional body grammars
+   and document JSON input remain implementation checkpoints.
 2. **Resolve semantics.** `views.rs` selects and filters a shared model while
    preserving source spans and semantic IDs. `presentation.rs` extracts step
    definitions and `slides.rs` extracts viewport options. `model.rs` builds a typed `Diagram`, resolves styles

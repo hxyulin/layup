@@ -6,6 +6,7 @@ fn public_model_builder_accepts_the_same_document_preprocessing() {
         include_str!("../../../examples/presentation-model.layup"),
         include_str!("../../../examples/model-views.layup"),
         include_str!("../../../examples/slides.layup"),
+        include_str!("../../../examples/language-v1.layup"),
     ] {
         let typed = model::build(source).unwrap();
         let compiled = compile(source).unwrap();
@@ -47,6 +48,7 @@ fn view_filtering_does_not_make_shared_declarations_unused() {
     }"#;
     let options = layup::CompileOptions {
         view: Some("storage".into()),
+        ..Default::default()
     };
     let diagnostics =
         layup::lint::lint_with_options(source, &options, &layup::text::Fonts::default());

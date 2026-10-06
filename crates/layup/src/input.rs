@@ -158,6 +158,11 @@ pub fn compile_json(
 }
 
 pub fn compile(graph: &Graph, options: &CompileOptions, fonts: &Fonts) -> Result<Compiled, Error> {
+    if options.diagram.is_some() {
+        return Err(Error::new(
+            "diagram selection requires a `layup 1` document",
+        ));
+    }
     let statements = graph.statements()?;
     let mut compiled =
         crate::compile_statements(&statements, options, fonts).map_err(|mut error| {
