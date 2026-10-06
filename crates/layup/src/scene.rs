@@ -3,7 +3,7 @@
 //! Geometry remains in the scene's original SVG user units. A slide viewport
 //! supplies a separate transform; consumers apply it exactly once. Font family
 //! identifiers are exported, never font bytes or source-file contents.
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     Compiled, Error,
@@ -19,6 +19,32 @@ pub const VERSION: u32 = 1;
 /// are errors rather than invalid JSON or silently substituted `null` values.
 pub fn export(compiled: &Compiled) -> Result<String, Error> {
     let scene = &compiled.scene;
+    let input_nodes: BTreeMap<_, _> = compiled
+        .input
+        .iter()
+        .flat_map(|g| &g.nodes)
+        .map(|n| (n.id.as_str(), n))
+        .collect();
+    let input_edges: BTreeMap<_, _> = compiled
+        .input
+        .iter()
+        .flat_map(|g| &g.edges)
+        .map(|e| (e.id.as_str(), e))
+        .collect();
+    let source_line = |line: usize| {
+        if compiled.input.is_some() {
+            "null".into()
+        } else {
+            line.to_string()
+        }
+    };
+    let source_span = |value| {
+        if compiled.input.is_some() {
+            "null".into()
+        } else {
+            span(value)
+        }
+    };
     let ids: BTreeSet<_> = scene.nodes.iter().map(|n| n.id.as_str()).collect();
     if ids.len() != scene.nodes.len() {
         return Err(invalid_reference("scene contains duplicate node IDs"));
@@ -46,8 +72,21 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
             ("outline", outline(node.outline)?),
             ("tone", quote(node.tone.name())),
             ("href", optional(node.href.as_deref())),
-            ("line", node.line.to_string()),
-            ("span", span(node.span)),
+            ("line", source_line(node.line)),
+            ("span", source_span(node.span)),
+            (
+                "sourceLocations",
+                input_nodes.get(node.id.as_str()).map_or("[]".into(), |n| {
+                    serde_json::to_string(&n.source_locations)
+                        .expect("source locations are serializable")
+                }),
+            ),
+            (
+                "metadata",
+                input_nodes.get(node.id.as_str()).map_or("{}".into(), |n| {
+                    serde_json::to_string(&n.metadata).expect("JSON metadata is serializable")
+                }),
+            ),
         ]));
     }
     let edge_ids: BTreeSet<_> = scene.edges.iter().map(|e| e.id.as_str()).collect();
@@ -90,8 +129,21 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
                 "chip",
                 edge.chip.as_ref().map_or(Ok("null".into()), drawing)?,
             ),
-            ("line", edge.line.to_string()),
-            ("span", span(edge.span)),
+            ("line", source_line(edge.line)),
+            ("span", source_span(edge.span)),
+            (
+                "sourceLocations",
+                input_edges.get(edge.id.as_str()).map_or("[]".into(), |e| {
+                    serde_json::to_string(&e.source_locations)
+                        .expect("source locations are serializable")
+                }),
+            ),
+            (
+                "metadata",
+                input_edges.get(edge.id.as_str()).map_or("{}".into(), |e| {
+                    serde_json::to_string(&e.metadata).expect("JSON metadata is serializable")
+                }),
+            ),
         ]));
     }
     let mut items = Vec::new();
@@ -139,7 +191,7 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
             object([
                 ("id", quote(&v.id)),
                 ("title", quote(&v.title)),
-                ("span", span(v.span)),
+                ("span", source_span(v.span)),
             ])
         })
         .collect();
@@ -293,6 +345,12 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
         ("presentation", compiled.presentation.json()),
         ("sequence", sequence),
         ("diagnostics", array(diagnostics)),
+        (
+            "provenance",
+            compiled.input.as_ref().map_or("null".into(), |g| {
+                serde_json::to_string(&g.provenance).expect("provenance is serializable")
+            }),
+        ),
     ]))
 }
 

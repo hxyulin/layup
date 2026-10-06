@@ -27,6 +27,14 @@ enum ThemeArg {
     Auto,
 }
 
+#[derive(Clone, Copy, ValueEnum)]
+enum InputFormat {
+    /// Infer graph JSON from a .json extension; otherwise read DSL.
+    Auto,
+    Dsl,
+    Graph,
+}
+
 impl From<ThemeArg> for layup::Theme {
     fn from(t: ThemeArg) -> Self {
         match t {
@@ -41,8 +49,11 @@ impl From<ThemeArg> for layup::Theme {
 enum Cmd {
     /// Render a diagram to SVG (default) or interactive HTML.
     Render {
-        /// Input `.layup` file, or `-` for stdin.
+        /// Input `.layup` or graph `.json` file, or `-` for stdin.
         input: PathBuf,
+        /// Use graph for structured JSON on stdin; auto detects .json files.
+        #[arg(long, default_value = "auto")]
+        input_format: InputFormat,
         /// Output path; defaults to the input name with `.svg` or `.html`. `-` writes to stdout.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -61,8 +72,10 @@ enum Cmd {
     },
     /// Compile a diagram to versioned scene JSON, writing stdout by default.
     Compile {
-        /// Input `.layup` file, or `-` for stdin.
+        /// Input `.layup` or graph `.json` file, or `-` for stdin.
         input: PathBuf,
+        #[arg(long, default_value = "auto")]
+        input_format: InputFormat,
         /// Output JSON path; defaults to stdout. `-` also writes stdout.
         #[arg(short, long, default_value = "-")]
         output: PathBuf,
@@ -72,7 +85,7 @@ enum Cmd {
     },
     /// Parse and lay out a diagram, reporting overflow, crossings and other problems.
     Check {
-        /// Input `.layup` files, or Markdown files (`.md`) whose `layup` code blocks are checked.
+        /// Input `.layup`/graph `.json` files, or Markdown (`.md`) with `layup` code blocks.
         inputs: Vec<PathBuf>,
         /// Treat warnings as errors.
         #[arg(long)]
@@ -139,6 +152,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
     match cli.cmd {
         Cmd::Render {
             input,
+            input_format,
             output,
             html,
             theme,
@@ -158,16 +172,18 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                 strict,
                 &fonts,
                 &options,
+                input_format,
             )?;
             Ok(ok)
         }
         Cmd::Compile {
             input,
+            input_format,
             output,
             strict,
         } => {
             let source = read(&input)?;
-            let compiled = match layup::compile_with_options(&source, &options, &fonts) {
+            let compiled = match compile_input(&input, &source, input_format, &options, &fonts) {
                 Ok(compiled) => compiled,
                 Err(error) => {
                     eprintln!(
@@ -247,6 +263,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                     strict,
                     &fonts,
                     &options,
+                    InputFormat::Auto,
                 )?;
                 if html {
                     ok &= render_one(
@@ -259,6 +276,7 @@ fn run(cli: Cli) -> Result<bool, Box<dyn std::error::Error>> {
                         strict,
                         &fonts,
                         &options,
+                        InputFormat::Auto,
                     )?;
                 }
             }
@@ -278,8 +296,9 @@ fn render_one(
     strict: bool,
     fonts: &layup::text::Fonts,
     options: &layup::CompileOptions,
+    input_format: InputFormat,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let compiled = match layup::compile_with_options(src, options, fonts) {
+    let compiled = match compile_input(input, src, input_format, options, fonts) {
         Ok(c) => c,
         Err(e) => {
             eprintln!(
@@ -316,6 +335,22 @@ fn render_one(
     Ok(true)
 }
 
+fn compile_input(
+    input: &Path,
+    source: &str,
+    format: InputFormat,
+    options: &layup::CompileOptions,
+    fonts: &layup::text::Fonts,
+) -> Result<layup::Compiled, layup::Error> {
+    if matches!(format, InputFormat::Graph)
+        || matches!(format, InputFormat::Auto) && input.extension().is_some_and(|e| e == "json")
+    {
+        layup::input::compile_json(source, options, fonts)
+    } else {
+        layup::compile_with_options(source, options, fonts)
+    }
+}
+
 /// Checks one diagram. `fence` is the Markdown line of the opening fence for
 /// a diagram from a code block; its diagnostics then name Markdown lines.
 fn check_one(
@@ -327,7 +362,7 @@ fn check_one(
     options: &layup::CompileOptions,
 ) -> bool {
     let name = input.display();
-    match layup::compile_with_options(src, options, fonts) {
+    match compile_input(input, src, InputFormat::Auto, options, fonts) {
         Ok(c) => {
             report(input, src, fence.unwrap_or(0), &c.warnings);
             let label = fence.map_or(name.to_string(), |f| format!("{name}:{f}"));

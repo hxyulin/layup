@@ -57,6 +57,68 @@ export interface Layup {
   lint(source: string, options?: CompileOptions): LintDiagnostic[];
   /** Return a versioned scene with geometry, drawing items, source spans, and presentation metadata. Throws LayupError. */
   compile(source: string, options?: CompileOptions): Scene;
+  /** Validate and compile versioned semantic graph input through the same engine as the DSL. */
+  compileModel(model: GraphInput, options?: CompileOptions): Scene;
+  /** Render structured graph input; preserves selected analysis evidence in SVG metadata. */
+  renderModel(model: GraphInput, options?: RenderOptions): RenderResult;
+}
+
+export type JsonValue = null | boolean | number | string | readonly JsonValue[] | { readonly [key: string]: JsonValue };
+export interface SourceLocation {
+  /** Absolute URI, or URI relative to the analyzer's source root. */
+  uri: string;
+  /** Omit when only the file is known. Lines/Unicode scalar columns are 1-based; end is exclusive. */
+  range?: { startLine: number; startColumn: number; endLine: number; endColumn: number } | null;
+  symbol?: string | null;
+}
+export interface AnalysisProvenance {
+  analyzer: string;
+  version?: string | null;
+  metadata?: { readonly [key: string]: JsonValue };
+}
+export interface GraphNodeInput {
+  /** Stable symbol ID; arbitrary nonempty strings are preserved without encoding. */
+  id: string;
+  title: string;
+  /** Built-in graph kind, or a custom kind rendered as a card. Default node. */
+  kind?: string;
+  parentId?: string | null;
+  code?: readonly string[];
+  description?: readonly string[];
+  role?: string | null;
+  href?: string | null;
+  tone?: Tone | null;
+  sourceLocations?: readonly SourceLocation[];
+  metadata?: { readonly [key: string]: JsonValue };
+}
+export interface GraphEdgeInput {
+  id: string;
+  from: string;
+  to: string;
+  /** Built-in relation, or a custom relation rendered as a blue arrow. Default flow. */
+  kind?: string;
+  label?: string | null;
+  tone?: Tone | null;
+  dashed?: boolean | null;
+  sourceLocations?: readonly SourceLocation[];
+  metadata?: { readonly [key: string]: JsonValue };
+}
+export interface GraphViewInput {
+  id: string;
+  title: string;
+  include: readonly string[];
+  direction?: 'down' | 'up' | 'right' | 'left' | null;
+}
+export interface GraphInput {
+  version: 1;
+  title: string;
+  description?: string | null;
+  /** Automatic graph flow; defaults to down. */
+  direction?: 'down' | 'up' | 'right' | 'left';
+  nodes: readonly GraphNodeInput[];
+  edges?: readonly GraphEdgeInput[];
+  views?: readonly GraphViewInput[];
+  provenance?: AnalysisProvenance | null;
 }
 
 export class LayupError extends Error {
@@ -108,8 +170,10 @@ export interface SceneNode {
   readonly outline: Outline;
   readonly tone: Tone;
   readonly href: string | null;
-  readonly line: number;
-  readonly span: SourceSpan;
+  readonly line: number | null;
+  readonly span: SourceSpan | null;
+  readonly sourceLocations: readonly SourceLocation[];
+  readonly metadata: { readonly [key: string]: JsonValue };
 }
 export interface SceneEdge {
   readonly id: string;
@@ -119,8 +183,10 @@ export interface SceneEdge {
   readonly points: readonly Point[];
   readonly style: { readonly tone: Tone; readonly dashed: boolean; readonly headStart: boolean; readonly headEnd: boolean; readonly bus: boolean; readonly asynchronous: boolean };
   readonly chip: Drawing | null;
-  readonly line: number;
-  readonly span: SourceSpan;
+  readonly line: number | null;
+  readonly span: SourceSpan | null;
+  readonly sourceLocations: readonly SourceLocation[];
+  readonly metadata: { readonly [key: string]: JsonValue };
 }
 export interface PresentationStep {
   readonly id: string;
@@ -148,7 +214,7 @@ export interface SlideTransform {
 export interface SceneView {
   readonly id: string;
   readonly title: string;
-  readonly span: SourceSpan;
+  readonly span: SourceSpan | null;
 }
 export interface SequenceInfo {
   readonly participants: readonly string[];
@@ -168,6 +234,7 @@ export interface Scene {
   readonly contentRight: number;
   readonly viewport: { readonly width: number; readonly height: number; readonly slide: SlideTransform | null };
   readonly selectedView: string | null;
+  readonly provenance: AnalysisProvenance | null;
   readonly views: readonly SceneView[];
   readonly nodes: readonly SceneNode[];
   readonly edges: readonly SceneEdge[];

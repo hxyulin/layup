@@ -57,6 +57,25 @@ WASM build step to install it.
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 
+## Structured input and Cargo analysis (unreleased)
+
+The current checkout accepts version-1 semantic graph objects through
+`compileModel(model, options)` and `renderModel(model, options)`. The graph
+contract preserves arbitrary symbol IDs, parent hierarchy, named views,
+original-code `sourceLocations`, JSON metadata and analyzer provenance.
+Scene JSON and SVG/HTML exports preserve the selected analysis evidence.
+
+The Node-only `@hxyulin/layup/cargo` entry point provides
+`analyzeCargo({ manifestPath, includeExternal, includeDev, sourceBaseUrl })`
+and `cargoGraph(metadata, options)`. `layup-cargo` emits a model with an
+overview and per-package dependency/target views. It runs Cargo metadata
+with `--locked` and offline by default, without building or executing code.
+It analyzes package relationships, not function bodies.
+
+See [generation from analysis](https://hxyulin.github.io/layup/guide/code-analysis.html)
+for the contract, feature flags, source-link policy and CLI examples. These
+APIs will ship in the next release.
+
 ## Markdown and VitePress
 
 `@hxyulin/layup/markdown-it` renders ```` ```layup ```` fences to inline SVG when the

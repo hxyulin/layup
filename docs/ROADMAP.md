@@ -98,6 +98,12 @@ editor completion/LSP support and incremental parsing are possible follow-ups.
 
 ## Output and interactive views
 
+Structured graph input and the first analyzer adapter are implemented in the
+current checkout: versioned semantic JSON, original-code locations/evidence,
+and Cargo-generated overview/per-package dependency and target views. See
+[generation from analysis](site/guide/code-analysis.md). Rust body analysis,
+neighborhood queries, aggregation and viewer controllers remain follow-ups.
+
 Retain SVG as the shared rendering format. SVG and the HTML viewer will gain
 new node kinds together, as will the WebAssembly/VitePress integration.
 

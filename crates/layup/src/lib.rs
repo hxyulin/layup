@@ -18,6 +18,7 @@ pub mod diagnostic;
 pub mod format;
 pub mod geometry;
 pub mod html;
+pub mod input;
 pub mod layout;
 pub mod lexer;
 pub mod lint;
@@ -156,6 +157,8 @@ impl Theme {
 
 /// Everything needed to emit a diagram, plus the warnings found on the way.
 pub struct Compiled {
+    /// Original structured input, when compiled through `input::compile`.
+    pub input: Option<input::Graph>,
     pub diagram: model::Diagram,
     pub scene: layout::Scene,
     pub warnings: Vec<Warning>,
@@ -217,7 +220,15 @@ fn compile_document(
     options: &CompileOptions,
     fonts: &text::Fonts,
 ) -> Result<Compiled, Error> {
-    let mut resolved = views::resolve(&parser::parse(src)?, options.view.as_deref())?;
+    compile_statements(&parser::parse(src)?, options, fonts)
+}
+
+pub(crate) fn compile_statements(
+    statements: &[parser::Stmt],
+    options: &CompileOptions,
+    fonts: &text::Fonts,
+) -> Result<Compiled, Error> {
+    let mut resolved = views::resolve(statements, options.view.as_deref())?;
     let steps = presentation::extract(&mut resolved.statements)?;
     let slide = if let [parser::Stmt::Item(root)] = resolved.statements.as_mut_slice() {
         if root.head == "diagram" {
@@ -307,6 +318,7 @@ fn compile_document(
     let presentation = presentation::resolve(steps, &scene)?;
     let slide = slide.map(|s| s.plan(&scene, &mut warnings));
     Ok(Compiled {
+        input: None,
         diagram,
         scene,
         warnings,

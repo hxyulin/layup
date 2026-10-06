@@ -26,6 +26,11 @@ and build. `-` reads stdin or writes stdout where supported. Render defaults
 to a neighboring SVG/HTML file; compile defaults to stdout. Use `--help` on
 each command for all options.
 
+The current checkout also accepts semantic graph `.json` files in render,
+compile and check. For render/compile on stdin, use `--input-format graph`.
+See [generation from analysis](/guide/code-analysis) for the input contract
+and Node-only Cargo adapter; these additions will ship in the next release.
+
 ## Rust
 
 Add the published engine to your project:
@@ -51,9 +56,14 @@ let compiled = layup::compile_with_options(source, &options, &fonts)?;
 ```
 
 `Compiled` exposes `diagram`, `scene`, `warnings`, `slide`, `presentation`,
-`views`, `selected_view`, and `sequence`. `viewport()` returns output dimensions
+`views`, `selected_view`, `sequence`, and optional original structured `input`. `viewport()` returns output dimensions
 without modifying scene coordinates. Layout warnings are separate from errors;
 callers choose their own warning policy.
+
+For structured graph input, `layup::input::parse(json)` returns a typed `Graph`.
+`input::compile(&graph, &options, &fonts)` and
+`input::compile_json(json, &options, &fonts)` return the same `Compiled` type.
+These APIs validate the versioned contract and preserve original code locations.
 
 The lexer/parser, formatter, linter, and scene exporter are public modules.
 For types and exhaustive drawing contracts, build Rust docs with
@@ -88,6 +98,8 @@ const diagnostics = engine.lint(source);
 | `compile(source, options)` | Version-1 scene object |
 | `format(source)` | Formatted source string |
 | `lint(source, options)` | Structured diagnostics |
+| `compileModel(model, options)` | Version-1 scene from semantic graph input (current checkout) |
+| `renderModel(model, options)` | SVG/HTML/embed and warnings from semantic graph input (current checkout) |
 
 Render accepts `theme`, `format`, `darkSelector`, `fonts`, and `view`.
 Compile/lint accept `fonts` and `view`. Font bytes are `Uint8Array` values.

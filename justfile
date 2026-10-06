@@ -12,7 +12,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
-    cargo run -q -p layup-cli -- check examples/*.layup docs/diagrams/*.layup docs/checkpoints/*/*.layup examples/vitepress/*.md README.md --strict
+    cargo run -q -p layup-cli -- check examples/*.layup examples/*.json docs/diagrams/*.layup docs/checkpoints/*/*.layup examples/vitepress/*.md README.md --strict
 
 # Render the examples to SVG (next to the sources) and interactive HTML (in out/).
 examples:
@@ -123,6 +123,10 @@ slide-test:
 sequence-test:
     cargo build -p layup-cli
     node tools/verify-sequences.mjs
+
+# Review generated Cargo overview/detail views in light/dark and desktop/narrow layouts.
+analysis-test: wasm
+    node tools/verify-code-analysis.mjs
 
 # Regenerate light/dark README previews from canonical examples.
 showcase:

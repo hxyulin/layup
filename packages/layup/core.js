@@ -49,6 +49,11 @@ export function wrap(instance) {
     return invoke(source, compileOptions(options, fonts, view));
   }
 
+  function graphSource(model) {
+    if (!model || typeof model !== 'object' || Array.isArray(model)) throw new TypeError('model must be a graph object');
+    return JSON.stringify(model);
+  }
+
   function invoke(source, options) {
     const [src, srcLen] = put(source);
     const [opt, optLen] = put(options);
@@ -75,6 +80,14 @@ export function wrap(instance) {
     },
     compile(source, { fonts = [], view } = {}) {
       return invoke(source, compileOptions('operation=compile', fonts, view)).scene;
+    },
+    compileModel(model, { fonts = [], view } = {}) {
+      return invoke(graphSource(model), compileOptions('operation=compile\ninput=graph', fonts, view)).scene;
+    },
+    renderModel(model, { theme = 'light', format = 'svg', darkSelector, fonts = [], view } = {}) {
+      let options = `input=graph\ntheme=${theme}\nformat=${format}`;
+      if (darkSelector) options += `\ndarkSelector=${darkSelector.replace(/\n/g, ' ')}`;
+      return invoke(graphSource(model), compileOptions(options, fonts, view));
     },
   };
 }

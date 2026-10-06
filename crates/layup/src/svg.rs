@@ -66,6 +66,13 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
         .or_else(|| c.diagram.note.clone())
         .unwrap_or_default();
     let _ = writeln!(s, "  <desc id=\"{id}desc\">{}</desc>", esc(&desc));
+    if let Some(input) = &c.input {
+        let _ = writeln!(
+            s,
+            "  <metadata data-layup-analysis=\"1\">{}</metadata>",
+            esc(&input.analysis(c).to_string())
+        );
+    }
     let _ = writeln!(
         s,
         "  <metadata>{}</metadata>",

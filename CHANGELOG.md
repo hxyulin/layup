@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- Version-1 semantic graph input in Rust and JS/WASM, with original symbol IDs,
+  hierarchy, custom kinds, named views, original-code locations and metadata.
+- CLI render/compile/check detect graph `.json` files; render/compile accept
+  `--input-format graph` for stdin. Structured-input exports use null DSL spans.
+- Scene JSON exposes node/edge analysis evidence and root provenance. SVG/HTML
+  carry selected evidence in `metadata[data-layup-analysis]`.
+- Node-only Cargo metadata adapter and `layup-cargo` executable generate
+  overview/per-package dependency and target views, preserving renamed,
+  optional, build, development and target-conditioned dependency evidence.
+- Canonical workspace analysis example, analyzer guide and CLI/WASM parity
+  and real Cargo resolution regressions. The adapter does not analyze bodies.
+
 ## 0.3.0 — 2026-10-04
 
 ### Installation and documentation

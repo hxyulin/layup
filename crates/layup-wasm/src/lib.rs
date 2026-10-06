@@ -20,10 +20,12 @@ use layup::Theme;
 /// formatted source in `output`. `operation=compile` returns versioned scene
 /// JSON in `scene`. `view` selects a reusable model view. All operations use
 /// the same length-prefixed JSON ABI.
+/// `input=graph` accepts versioned semantic graph JSON for render/compile.
 pub fn render(src: &str, options: &str) -> String {
     let mut theme = Theme::Light;
     let mut format = "svg";
     let mut operation = "render";
+    let mut graph_input = false;
     let mut dark_selector = None;
     let mut fonts = layup::text::Fonts::new();
     let mut compile_options = layup::CompileOptions::default();
@@ -39,6 +41,7 @@ pub fn render(src: &str, options: &str) -> String {
             }
             "darkSelector" => dark_selector = Some(value),
             "view" => compile_options.view = Some(value.into()),
+            "input" if value == "graph" => graph_input = true,
             "font" => {
                 let bytes = match STANDARD.decode(value) {
                     Ok(bytes) => bytes,
@@ -55,6 +58,12 @@ pub fn render(src: &str, options: &str) -> String {
             }
             _ => return error(None, &format!("unknown option {key}={value}")),
         }
+    }
+    if graph_input && !matches!(operation, "render" | "compile") {
+        return error(
+            None,
+            "graph input supports only render and compile operations",
+        );
     }
     if operation == "format" {
         return match layup::format::format(src) {
@@ -73,7 +82,12 @@ pub fn render(src: &str, options: &str) -> String {
                 .join(",")
         );
     }
-    let compiled = match layup::compile_with_options(src, &compile_options, &fonts) {
+    let result = if graph_input {
+        layup::input::compile_json(src, &compile_options, &fonts)
+    } else {
+        layup::compile_with_options(src, &compile_options, &fonts)
+    };
+    let compiled = match result {
         Ok(c) => c,
         Err(e) => return source_error(&e),
     };

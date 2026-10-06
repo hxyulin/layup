@@ -29,6 +29,13 @@ See the [release archives and checksums](https://github.com/hxyulin/layup/releas
 The installed executable is named `layup`. For use in Rust code, depend on
 `layup` instead of `layup-cli`.
 
+In the current checkout, render/compile/check also accept structured graph
+`.json` files. Use `--input-format graph` for render/compile on stdin.
+This unreleased input format preserves original-code locations and analysis
+evidence through scene and SVG/HTML exports. See
+[generation from analysis](https://hxyulin.github.io/layup/guide/code-analysis.html)
+for a Cargo adapter and generated overview/detail views.
+
 Version 0.3 adds the `lint` and `fmt` commands.
 See the [language-tools guide](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-TOOLS.md)
 for recovery, lint rules, source positions, stdin and batch formatting.

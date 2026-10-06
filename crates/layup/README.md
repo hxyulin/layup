@@ -40,6 +40,12 @@ Unicode and RTL text, decisions, state machines, sequence diagrams, slide
 viewports, presentation steps and shared models with named views. Public
 modules also expose the lexer/parser, formatter, linter and scene exporter.
 
+The current checkout also provides `input::Graph`, `input::parse`,
+`input::compile`, and `input::compile_json` for versioned semantic graph
+input with original code locations and analysis metadata. These unreleased
+APIs reuse the DSL compilation pipeline. See
+[generation from analysis](https://hxyulin.github.io/layup/guide/code-analysis.html).
+
 See the [API guide](https://hxyulin.github.io/layup/reference/api.html),
 [DSL reference](https://hxyulin.github.io/layup/reference/dsl.html) and
 [Rust API documentation](https://docs.rs/layup/0.3.0/layup/).

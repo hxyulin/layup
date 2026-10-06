@@ -83,6 +83,7 @@ Check the schema version before interpreting it.
 | `viewport` | Rendered dimensions and optional slide transform |
 | `nodes` | IDs, kinds, parents, rectangles, outlines, tones, links, source spans |
 | `edges` | IDs, endpoints, path points, style, captions, source spans |
+| Node/edge `sourceLocations`, `metadata`; root `provenance` | Original code locations and analysis evidence for structured graph inputs; empty/null for DSL |
 | `items`, `keepout` | Ordered drawing operations and reserved rectangles |
 | `views`, `selectedView` | Available views and current selection |
 | `presentation` | Versioned visibility and highlight steps |
@@ -107,6 +108,11 @@ Scene JSON contains font identifiers rather than payloads. An alternate
 renderer must supply the named fonts. For ready-to-share rendered font data,
 use SVG/HTML. [Source positions](/guide/tooling#source-positions) use UTF-8
 bytes and Unicode scalar columns.
+
+In the current checkout, [structured graph inputs](/guide/code-analysis) use
+null node/edge `line` and `span`, and null view spans. Original-code locations
+live in `sourceLocations`, separately from DSL locations. SVG/HTML preserve
+selected evidence in JSON inside `metadata[data-layup-analysis]`.
 
 ## PNG and PDF
 

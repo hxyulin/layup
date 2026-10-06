@@ -14,6 +14,7 @@
     "test:js": "pnpm wasm && pnpm --filter @hxyulin/layup test",
     "showcase": "node tools/render-showcase.mjs",
     "showcase:check": "node tools/render-showcase.mjs --check",
+    "analysis:example": "node packages/layup/cargo-cli.js --source-base-url https://github.com/hxyulin/layup/blob/main/ -o examples/code-analysis.json",
     "repo:check": "node tools/check-repository.mjs"
   },
   "devDependencies": {

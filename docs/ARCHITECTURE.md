@@ -27,6 +27,14 @@ optional slide/sequence metadata, presentation plan and view selection, or an
 `Error` for invalid input. It does not read files or write output.
 `compile_with_options` adds named-view selection and supplied fonts.
 
+`input::compile` and `input::compile_json` validate a versioned semantic graph
+and lower it to the same generic statement tree. Symbol IDs remain unchanged.
+The pipeline below is shared with DSL compilation, with no synthetic DSL text
+or source spans. `Compiled::input` retains the typed original model; scene
+export and SVG metadata preserve selected original-code locations and evidence.
+The Node-only Cargo adapter in `packages/layup/cargo.js` extracts resolved
+package relationships and production targets without building the workspace.
+
 1. **Read syntax.** `lexer.rs` tokenizes the source; `parser.rs` builds generic
    items and edge statements. Syntax is separate from node-kind semantics.
    Tokens and syntax nodes carry UTF-8 byte spans and scalar columns. The
@@ -100,6 +108,8 @@ revisions, checksums, and the separate SIL OFL license.
 | Change | Starting point |
 | --- | --- |
 | Syntax | `lexer.rs`, `parser.rs` |
+| Structured graph input | `input.rs`, `packages/layup/index.d.ts` |
+| Cargo analysis adapter | `packages/layup/cargo.js`, `cargo-cli.js` |
 | Source diagnostics, linting, formatting | `diagnostic.rs`, `lint.rs`, `format.rs` |
 | Node kinds, defaults, themes | `model.rs`, `style.rs` |
 | Shape boundaries, ports, safe label areas | `geometry.rs` |

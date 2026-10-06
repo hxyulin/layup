@@ -50,6 +50,7 @@ export default defineConfig({
       { text: 'Use in your tools', items: [
         { text: 'Output formats', link: '/guide/formats' },
         { text: 'CLI, Rust and JavaScript', link: '/reference/api' },
+        { text: 'Generate from analysis', link: '/guide/code-analysis' },
         { text: 'Markdown and VitePress', link: '/guide/markdown' },
         { text: 'Diagnostics and formatting', link: '/guide/tooling' },
         { text: 'DSL reference', link: '/reference/dsl' },

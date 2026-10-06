@@ -1,0 +1,320 @@
+{
+  "version": 1,
+  "title": "Cargo workspace",
+  "direction": "right",
+  "nodes": [
+    {
+      "id": "cargo:package:crates/layup-cli/Cargo.toml",
+      "title": "layup-cli",
+      "kind": "module",
+      "code": [
+        "0.3.0"
+      ],
+      "role": "workspace package",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-cli/Cargo.toml",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-cli/Cargo.toml",
+          "symbol": "layup-cli"
+        }
+      ],
+      "metadata": {
+        "packageName": "layup-cli",
+        "packageVersion": "0.3.0",
+        "workspace": true,
+        "cargoSource": null
+      }
+    },
+    {
+      "id": "cargo:package:crates/layup-wasm/Cargo.toml",
+      "title": "layup-wasm",
+      "kind": "module",
+      "code": [
+        "0.3.0"
+      ],
+      "role": "workspace package",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-wasm/Cargo.toml",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-wasm/Cargo.toml",
+          "symbol": "layup-wasm"
+        }
+      ],
+      "metadata": {
+        "packageName": "layup-wasm",
+        "packageVersion": "0.3.0",
+        "workspace": true,
+        "cargoSource": null
+      }
+    },
+    {
+      "id": "cargo:package:crates/layup/Cargo.toml",
+      "title": "layup",
+      "kind": "module",
+      "code": [
+        "0.3.0"
+      ],
+      "role": "workspace package",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup/Cargo.toml",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup/Cargo.toml",
+          "symbol": "layup"
+        }
+      ],
+      "metadata": {
+        "packageName": "layup",
+        "packageVersion": "0.3.0",
+        "workspace": true,
+        "cargoSource": null
+      }
+    },
+    {
+      "id": "cargo:targets:crates/layup-cli/Cargo.toml",
+      "title": "layup-cli targets",
+      "kind": "group",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-cli/Cargo.toml",
+          "symbol": "layup-cli"
+        }
+      ]
+    },
+    {
+      "id": "cargo:target:[\"crates/layup-cli/Cargo.toml\",\"layup\",[\"bin\"],\"crates/layup-cli/src/main.rs\"]",
+      "title": "layup",
+      "kind": "module",
+      "parentId": "cargo:targets:crates/layup-cli/Cargo.toml",
+      "code": [
+        "crates/layup-cli/src/main.rs"
+      ],
+      "role": "bin",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-cli/src/main.rs",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-cli/src/main.rs",
+          "symbol": "layup"
+        }
+      ],
+      "metadata": {
+        "targetKinds": [
+          "bin"
+        ],
+        "crateTypes": [
+          "bin"
+        ]
+      }
+    },
+    {
+      "id": "cargo:targets:crates/layup-wasm/Cargo.toml",
+      "title": "layup-wasm targets",
+      "kind": "group",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-wasm/Cargo.toml",
+          "symbol": "layup-wasm"
+        }
+      ]
+    },
+    {
+      "id": "cargo:target:[\"crates/layup-wasm/Cargo.toml\",\"layup_wasm\",[\"cdylib\",\"rlib\"],\"crates/layup-wasm/src/lib.rs\"]",
+      "title": "layup_wasm",
+      "kind": "module",
+      "parentId": "cargo:targets:crates/layup-wasm/Cargo.toml",
+      "code": [
+        "crates/layup-wasm/src/lib.rs"
+      ],
+      "role": "cdylib, rlib",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-wasm/src/lib.rs",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-wasm/src/lib.rs",
+          "symbol": "layup_wasm"
+        }
+      ],
+      "metadata": {
+        "targetKinds": [
+          "cdylib",
+          "rlib"
+        ],
+        "crateTypes": [
+          "cdylib",
+          "rlib"
+        ]
+      }
+    },
+    {
+      "id": "cargo:targets:crates/layup/Cargo.toml",
+      "title": "layup targets",
+      "kind": "group",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup/Cargo.toml",
+          "symbol": "layup"
+        }
+      ]
+    },
+    {
+      "id": "cargo:target:[\"crates/layup/Cargo.toml\",\"layup\",[\"lib\"],\"crates/layup/src/lib.rs\"]",
+      "title": "layup",
+      "kind": "module",
+      "parentId": "cargo:targets:crates/layup/Cargo.toml",
+      "code": [
+        "crates/layup/src/lib.rs"
+      ],
+      "role": "lib",
+      "href": "https://github.com/hxyulin/layup/blob/main/crates/layup/src/lib.rs",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup/src/lib.rs",
+          "symbol": "layup"
+        }
+      ],
+      "metadata": {
+        "targetKinds": [
+          "lib"
+        ],
+        "crateTypes": [
+          "lib"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "cargo:dependency:[\"cargo:package:crates/layup-cli/Cargo.toml\",\"cargo:package:crates/layup/Cargo.toml\",\"layup\",\"normal\",null]",
+      "from": "cargo:package:crates/layup-cli/Cargo.toml",
+      "to": "cargo:package:crates/layup/Cargo.toml",
+      "kind": "depends",
+      "label": "depends",
+      "dashed": false,
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-cli/Cargo.toml",
+          "symbol": "layup"
+        }
+      ],
+      "metadata": {
+        "dependencyName": "layup",
+        "dependencyKind": "normal",
+        "target": null,
+        "evidence": "cargo-resolve"
+      }
+    },
+    {
+      "id": "cargo:dependency:[\"cargo:package:crates/layup-wasm/Cargo.toml\",\"cargo:package:crates/layup/Cargo.toml\",\"layup\",\"normal\",null]",
+      "from": "cargo:package:crates/layup-wasm/Cargo.toml",
+      "to": "cargo:package:crates/layup/Cargo.toml",
+      "kind": "depends",
+      "label": "depends",
+      "dashed": false,
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-wasm/Cargo.toml",
+          "symbol": "layup"
+        }
+      ],
+      "metadata": {
+        "dependencyName": "layup",
+        "dependencyKind": "normal",
+        "target": null,
+        "evidence": "cargo-resolve"
+      }
+    },
+    {
+      "id": "cargo:contains:cargo:package:crates/layup-cli/Cargo.toml",
+      "from": "cargo:package:crates/layup-cli/Cargo.toml",
+      "to": "cargo:targets:crates/layup-cli/Cargo.toml",
+      "kind": "contains",
+      "label": "targets",
+      "tone": "gray",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-cli/Cargo.toml",
+          "symbol": "layup-cli"
+        }
+      ]
+    },
+    {
+      "id": "cargo:contains:cargo:package:crates/layup-wasm/Cargo.toml",
+      "from": "cargo:package:crates/layup-wasm/Cargo.toml",
+      "to": "cargo:targets:crates/layup-wasm/Cargo.toml",
+      "kind": "contains",
+      "label": "targets",
+      "tone": "gray",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup-wasm/Cargo.toml",
+          "symbol": "layup-wasm"
+        }
+      ]
+    },
+    {
+      "id": "cargo:contains:cargo:package:crates/layup/Cargo.toml",
+      "from": "cargo:package:crates/layup/Cargo.toml",
+      "to": "cargo:targets:crates/layup/Cargo.toml",
+      "kind": "contains",
+      "label": "targets",
+      "tone": "gray",
+      "sourceLocations": [
+        {
+          "uri": "crates/layup/Cargo.toml",
+          "symbol": "layup"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "id": "overview",
+      "title": "Workspace dependencies",
+      "include": [
+        "cargo:package:crates/layup-cli/Cargo.toml",
+        "cargo:package:crates/layup-wasm/Cargo.toml",
+        "cargo:package:crates/layup/Cargo.toml"
+      ]
+    },
+    {
+      "id": "detail:cargo:package:crates/layup-cli/Cargo.toml",
+      "title": "layup-cli: dependencies and targets",
+      "include": [
+        "cargo:package:crates/layup-cli/Cargo.toml",
+        "cargo:package:crates/layup/Cargo.toml",
+        "cargo:targets:crates/layup-cli/Cargo.toml"
+      ]
+    },
+    {
+      "id": "detail:cargo:package:crates/layup-wasm/Cargo.toml",
+      "title": "layup-wasm: dependencies and targets",
+      "include": [
+        "cargo:package:crates/layup-wasm/Cargo.toml",
+        "cargo:package:crates/layup/Cargo.toml",
+        "cargo:targets:crates/layup-wasm/Cargo.toml"
+      ]
+    },
+    {
+      "id": "detail:cargo:package:crates/layup/Cargo.toml",
+      "title": "layup: dependencies and targets",
+      "include": [
+        "cargo:package:crates/layup/Cargo.toml",
+        "cargo:targets:crates/layup/Cargo.toml"
+      ]
+    }
+  ],
+  "provenance": {
+    "analyzer": "cargo-metadata",
+    "version": "1",
+    "metadata": {
+      "sourceRoot": "https://github.com/hxyulin/layup/blob/main/",
+      "includeExternal": false,
+      "includeDev": false,
+      "scope": "workspace outgoing resolved package dependencies and production targets",
+      "targetFilter": "all Cargo platforms",
+      "resolvedFeatures": {
+        "cargo:package:crates/layup-cli/Cargo.toml": [],
+        "cargo:package:crates/layup-wasm/Cargo.toml": [],
+        "cargo:package:crates/layup/Cargo.toml": []
+      }
+    }
+  }
+}

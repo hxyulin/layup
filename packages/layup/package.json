@@ -18,6 +18,7 @@
   },
   "homepage": "https://hxyulin.github.io/layup/reference/api.html",
   "type": "module",
+  "bin": { "layup-cargo": "./cargo-cli.js" },
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -28,7 +29,8 @@
       "types": "./markdown-it.d.ts",
       "default": "./markdown-it.js"
     },
-    "./client": "./client.js"
+    "./client": "./client.js",
+    "./cargo": { "types": "./cargo.d.ts", "node": "./cargo.js" }
   },
   "files": [
     "*.js",

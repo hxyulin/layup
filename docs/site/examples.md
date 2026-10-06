@@ -18,6 +18,11 @@ version control.
 | Request/retry presentation | Shared sequence model and four reveal steps | [Open](/playground?example=presentation) |
 | Shared architecture views | Overview/detail filtering with stable identities | [Open](/playground?example=models) |
 
+For automatically generated diagrams, see [generation from analysis](/guide/code-analysis).
+Its canonical JSON example describes this repository's Cargo workspace with
+an overview and per-package dependency/target views; it uses the APIs and CLI
+rather than the DSL playground.
+
 ## Decision: where should a request go?
 
 ```layup
