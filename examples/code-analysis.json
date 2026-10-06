@@ -8,7 +8,7 @@
       "title": "layup-cli",
       "kind": "module",
       "code": [
-        "0.3.0"
+        "0.4.0"
       ],
       "role": "workspace package",
       "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-cli/Cargo.toml",
@@ -20,7 +20,7 @@
       ],
       "metadata": {
         "packageName": "layup-cli",
-        "packageVersion": "0.3.0",
+        "packageVersion": "0.4.0",
         "workspace": true,
         "cargoSource": null
       }
@@ -30,7 +30,7 @@
       "title": "layup-wasm",
       "kind": "module",
       "code": [
-        "0.3.0"
+        "0.4.0"
       ],
       "role": "workspace package",
       "href": "https://github.com/hxyulin/layup/blob/main/crates/layup-wasm/Cargo.toml",
@@ -42,7 +42,7 @@
       ],
       "metadata": {
         "packageName": "layup-wasm",
-        "packageVersion": "0.3.0",
+        "packageVersion": "0.4.0",
         "workspace": true,
         "cargoSource": null
       }
@@ -52,7 +52,7 @@
       "title": "layup",
       "kind": "module",
       "code": [
-        "0.3.0"
+        "0.4.0"
       ],
       "role": "workspace package",
       "href": "https://github.com/hxyulin/layup/blob/main/crates/layup/Cargo.toml",
@@ -64,7 +64,7 @@
       ],
       "metadata": {
         "packageName": "layup",
-        "packageVersion": "0.3.0",
+        "packageVersion": "0.4.0",
         "workspace": true,
         "cargoSource": null
       }

@@ -76,8 +76,8 @@ The Rust engine also runs in JavaScript through WebAssembly.
 
 ## Quickstart
 
-The current checkout uses the replacement named-diagram grammar shown below.
-Build this checkout to use it; published 0.3.0 packages use the previous syntax.
+Layup 0.4 uses the named-diagram grammar shown below. Source files written
+for 0.3 need migration; see the [language guide](https://hxyulin.github.io/layup/guide/language-v1.html).
 
 Try the [playground](https://hxyulin.github.io/layup/playground.html) to edit
 examples and download diagrams without installing anything. See the [changelog](CHANGELOG.md) for release history.
@@ -85,17 +85,17 @@ examples and download diagrams without installing anything. See the [changelog](
 <details>
 <summary><strong>Install the CLI and render your first diagram</strong></summary>
 
-Install [Rust stable](https://rustup.rs/) and build the current checkout:
+Install [Rust stable](https://rustup.rs/) and the CLI:
 
 ```sh
-git clone https://github.com/hxyulin/layup.git
-cd layup
-cargo install --path crates/layup-cli --locked
+cargo install layup-cli --version 0.4.0 --locked
+# Or install a supported prebuilt binary:
+cargo binstall layup-cli --version 0.4.0
 ```
 
-The installed command is named `layup`. Published 0.3.0 packages and
-[release binaries](https://github.com/hxyulin/layup/releases/tag/v0.3.0)
-use the previous grammar.
+The installed command is named `layup`. See the
+[release binaries and checksums](https://github.com/hxyulin/layup/releases/tag/v0.4.0)
+for Linux, macOS and Windows.
 
 Save this as `hello.layup`:
 
@@ -132,8 +132,8 @@ and [output formats](https://hxyulin.github.io/layup/guide/formats.html).
 Install the JavaScript/WASM package, including its compiled engine:
 
 ```sh
-pnpm add @hxyulin/layup@0.3.0
-# Or: npm install @hxyulin/layup@0.3.0
+pnpm add @hxyulin/layup@0.4.0
+# Or: npm install @hxyulin/layup@0.4.0
 ```
 
 The [API guide](https://hxyulin.github.io/layup/reference/api.html) covers Rust,

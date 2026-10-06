@@ -1,6 +1,6 @@
 {
   "name": "@hxyulin/layup",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Authored-layout diagrams rendered to SVG, compiled to WebAssembly",
   "keywords": [
     "diagram",

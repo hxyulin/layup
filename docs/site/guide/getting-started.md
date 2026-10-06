@@ -39,17 +39,16 @@ changing strings or comments. **Download source** saves your current edits.
 
 ## 3. Render a file
 
-The replacement language documented here is available from the current
-checkout. Install [Rust stable](https://rustup.rs/) and build that checkout:
+Install [Rust stable](https://rustup.rs/) and the 0.4 CLI:
 
 ```sh
-git clone https://github.com/hxyulin/layup.git
-cd layup
-cargo install --path crates/layup-cli --locked
+cargo install layup-cli --version 0.4.0 --locked
+# Or install a supported prebuilt binary:
+cargo binstall layup-cli --version 0.4.0
 ```
 
-Published 0.3.0 CLI and npm packages use the previous grammar. A new package
-release is separate from this source migration.
+Layup 0.4 uses named diagrams and explicit properties. Source written for 0.3
+needs migration to the [shared document language](/guide/language-v1).
 
 Save your source as `hello.layup`, then run:
 

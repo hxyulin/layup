@@ -1,10 +1,10 @@
 # Named documents and shared syntax
 
-The current checkout implements Layup's shared document language and scoped
+Layup 0.4 implements Layup's shared document language and scoped
 graph, sequence and state-machine grammars. A file can start directly with a named diagram. An optional
 `layup 1` header asserts the supported source revision; it does not select a
 dialect. Unknown revisions and non-integer revision numbers are errors.
-These additions will ship after the published 0.3.0 packages.
+Source files written for 0.3 need migration to this grammar.
 
 The shared language owns comments, values, annotations, names, references and
 diagram envelopes. `type` selects a diagram's body grammar. Graph, sequence and state-machine bodies are implemented, including views and

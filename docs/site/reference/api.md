@@ -1,15 +1,15 @@
 # CLI, Rust, and JavaScript
 
-The current checkout uses an unreleased replacement DSL; build this checkout
-to use the syntax documented here. Published 0.3.0 packages use the previous
-source grammar. All frontends compile the same DSL with the same text metrics and layout.
+Layup 0.4 uses the named-diagram DSL documented here. Source files written for
+0.3 need migration. All frontends compile the same DSL with the same text
+metrics and layout.
 The CLI adds filesystem operations; Rust exposes the model and scene;
 JavaScript loads the actual Rust engine compiled to WASM.
 
 ## CLI
 
-Install with `cargo install layup-cli --version 0.3.0 --locked`, or
-`cargo binstall layup-cli --version 0.3.0` for a supported prebuilt binary.
+Install with `cargo install layup-cli --version 0.4.0 --locked`, or
+`cargo binstall layup-cli --version 0.4.0` for a supported prebuilt binary.
 See [getting started](/guide/getting-started#_3-render-a-file) for platform details.
 
 ```sh
@@ -29,17 +29,17 @@ and build. `-` reads stdin or writes stdout where supported. Render defaults
 to a neighboring SVG/HTML file; compile defaults to stdout. Use `--help` on
 each command for all options.
 
-The current checkout also accepts semantic graph `.json` files in render,
+Version 0.4 also accepts semantic graph `.json` files in render,
 compile and check. For render/compile on stdin, use `--input-format graph`.
 See [generation from analysis](/guide/code-analysis) for the input contract
-and Node-only Cargo adapter; these additions will ship in the next release.
+and Node-only Cargo adapter.
 
 ## Rust
 
 Add the published engine to your project:
 
 ```sh
-cargo add layup@0.3.0
+cargo add layup@0.4.0
 ```
 
 ```rust
@@ -79,12 +79,12 @@ For types and exhaustive drawing contracts, build Rust docs with
 Install the published JavaScript/WASM package:
 
 ```sh
-pnpm add @hxyulin/layup@0.3.0
-# Or: npm install @hxyulin/layup@0.3.0
+pnpm add @hxyulin/layup@0.4.0
+# Or: npm install @hxyulin/layup@0.4.0
 ```
 
 The package includes the compiled engine, so installation does not require
-Rust. Version 0.3.0 includes `compile`, `lint`, `format`, named views and the
+Rust. Version 0.4.0 includes `compile`, `lint`, `format`, named views and the
 same diagram features as the CLI and playground.
 
 ```js

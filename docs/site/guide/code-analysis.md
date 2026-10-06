@@ -5,8 +5,9 @@ Structured graph input keeps symbol IDs, original code locations, and evidence
 separate from layout geometry. It uses the same semantic, text, layout, routing,
 and rendering pipeline as the DSL.
 
-The structured-input APIs and Cargo adapter described here are available in the
-current source checkout and will ship in the next release.
+Version 0.4 includes the structured-input APIs and Cargo adapter described here.
+The structured graph schema remains version 1, independently of the package and
+source-language revisions.
 
 ## Analyze a Rust workspace
 

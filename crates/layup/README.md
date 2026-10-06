@@ -8,15 +8,15 @@ versioned scene JSON.
 ## Install
 
 ```sh
-cargo add layup@0.3.0
+cargo add layup@0.4.0
 ```
 
 For the command-line tool, install the `layup-cli` crate instead:
 
 ```sh
-cargo install layup-cli --version 0.3.0 --locked
+cargo install layup-cli --version 0.4.0 --locked
 # Or install a supported prebuilt binary:
-cargo binstall layup-cli --version 0.3.0
+cargo binstall layup-cli --version 0.4.0
 ```
 
 ## Render a diagram
@@ -40,7 +40,7 @@ Unicode and RTL text, decisions, state machines, sequence diagrams, slide
 viewports, presentation steps and shared models with named views. Public
 modules expose the document parser, formatter, linter and scene exporter.
 
-The current checkout also provides `input::Graph`, `input::parse`,
+Version 0.4 also provides `input::Graph`, `input::parse`,
 `input::compile`, and `input::compile_json` for versioned semantic graph
 input with original code locations and analysis metadata. These
 APIs reuse the DSL compilation pipeline. See
@@ -48,7 +48,7 @@ APIs reuse the DSL compilation pipeline. See
 
 See the [API guide](https://hxyulin.github.io/layup/reference/api.html),
 [DSL reference](https://hxyulin.github.io/layup/reference/dsl.html) and
-[Rust API documentation](https://docs.rs/layup/0.3.0/layup/).
+[Rust API documentation](https://docs.rs/layup/0.4.0/layup/).
 Try sources in the [playground](https://hxyulin.github.io/layup/playground.html).
 
 ## Fonts and license
@@ -58,4 +58,4 @@ user-supplied font bytes; no CJK font is bundled.
 
 Code is licensed under MIT OR Apache-2.0. Bundled fonts use SIL OFL 1.1;
 see `fonts/OFL.txt` and the
-[font notes](https://github.com/hxyulin/layup/blob/v0.3.0/crates/layup/fonts/README.md).
+[font notes](https://github.com/hxyulin/layup/blob/v0.4.0/crates/layup/fonts/README.md).

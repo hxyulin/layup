@@ -1,35 +1,47 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-10-06
 
-- Validate unused diagram defaults, reject conflicting transition captions, and
-  reset inherited connection palettes with `palette=auto`.
-- Preserve distinct quoted style names in SVG legend paint and marker IDs.
-- Package self-contained Rust test fixtures and update the crate quickstart for
-  the current language.
+### Breaking source-language changes
+
 - Replace the source DSL with named diagrams and per-type graph, sequence and
-  state-machine grammars. The optional `layup 1` assertion checks the revision;
-  legacy headers, typed arrow names, implicit object IDs and bare style flags
-  are rejected. Structured graph version 1 retains its existing contract.
-- Add scoped identities, exact typed values, arbitrary ordered annotations,
-  preserved unavailable diagram bodies and recovering document inspection.
-- Use explicit node/edge styles, category defaults, direct paint channels,
+  state-machine grammars. Source files written for 0.3 need migration: title-only
+  headers, typed arrow names, implicit object IDs and bare style flags are rejected.
+- Make `layup 1` optional. It asserts the source revision independently of the
+  package version; unknown and non-integer revisions are errors.
+- Add scoped identities, exact typed values, inline and nested multiline comments,
+  arbitrary ordered annotations, preserved unavailable diagram bodies and recovering
+  document inspection. Unknown diagram types emit warnings and retain their source.
+- Use explicit node/edge styles, category defaults, direct fill/stroke/text paint,
   logical text alignment, grouped slide/legend settings and typed view/reveal
   selections. Scene metadata retains declarations, attributes and resolved paint.
-- Migrate canonical diagrams, Markdown guides, frontend fixtures and Tree-sitter
-  syntax highlighting together. ER, member/port geometry, full-document JSON
-  input and public property schemas remain future extensions.
-- Version-1 semantic graph input in Rust and JS/WASM, with original symbol IDs,
+- Validate unused defaults and style references, reject conflicting transition
+  captions, and reset inherited connection palettes with `palette=auto`.
+- Preserve distinct quoted style names in SVG legend paint and marker IDs.
+
+### Structured input and code analysis
+
+- Add version-1 semantic graph input in Rust and JS/WASM, with original symbol IDs,
   hierarchy, custom kinds, named views, original-code locations and metadata.
+  The structured graph schema and scene schema remain version 1.
 - CLI render/compile/check detect graph `.json` files; render/compile accept
   `--input-format graph` for stdin. Structured-input exports use null DSL spans.
 - Scene JSON exposes node/edge analysis evidence and root provenance. SVG/HTML
   carry selected evidence in `metadata[data-layup-analysis]`.
-- Node-only Cargo metadata adapter and `layup-cargo` executable generate
-  overview/per-package dependency and target views, preserving renamed,
-  optional, build, development and target-conditioned dependency evidence.
-- Canonical workspace analysis example, analyzer guide and CLI/WASM parity
-  and real Cargo resolution regressions. The adapter does not analyze bodies.
+- Add the Node-only Cargo metadata adapter and `layup-cargo` executable to generate
+  overview/per-package dependency and target views, preserving renamed, optional,
+  build, development and target-conditioned dependency evidence. The adapter
+  analyzes package relationships, not function bodies.
+
+### Editor tooling, documentation and packaging
+
+- Add the independently versioned Tree-sitter package for highlighting, folds and
+  incremental editor parsing; migrate its grammar and fixtures with the source DSL.
+- Migrate canonical diagrams, guides, frontend fixtures and API declarations together.
+  Add a canonical workspace analysis example, analyzer guide and Cargo regressions.
+- Package self-contained Rust test fixtures and update crate/npm quickstarts for 0.4.
+- ER, member/port geometry, full-document JSON input and public property schemas
+  remain future extensions.
 
 ## 0.3.0 — 2026-10-04
 

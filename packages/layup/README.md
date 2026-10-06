@@ -4,8 +4,8 @@ The layup layout engine compiled to WebAssembly. It produces the same SVG and
 HTML as the `layup` CLI, byte for byte.
 
 ```sh
-pnpm add @hxyulin/layup@0.3.0
-# Or: npm install @hxyulin/layup@0.3.0
+pnpm add @hxyulin/layup@0.4.0
+# Or: npm install @hxyulin/layup@0.4.0
 ```
 
 ```js
@@ -57,13 +57,13 @@ WASM build step to install it.
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 
-## Named document syntax (unreleased)
+## Named document syntax (0.4)
 
-The current checkout uses the replacement source grammar for graphs, sequences
+Version 0.4 uses the replacement source grammar for graphs, sequences
 and state machines. The optional `layup 1` directive asserts the revision;
 `diagram ID type=TYPE` selects a body grammar. Old title-only declarations,
-typed arrow names and bare style flags are rejected. Published 0.3.0 packages
-still use the previous grammar.
+typed arrow names and bare style flags are rejected. Source files written for
+0.3 need migration to this grammar.
 
 `compile`, `render`, `format` and `lint` share the compiler's document parser.
 Select a diagram with `{ diagram: 'services' }`; Markdown fences accept
@@ -83,9 +83,9 @@ and [shared language rules](https://github.com/hxyulin/layup/blob/main/docs/site
 ER, member/port geometry, document JSON input and public property schemas remain
 future extensions.
 
-## Structured input and Cargo analysis (unreleased)
+## Structured input and Cargo analysis (0.4)
 
-The current checkout accepts version-1 semantic graph objects through
+Version 0.4 accepts version-1 semantic graph objects through
 `compileModel(model, options)` and `renderModel(model, options)`. The graph
 contract preserves arbitrary symbol IDs, parent hierarchy, named views,
 original-code `sourceLocations`, JSON metadata and analyzer provenance.
@@ -99,8 +99,7 @@ with `--locked` and offline by default, without building or executing code.
 It analyzes package relationships, not function bodies.
 
 See [generation from analysis](https://hxyulin.github.io/layup/guide/code-analysis.html)
-for the contract, feature flags, source-link policy and CLI examples. These
-APIs will ship in the next release.
+for the contract, feature flags, source-link policy and CLI examples.
 
 ## Markdown and VitePress
 
@@ -178,7 +177,7 @@ Open Font License 1.1 (`OFL.txt`).
 
 ### International text and user fonts
 
-Graph flow (`direction=down|up|right|left`) and label direction
+Graph flow (`flow-direction=down|up|right|left`) and label direction
 (`text-direction=auto|ltr|rtl`) are independent source-language settings.
 CJK uses Unicode wrapping and system fallback by default; no CJK font is
 bundled. For reproducible CJK measurement, pass font bytes explicitly:

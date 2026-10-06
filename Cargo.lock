@@ -145,7 +145,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "layup"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64",
  "rustybuzz",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "layup-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "clap",
  "layup",
@@ -170,7 +170,7 @@ dependencies = [
 
 [[package]]
 name = "layup-wasm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64",
  "layup",

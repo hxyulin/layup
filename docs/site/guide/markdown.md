@@ -10,7 +10,7 @@ presentation controls.
 In a separate project that installs the package from npm:
 
 ```sh
-pnpm add -D @hxyulin/layup@0.3.0 vitepress
+pnpm add -D @hxyulin/layup@0.4.0 vitepress
 ```
 
 The npm package includes its WASM binary and supports the examples below.

@@ -2,8 +2,8 @@
 
 Layup source uses named diagrams, shared values and annotations, and a body
 grammar selected by `type`. The optional `layup 1` line asserts the source
-revision. This checkout replaces the previous title-only syntax; these changes
-will ship after the published 0.3.0 packages.
+revision. Version 0.4 replaces the previous title-only syntax; source files
+written for 0.3 need migration.
 
 See the [language walkthrough](/guide/language-v1) for scopes, exact values,
 extension annotations, recovery and inspection. Statements end with a newline
