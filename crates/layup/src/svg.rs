@@ -45,7 +45,7 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     };
     let _ = writeln!(
         s,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" direction="ltr" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" aria-labelledby="{id}title {id}desc"{presentation}>"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" class="{class}" direction="ltr" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" data-paint-scope="{id}" aria-labelledby="{id}title {id}desc"{presentation}>"#,
         w = width,
         h = height,
         presentation = if c.presentation.steps.is_empty() {
@@ -96,6 +96,7 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
         options.dark_selector,
         &scene.fonts,
     ));
+    s.push_str(&paint_styles(c, options));
     s.push_str("  </style>\n");
     s.push_str("  <defs>\n");
     for t in Tone::ALL {
@@ -147,8 +148,8 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
                 let n = &scene.nodes[i];
                 let _ = writeln!(
                     s,
-                    r#"    <g class="node k-{}" data-id="{}">"#,
-                    esc(&n.kind),
+                    r#"    <g class="node k-{} p-node-{i}" data-id="{}">"#,
+                    css_token(&n.kind),
                     esc(&n.id)
                 );
                 if let Some(href) = &n.href {
@@ -163,11 +164,11 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     s.push_str("  </g>\n");
 
     s.push_str("  <g class=\"edges\">\n");
-    for e in &scene.edges {
+    for (edge_index, e) in scene.edges.iter().enumerate() {
         let _ = writeln!(
             s,
-            r#"    <g class="edge k-{}" data-from="{}" data-to="{}" data-edge-id="{}">"#,
-            esc(&e.kind),
+            r#"    <g class="edge k-{} p-edge-{edge_index}" data-from="{}" data-to="{}" data-edge-id="{}">"#,
+            css_token(&e.kind),
             esc(&e.from),
             esc(&e.to),
             esc(&e.id)
@@ -186,21 +187,38 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
         if e.dashed {
             attrs.push_str(r#" stroke-dasharray="7 5""#);
         }
-        if e.head_end {
-            let _ = write!(
-                attrs,
-                r#" marker-end="url(#{id}{}-{})""#,
-                if e.asynchronous { "mo" } else { "m" },
-                e.tone.name()
+        if c.document
+            .as_ref()
+            .and_then(|doc| doc.relationships.get(&e.id))
+            .is_some_and(|info| info.paint.stroke_color.is_some())
+        {
+            let marker = format!("{id}paint-{edge_index}");
+            let path = if e.asynchronous {
+                "M1 1 L9 5 L1 9"
+            } else {
+                "M0 0 L10 5 L0 10 z"
+            };
+            let channel = if e.asynchronous { "stroke" } else { "fill" };
+            let _ = writeln!(
+                s,
+                r#"      <defs><marker id="{marker}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="{path}" fill="none" style="{channel}:var(--paint-edge-{edge_index}-stroke)"/></marker></defs>"#
             );
-        }
-        if e.head_start {
-            let _ = write!(
-                attrs,
-                r#" marker-start="url(#{id}{}-{})""#,
-                if e.asynchronous { "mo" } else { "m" },
-                e.tone.name()
-            );
+            for (name, enabled) in [("marker-end", e.head_end), ("marker-start", e.head_start)] {
+                if enabled {
+                    let _ = write!(attrs, r#" {name}="url(#{marker})""#);
+                }
+            }
+        } else {
+            for (name, enabled) in [("marker-end", e.head_end), ("marker-start", e.head_start)] {
+                if enabled {
+                    let _ = write!(
+                        attrs,
+                        r#" {name}="url(#{id}{}-{})""#,
+                        if e.asynchronous { "mo" } else { "m" },
+                        e.tone.name()
+                    );
+                }
+            }
         }
         let _ = writeln!(s, r#"      <path d="{d}" {attrs}/>"#);
         if let Some(chip) = &e.chip {
@@ -224,13 +242,153 @@ pub fn render_with(c: &Compiled, options: &Options) -> String {
     s
 }
 
+fn css_token(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+                c.to_string()
+            } else {
+                format!("_{:x}_", u32::from(c))
+            }
+        })
+        .collect()
+}
+
+fn paint_styles(c: &Compiled, options: &Options<'_>) -> String {
+    use crate::document::{Paint, StrokeStyle};
+    let Some(document) = &c.document else {
+        return String::new();
+    };
+    let scope = format!(
+        "svg.layup[data-paint-scope=\"{}\"]",
+        id_prefix(c, options.theme)
+    );
+    let mut output = String::new();
+    let mut light = String::new();
+    let mut dark = String::new();
+    let mut marker_rules = String::new();
+    let mut emit = |key: &str, selector: String, paint: &Paint, edge: bool| {
+        for (channel, color, suffix, property) in [
+            ("fill", &paint.fill_color, ".box", "fill"),
+            (
+                "stroke",
+                &paint.stroke_color,
+                if edge { ".ln" } else { ".box" },
+                "stroke",
+            ),
+            ("text", &paint.text_color, "text", "fill"),
+            (
+                "background",
+                &paint.background_color,
+                if key == "diagram" { ".bg" } else { ".strip" },
+                "fill",
+            ),
+        ] {
+            if let Some(color) = color {
+                let _ = write!(light, "--paint-{key}-{channel}:{};", color.css(false));
+                let _ = write!(dark, "--paint-{key}-{channel}:{};", color.css(true));
+                let _ = writeln!(
+                    output,
+                    "{selector} {suffix}{{{property}:var(--paint-{key}-{channel})}}"
+                );
+            }
+        }
+        let suffix = if edge { ".ln" } else { ".box" };
+        if let Some(width) = paint.stroke_width {
+            let _ = writeln!(output, "{selector} {suffix}{{stroke-width:{width}}}");
+        }
+        if let Some(style) = paint.stroke_style {
+            let (dash, cap) = match style {
+                StrokeStyle::Solid => ("none", "butt"),
+                StrokeStyle::Dashed => ("7 5", "butt"),
+                StrokeStyle::Dotted => ("1 4", "round"),
+            };
+            let _ = writeln!(
+                output,
+                "{selector} {suffix}{{stroke-dasharray:{dash};stroke-linecap:{cap}}}"
+            );
+        }
+    };
+    emit("diagram", scope.clone(), &document.diagram.paint, false);
+    for (i, node) in c.scene.nodes.iter().enumerate() {
+        if let Some(info) = document.objects.get(&node.id) {
+            emit(
+                &format!("node-{i}"),
+                format!("{scope} .node.p-node-{i}"),
+                &info.paint,
+                false,
+            );
+        }
+    }
+    for (i, edge) in c.scene.edges.iter().enumerate() {
+        if let Some(info) = document.relationships.get(&edge.id) {
+            emit(
+                &format!("edge-{i}"),
+                format!("{scope} .edge.p-edge-{i}"),
+                &info.paint,
+                true,
+            );
+        }
+    }
+    for placed in &c.scene.items {
+        if let Item::StyledGroup {
+            name, edge, paint, ..
+        } = &placed.item
+        {
+            let name = css_token(name);
+            emit(
+                &format!("legend-{name}"),
+                format!("{scope} .p-legend-{name}"),
+                paint,
+                *edge,
+            );
+            if *edge && paint.stroke_color.is_some() {
+                let marker = format!("{}legend-{name}", id_prefix(c, options.theme));
+                let _ = writeln!(
+                    marker_rules,
+                    "{scope} .p-legend-{name} .ln{{marker-end:url(#{marker})}}"
+                );
+            }
+        }
+    }
+    output.push_str(&marker_rules);
+    let _ = writeln!(
+        output,
+        "{scope}{{{}}}",
+        if options.theme == Theme::Dark {
+            &dark
+        } else {
+            &light
+        }
+    );
+    if options.theme == Theme::Auto {
+        if let Some(selector) = options.dark_selector {
+            let _ = writeln!(output, "{selector} {scope}{{{dark}}}");
+        } else {
+            let _ = writeln!(
+                output,
+                "@media(prefers-color-scheme:dark){{{scope}{{{dark}}}}}"
+            );
+        }
+    }
+    output
+}
+
 /// Element IDs must be unique when several diagrams share a page, so they
 /// carry a prefix derived from the rendered content. Identical output gives
 /// identical IDs, whose definitions are then interchangeable.
 fn id_prefix(c: &Compiled, theme: Theme) -> String {
     let key = format!(
         "{theme:?}{:?}{:?}{:?}",
-        c.diagram.title, c.diagram.desc, c.scene
+        c.diagram.title,
+        c.diagram.desc,
+        (
+            &c.scene,
+            c.document
+                .as_ref()
+                .map(|d| (&d.diagram.paint, &d.objects, &d.relationships))
+        )
     );
     let hash = key.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
         (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3)
@@ -247,7 +405,7 @@ fn used_chars(scene: &Scene) -> BTreeSet<char> {
         match item {
             Item::Text(t) => chars.extend(t.runs.iter().flat_map(|r| r.text.chars())),
             Item::Chip { text, .. } => chars.extend(text.chars()),
-            Item::Group(items) => stack.extend(items),
+            Item::Group(items) | Item::StyledGroup { items, .. } => stack.extend(items),
             _ => {}
         }
     }
@@ -256,6 +414,33 @@ fn used_chars(scene: &Scene) -> BTreeSet<char> {
 
 fn item(s: &mut String, p: &Placed, id: &str, direction: Direction) {
     match &p.item {
+        Item::StyledGroup {
+            name,
+            edge,
+            paint,
+            items,
+        } => {
+            let name = css_token(name);
+            let _ = writeln!(s, r#"      <g class="legend-paint p-legend-{name}">"#);
+            if *edge && paint.stroke_color.is_some() {
+                let _ = writeln!(
+                    s,
+                    r#"      <defs><marker id="{id}legend-{name}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--paint-legend-{name}-stroke)"/></marker></defs>"#
+                );
+            }
+            for child in items {
+                item(
+                    s,
+                    &Placed {
+                        item: child.clone(),
+                        node: None,
+                    },
+                    id,
+                    direction,
+                );
+            }
+            s.push_str("      </g>\n");
+        }
         Item::Group(items) => {
             s.push_str("      <g>\n");
             for child in items {

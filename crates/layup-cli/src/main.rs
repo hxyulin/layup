@@ -448,16 +448,28 @@ fn fences(src: &str) -> Vec<(usize, String)> {
 }
 
 fn report(input: &Path, source: &str, offset: usize, warnings: &[layup::Warning]) {
-    let tokens = layup::lexer::lex(source).unwrap_or_default();
+    let parsed = layup::document::parse_recovering(source);
+    let mut spans = Vec::new();
+    fn spans_in(
+        body: &[layup::document::GraphStatement],
+        spans: &mut Vec<layup::diagnostic::Span>,
+    ) {
+        for statement in body {
+            spans.push(statement.span());
+            spans_in(statement.children(), spans);
+        }
+    }
+    for diagram in &parsed.document.diagrams {
+        spans.push(diagram.span);
+        if let Some(body) = diagram.body.statements() {
+            spans_in(body, &mut spans);
+        }
+    }
     for w in warnings {
         let span = w
             .line
-            .and_then(|line| {
-                tokens
-                    .iter()
-                    .find(|t| t.line == line && !matches!(t.tok, layup::lexer::Tok::Newline))
-            })
-            .map(|t| t.span);
+            .and_then(|line| spans.iter().find(|span| span.line == line))
+            .copied();
         let diagnostic = layup::diagnostic::Diagnostic {
             severity: layup::diagnostic::Severity::Warning,
             code: "layout",

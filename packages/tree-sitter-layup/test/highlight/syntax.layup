@@ -22,9 +22,10 @@ diagram calls type=graph {
 // ^ variable
 //      ^ operator
 //         ^ variable
-  service store "Storage"
-// ^ type
-//         ^ variable
+  node store "Storage" style=service
+// ^ keyword
+//      ^ variable
+//                      ^ property
   /* outer /* nested */ outer */
 // ^ comment
 }

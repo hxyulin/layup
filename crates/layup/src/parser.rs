@@ -71,7 +71,7 @@ pub struct Parsed {
     pub errors: Vec<Error>,
 }
 
-pub fn parse(src: &str) -> Result<Vec<Stmt>, Error> {
+pub(crate) fn parse(src: &str) -> Result<Vec<Stmt>, Error> {
     let parsed = parse_recovering(src);
     match parsed.errors.into_iter().next() {
         Some(e) => Err(e),
@@ -79,7 +79,7 @@ pub fn parse(src: &str) -> Result<Vec<Stmt>, Error> {
     }
 }
 
-pub fn parse_recovering(src: &str) -> Parsed {
+pub(crate) fn parse_recovering(src: &str) -> Parsed {
     let lexed = lex_recovering(src);
     let mut p = Parser {
         toks: lexed

@@ -1,15 +1,14 @@
-diagram "Authorize an order" mode=state-machine direction=down width=1100 {
+diagram main "Authorize an order" type=state-machine flow-direction=down width=1100 {
   initial start
-  state received "Order received" blue
+  state received "Order received" palette=blue
   choice allowed
-  state processing "Processing" green
-  state rejected "Rejected" red
+  state processing "Processing" palette=green
+  state rejected "Rejected" palette=red
   final done
-
-  start -> received
-  received -> allowed "validate"
-  allowed -> processing "[allowed] / enqueue()"
-  allowed -> rejected "[denied]"
-  processing -> done "finish"
-  rejected -> done "close"
+  transition connection-1 ::start -> ::received
+  transition connection-2 ::received -> ::allowed "validate"
+  transition connection-3 ::allowed -> ::processing "[allowed] / enqueue()"
+  transition connection-4 ::allowed -> ::rejected "[denied]"
+  transition connection-5 ::processing -> ::done "finish"
+  transition connection-6 ::rejected -> ::done "close"
 }

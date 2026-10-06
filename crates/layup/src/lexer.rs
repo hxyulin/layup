@@ -36,14 +36,14 @@ pub struct Lexed {
     pub eof: Span,
 }
 
-pub fn lex(src: &str) -> Result<Vec<Token>, Error> {
+pub(crate) fn lex(src: &str) -> Result<Vec<Token>, Error> {
     Ok(lex_lossless(src)?
         .into_iter()
         .filter(|t| !matches!(t.tok, Tok::Comment(_)))
         .collect())
 }
 
-pub fn lex_lossless(src: &str) -> Result<Vec<Token>, Error> {
+pub(crate) fn lex_lossless(src: &str) -> Result<Vec<Token>, Error> {
     let result = lex_recovering(src);
     if let Some(e) = result.errors.into_iter().next() {
         Err(e)
@@ -54,7 +54,7 @@ pub fn lex_lossless(src: &str) -> Result<Vec<Token>, Error> {
 
 /// Consume malformed tokens and continue, preserving valid tokens and every
 /// lexical diagnostic. Unterminated multiline strings consume the remainder.
-pub fn lex_recovering(src: &str) -> Lexed {
+pub(crate) fn lex_recovering(src: &str) -> Lexed {
     let mut scanner = Scanner {
         src,
         pos: 0,

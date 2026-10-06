@@ -27,25 +27,29 @@ fn public_model_builder_accepts_the_same_document_preprocessing() {
 
 #[test]
 fn explicit_empty_edge_ids_fail_instead_of_becoming_generated_ids() {
-    let source = "diagram \"IDs\" { node a; node b; a -> b id=\"\" }";
+    let source = "diagram main \"IDs\" type=graph {\n  node a\n  node b\n  edge \"\" ::a -> ::b\n}";
     let error = compile(source).err().unwrap();
-    assert_eq!(error.code, "semantic/edge-id");
+    assert_eq!(error.code, "document/syntax");
     assert!(error.span.is_some());
 }
 
 #[test]
 fn view_filtering_does_not_make_shared_declarations_unused() {
-    let source = r#"model "Views" {
-        style service node blue
-        style abandoned node
-        arrow query green
-        arrow abandoned gray
-        service api "API"
-        node store "Store"
-        api -query-> store
-        view full { include api store }
-        view storage { include store }
-    }"#;
+    let source = r#"diagram main "Views" type=graph {
+  node-style service base=node palette=blue
+  node-style abandoned base=node
+  edge-style query palette=green
+  edge-style abandoned palette=gray
+  node api "API" style=service
+  node store "Store"
+  ::api -> ::store style=query
+  view full {
+    include ::api ::store
+  }
+  view storage {
+    include ::store
+  }
+}"#;
     let options = layup::CompileOptions {
         view: Some("storage".into()),
         ..Default::default()

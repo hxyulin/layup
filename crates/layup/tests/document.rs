@@ -1,7 +1,7 @@
 use layup::{CompileOptions, document, text::Fonts};
 
 fn compile(body: &str) -> Result<layup::Compiled, layup::Error> {
-    layup::compile(&format!("layup 1\ndiagram main kind=graph {{\n{body}\n}}"))
+    layup::compile(&format!("layup 1\ndiagram main type=graph {{\n{body}\n}}"))
 }
 fn scene(source: &str, diagram: Option<&str>) -> serde_json::Value {
     let compiled = layup::compile_with_options(
@@ -68,8 +68,8 @@ fn literal_dots_and_qualified_paths_are_distinct_and_rows_do_not_scope() {
 
 #[test]
 fn resolves_forward_names_and_bases_without_attribute_order_dependencies() {
-    let a = compile("node api kind=service\nnode worker\napi -> worker\nnode-kind service tone=red base=later\nnode-kind later base=node font=mono").unwrap();
-    let b = compile("node-kind later font=mono base=node\nnode-kind service base=later tone=red\nnode api kind=service\nnode worker\napi -> worker").unwrap();
+    let a = compile("node api style=service\nnode worker\napi -> worker\nnode-style service palette=red base=later\nnode-style later base=node font-family=mono").unwrap();
+    let b = compile("node-style later font-family=mono base=node\nnode-style service base=later palette=red\nnode api style=service\nnode worker\napi -> worker").unwrap();
     assert_eq!(a.scene.nodes[0].tone, b.scene.nodes[0].tone);
     assert_eq!(a.scene.nodes[0].tone, layup::style::Tone::Red);
 }
@@ -81,7 +81,7 @@ fn rejects_ambiguous_names_duplicate_attributes_and_ignored_bodies() {
         ("group a { node a }", "document/shadowing"),
         ("group box { node later }\nnode later", "document/shadowing"),
         ("node \"\"", "document/syntax"),
-        ("node a tone=red tone=blue", "document/syntax"),
+        ("node a palette=red palette=blue", "document/syntax"),
         ("node a \"First\" \"Second\"", "document/syntax"),
         (
             "node a { code \"fn run()\" { node hidden } }",
@@ -92,7 +92,7 @@ fn rejects_ambiguous_names_duplicate_attributes_and_ignored_bodies() {
             "document/duplicate-edge",
         ),
         (
-            "node-kind a base=b\nnode-kind b base=a\nnode x",
+            "node-style a base=b\nnode-style b base=a\nnode x",
             "document/kind-cycle",
         ),
         ("@doc(text=\"orphan\")", "document/syntax"),
@@ -108,7 +108,7 @@ fn rejects_ambiguous_names_duplicate_attributes_and_ignored_bodies() {
             "@meta(namespace=x,value={x:1,x:2})\nnode a",
             "document/syntax",
         ),
-        ("node a kind=process { node b }", "document/children"),
+        ("node a style=process { node b }", "document/children"),
     ] {
         let error = match compile(body) {
             Err(error) => error,
@@ -121,7 +121,7 @@ fn rejects_ambiguous_names_duplicate_attributes_and_ignored_bodies() {
 
 #[test]
 fn validates_unselected_diagrams_and_explicitly_rejects_other_grammars() {
-    let src = "layup 1\ndiagram first kind=graph { node a }\ndiagram second kind=graph { node b }";
+    let src = "layup 1\ndiagram first type=graph { node a }\ndiagram second type=graph { node b }";
     assert_eq!(scene(src, None)["document"]["diagramId"], "first");
     assert_eq!(
         scene(src, Some("second"))["document"]["diagramId"],
@@ -140,13 +140,13 @@ fn validates_unselected_diagrams_and_explicitly_rejects_other_grammars() {
         .is_err()
     );
     for source in [
-        "layup 2\ndiagram x kind=graph {}",
-        "layup 1\ndiagram x kind=sequence {}",
-        "layup\ndiagram x kind=graph {}",
+        "layup 2\ndiagram x type=graph {}",
+        "layup 1\ndiagram x type=sequence {}",
+        "layup\ndiagram x type=graph {}",
     ] {
         assert!(layup::compile(source).is_err());
     }
-    assert!(layup::compile("diagram \"Legacy\" { node api \"API\" }").is_ok());
+    assert!(layup::compile("diagram \"Legacy\" { node api \"API\" }").is_err());
 }
 
 #[test]
@@ -172,7 +172,7 @@ fn formatting_preserves_comments_values_references_and_is_idempotent() {
     fn semantic(value: &mut serde_json::Value) {
         match value {
             serde_json::Value::Object(fields) => {
-                for key in ["span", "valueSpan", "raw"] {
+                for key in ["span", "valueSpan", "nameSpan", "raw"] {
                     fields.remove(key);
                 }
                 for value in fields.values_mut() {
@@ -204,7 +204,7 @@ fn formatting_preserves_comments_values_references_and_is_idempotent() {
 
 #[test]
 fn unicode_names_keep_scalar_columns_and_exact_byte_spans() {
-    let source = "// 注释\r\nlayup 1\r\ndiagram 国际 \"مرحبا\" kind=graph textdir=rtl {\r\n node 服务 \"[raw] API\"\r\n node café \"Worker\"\r\n edge 调用 服务->café\r\n}";
+    let source = "// 注释\r\nlayup 1\r\ndiagram 国际 \"مرحبا\" type=graph text-direction=rtl {\r\n node 服务 \"[raw] API\"\r\n node café \"Worker\"\r\n edge 调用 服务->café\r\n}";
     let compiled = layup::compile(source).unwrap();
     assert_eq!(compiled.diagram.text_direction, layup::text::Direction::Rtl);
     let info = compiled.document.as_ref().unwrap();
@@ -251,8 +251,8 @@ fn annotation_evidence_is_repeatable_but_does_not_inherit() {
     assert_eq!(child.source_locations.len(), 0);
     assert_eq!(child.documentation, None);
     for body in [
-        "node-kind unused tone=blu\nnode a",
-        "edge-kind unused tone=blu\nnode a",
+        "node-style unused palette=blu\nnode a",
+        "edge-style unused palette=blu\nnode a",
     ] {
         assert!(compile(body).is_err());
     }
@@ -267,9 +267,9 @@ fn deeply_nested_values_and_kind_chains_are_bounded() {
     );
     assert!(compile(&body).is_err());
     let definitions = (0..140)
-        .map(|i| format!("node-kind k{i} base=k{}\n", i + 1))
+        .map(|i| format!("node-style k{i} base=k{}\n", i + 1))
         .collect::<String>();
-    assert!(compile(&format!("{definitions}node-kind k140 base=node\nnode a")).is_err());
+    assert!(compile(&format!("{definitions}node-style k140 base=node\nnode a")).is_err());
 }
 
 #[test]
@@ -278,11 +278,11 @@ fn inline_and_nested_multiline_comments_are_lossless_trivia() {
       /* nested { @not-an-annotation */
     */
     layup /* language revision */ 1
-    diagram main kind=/* grammar */graph {
+    diagram main type=/* grammar */graph {
       @meta(namespace=test, value=/* record */{x: true, items: [1, /* item */2]})
       /* stays attached to the following node */
       node a /* label spans a comment
-        without ending the statement */ "A" tone=/* palette */blue // inline
+        without ending the statement */ "A" palette=/* palette */blue // inline
       node b "Strings keep /* markers */ and // markers"
       a/* source */->/* target */b "Call"
     }
@@ -327,7 +327,7 @@ fn inline_and_nested_multiline_comments_are_lossless_trivia() {
 
 #[test]
 fn block_comment_diagnostics_and_limits_are_explicit() {
-    let source = "layup 1\ndiagram main kind=graph {\n  /* missing close";
+    let source = "layup 1\ndiagram main type=graph {\n  /* missing close";
     let error = layup::compile(source).err().unwrap();
     assert_eq!(error.code, "document/comment");
     let span = error.span.unwrap();
@@ -336,7 +336,7 @@ fn block_comment_diagnostics_and_limits_are_explicit() {
     assert!(error.msg.contains("unterminated"));
     assert!(layup::format::format(source).is_err());
     let too_deep = format!(
-        "layup 1\n{}{}\ndiagram main kind=graph {{}}",
+        "layup 1\n{}{}\ndiagram main type=graph {{}}",
         "/*".repeat(129),
         "*/".repeat(129)
     );
@@ -385,12 +385,7 @@ fn optional_revision_asserts_the_same_document_and_rejects_float_revisions() {
         layup::compile(quoted).unwrap().document.unwrap().diagram_id,
         "main"
     );
-    assert!(
-        layup::compile("diagram \"type=graph\" { node api }")
-            .unwrap()
-            .document
-            .is_none()
-    );
+    assert!(layup::compile("diagram \"type=graph\" { node api }").is_err());
     assert_eq!(
         layup::compile(&format!("layup 1\n{source}"))
             .unwrap()
@@ -553,5 +548,7 @@ fn reviewed_style_vocabulary_preserves_inheritance_and_source_ranges() {
         api.source_locations[0].range.as_ref().unwrap().start_line,
         1
     );
-    assert!(layup::compile(&source.replace("palette=purple", "palette=purple tone=blue")).is_err());
+    assert!(
+        layup::compile(&source.replace("palette=purple", "palette=purple palette=blue")).is_err()
+    );
 }

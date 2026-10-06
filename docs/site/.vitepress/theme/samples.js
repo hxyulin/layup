@@ -9,6 +9,7 @@ import rtl from '../../../../examples/right-to-left.layup?raw';
 import slides from '../../../../examples/slides.layup?raw';
 import presentation from '../../../../examples/presentation-model.layup?raw';
 import models from '../../../../examples/model-views.layup?raw';
+import paint from '../../../../examples/paint.layup?raw';
 import languageV1 from '../../../../examples/language-v1.layup?raw';
 
 export const samples = [
@@ -23,7 +24,8 @@ export const samples = [
   { id: 'slides', title: 'Slide-sized pipeline', source: slides },
   { id: 'presentation', title: 'Request/retry presentation', source: presentation, view: 'walkthrough' },
   { id: 'models', title: 'Shared architecture views', source: models, view: 'overview' },
-  { id: 'language-v1', title: 'Experimental revision-one graph', source: languageV1 },
+  { id: 'paint', title: 'Theme-aware paint and styles', source: paint },
+  { id: 'language-v1', title: 'Shared syntax, scopes and annotations', source: languageV1 },
 ];
 
 export function sampleById(id) { return samples.find(sample => sample.id === id) || samples[0]; }

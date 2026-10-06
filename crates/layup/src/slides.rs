@@ -186,7 +186,10 @@ fn measure_fonts(
     below: &mut usize,
 ) {
     let size = match item {
-        DrawItem::Group(children) => {
+        DrawItem::Group(children)
+        | DrawItem::StyledGroup {
+            items: children, ..
+        } => {
             for child in children {
                 measure_fonts(child, scale, minimum, smallest, below);
             }
@@ -208,3 +211,7 @@ fn measure_fonts(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "slides/tests.rs"]
+mod tests;

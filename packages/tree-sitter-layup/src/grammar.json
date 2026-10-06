@@ -203,31 +203,7 @@
         },
         {
           "type": "STRING",
-          "value": "model"
-        },
-        {
-          "type": "STRING",
           "value": "node"
-        },
-        {
-          "type": "STRING",
-          "value": "card"
-        },
-        {
-          "type": "STRING",
-          "value": "api"
-        },
-        {
-          "type": "STRING",
-          "value": "trait"
-        },
-        {
-          "type": "STRING",
-          "value": "type"
-        },
-        {
-          "type": "STRING",
-          "value": "module"
         },
         {
           "type": "STRING",
@@ -263,22 +239,6 @@
         },
         {
           "type": "STRING",
-          "value": "style"
-        },
-        {
-          "type": "STRING",
-          "value": "arrow"
-        },
-        {
-          "type": "STRING",
-          "value": "node-kind"
-        },
-        {
-          "type": "STRING",
-          "value": "edge-kind"
-        },
-        {
-          "type": "STRING",
           "value": "node-style"
         },
         {
@@ -291,22 +251,6 @@
         },
         {
           "type": "STRING",
-          "value": "title"
-        },
-        {
-          "type": "STRING",
-          "value": "name"
-        },
-        {
-          "type": "STRING",
-          "value": "subtitle"
-        },
-        {
-          "type": "STRING",
-          "value": "desc"
-        },
-        {
-          "type": "STRING",
           "value": "note"
         },
         {
@@ -316,14 +260,6 @@
         {
           "type": "STRING",
           "value": "text"
-        },
-        {
-          "type": "STRING",
-          "value": "sub"
-        },
-        {
-          "type": "STRING",
-          "value": "role"
         },
         {
           "type": "STRING",
@@ -355,15 +291,7 @@
         },
         {
           "type": "STRING",
-          "value": "show-edge"
-        },
-        {
-          "type": "STRING",
           "value": "highlight"
-        },
-        {
-          "type": "STRING",
-          "value": "highlight-edge"
         },
         {
           "type": "STRING",
@@ -380,14 +308,6 @@
         {
           "type": "STRING",
           "value": "loop"
-        },
-        {
-          "type": "STRING",
-          "value": "opt"
-        },
-        {
-          "type": "STRING",
-          "value": "alt"
         },
         {
           "type": "STRING",
@@ -440,18 +360,6 @@
         {
           "type": "STRING",
           "value": "port"
-        },
-        {
-          "type": "STRING",
-          "value": "process"
-        },
-        {
-          "type": "STRING",
-          "value": "decision"
-        },
-        {
-          "type": "STRING",
-          "value": "terminal"
         }
       ]
     },
@@ -580,10 +488,6 @@
         {
           "type": "SYMBOL",
           "name": "attribute"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "weights"
         },
         {
           "type": "SYMBOL",
@@ -772,17 +676,8 @@
               "type": "SEQ",
               "members": [
                 {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "SYMBOL",
-                      "name": "annotation_argument"
-                    },
-                    {
-                      "type": "SYMBOL",
-                      "name": "_value"
-                    }
-                  ]
+                  "type": "SYMBOL",
+                  "name": "annotation_argument"
                 },
                 {
                   "type": "REPEAT",
@@ -808,17 +703,8 @@
                         }
                       },
                       {
-                        "type": "CHOICE",
-                        "members": [
-                          {
-                            "type": "SYMBOL",
-                            "name": "annotation_argument"
-                          },
-                          {
-                            "type": "SYMBOL",
-                            "name": "_value"
-                          }
-                        ]
+                        "type": "SYMBOL",
+                        "name": "annotation_argument"
                       },
                       {
                         "type": "REPEAT",
@@ -1111,31 +997,6 @@
         }
       ]
     },
-    "weights": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "number"
-        },
-        {
-          "type": "REPEAT1",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "STRING",
-                "value": ":"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "number"
-              }
-            ]
-          }
-        }
-      ]
-    },
     "_name": {
       "type": "CHOICE",
       "members": [
@@ -1204,21 +1065,8 @@
               "type": "SEQ",
               "members": [
                 {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "STRING",
-                      "value": "."
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "::"
-                    },
-                    {
-                      "type": "STRING",
-                      "value": "/"
-                    }
-                  ]
+                  "type": "STRING",
+                  "value": "."
                 },
                 {
                   "type": "SYMBOL",
@@ -1261,8 +1109,25 @@
         "type": "PREC",
         "value": 1,
         "content": {
-          "type": "PATTERN",
-          "value": "<?-(?:>|-|[\\p{XID_Start}_][\\p{XID_Continue}_]*(?:-[\\p{XID_Continue}_]+)*->?|)"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": "->"
+            },
+            {
+              "type": "STRING",
+              "value": "<-"
+            },
+            {
+              "type": "STRING",
+              "value": "<->"
+            },
+            {
+              "type": "STRING",
+              "value": "--"
+            }
+          ]
         }
       }
     },

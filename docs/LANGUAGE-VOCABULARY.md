@@ -1,20 +1,17 @@
 # Layup vocabulary review
 
-This review covers the existing DSL, the implemented document/graph checkpoint,
-and the sequence, state, ER, view, and presentation syntax in the language
-design. Its spellings are the agreed design for the replacement language; they
-are implemented for diagram selectors, style declarations, palette/typography
-and direction properties in the shared document checkpoint. Independent paint
-channels and the remaining body grammars still require renderer/migration work.
-The current implementation is documented in the [experimental guide](site/guide/language-v1.md).
+This review records the naming decisions behind the replacement grammar and
+the proposed extension syntax. Graph, sequence, state, views, presentations and
+independent paint channels are implemented in the current checkout.
+See the [DSL reference](site/reference/dsl.md) for the exact supported subset.
+ER, member/port geometry, ellipse shapes, document JSON input and property
+schema introspection remain future work. Examples of those extensions below
+are design proposals.
 
-The replacement will become the only source grammar. Unversioned source will
-use it; an optional `layup 1` header will assert the language revision rather
-than select a compatibility dialect. Unknown revisions will fail. There is no
-need for a permanent legacy parser or aliases, given the project's internal
-usage. Migration must preserve all existing diagram features before removing
-the old entry points. The header does not promise ongoing support for multiple
-source revisions; only the supported revision is accepted.
+The replacement is the sole source grammar. An optional `layup 1` assertion
+checks the revision; it does not select a compatibility dialect. Unknown
+revisions fail. The migration removes public legacy parser entry points while
+retaining backend model types and version-1 structured graph input.
 
 ## Naming rules
 

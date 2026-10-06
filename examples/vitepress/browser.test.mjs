@@ -1,3 +1,4 @@
+import { objectSelector } from '../../packages/layup/test/helpers.js';
 // Checks the built site in Chromium: hydration, fonts, theming, and the
 // @hxyulin/layup/client interactions. Run `pnpm build` first; `just
 // vitepress-test` does both.
@@ -37,9 +38,9 @@ after(async () => {
 });
 
 const svg = (n = 0) => page.locator('.layup-diagram svg.layup').nth(n);
-const node = (id, scope = '.layup-diagram >> nth=0') => page.locator(`${scope} >> .node[data-id="${id}"] .box`);
+const node = (id, scope = '.layup-diagram >> nth=0') => page.locator(`${scope} >> ${objectSelector(id)} .box`);
 const state = () =>
-  svg().evaluate((s) => ({ pinned: s.dataset.pinned ?? null, hl: [...s.querySelectorAll('.node.hl')].map((n) => n.dataset.id) }));
+  svg().evaluate((s) => ({ pinned: s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null, hl: [...s.querySelectorAll('.node.hl')].map((n) => JSON.parse(n.dataset.id.slice(7)).at(-1)) }));
 
 test('hydrates with styles and fonts intact', async () => {
   assert.equal(await page.locator('.layup-diagram svg style').count(), 6);
@@ -89,7 +90,7 @@ test('the viewer zooms, pans, pins, responds to keys and closes', async () => {
   assert.notEqual(await viewBox(), fitted);
   await page.keyboard.press('0');
   await node('worker', '.layup-viewer').click();
-  assert.equal(await page.locator('.layup-viewer svg').evaluate((s) => s.dataset.pinned), 'worker');
+  assert.equal(await page.locator('.layup-viewer svg').evaluate((s) => JSON.parse(s.dataset.pinned.slice(7)).at(-1)), 'worker');
   await page.keyboard.press('Escape');
   await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
 });
@@ -109,13 +110,13 @@ test('decision polygons highlight, pin, and expand in the viewer', async () => {
   await page.goto(URL, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   const scope = '.layup-diagram >> nth=3';
-  const question = svg(3).locator('.node[data-id="ready"]');
+  const question = svg(3).locator(objectSelector('ready'));
   await question.hover();
   assert.equal(await svg(3).locator('polygon.box').count(), 1);
-  assert.deepEqual((await svg(3).locator('.node.hl').evaluateAll(nodes => nodes.map(n => n.dataset.id))).sort(), ['approve', 'followup', 'ready']);
+  assert.deepEqual((await svg(3).locator('.node.hl').evaluateAll(nodes => nodes.map(n => JSON.parse(n.dataset.id.slice(7)).at(-1)))).sort(), ['approve', 'followup', 'ready']);
   await question.click();
   await page.mouse.move(2, 2);
-  assert.equal(await svg(3).evaluate(s => s.dataset.pinned), 'ready');
+  assert.equal(await svg(3).evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'ready');
   await page.hover(scope);
   await page.click(`${scope} >> .layup-expand`);
   assert.equal(await page.locator('.layup-viewer polygon.box').count(), 1);
@@ -125,36 +126,36 @@ test('decision polygons highlight, pin, and expand in the viewer', async () => {
 
 test('state markers highlight, pin, and survive viewer expansion', async () => {
   const scope = '.layup-diagram >> nth=4';
-  const initial = svg(4).locator('.node[data-id="begin"]');
+  const initial = svg(4).locator(objectSelector('begin'));
   assert.equal(await svg(4).locator('circle.box').count(), 2);
   await initial.hover();
-  assert.deepEqual((await svg(4).locator('.node.hl').evaluateAll(nodes => nodes.map(n => n.dataset.id))).sort(), ['begin', 'idle']);
+  assert.deepEqual((await svg(4).locator('.node.hl').evaluateAll(nodes => nodes.map(n => JSON.parse(n.dataset.id.slice(7)).at(-1)))).sort(), ['begin', 'idle']);
   await initial.click();
   await page.mouse.move(2, 2);
-  assert.equal(await svg(4).evaluate(s => s.dataset.pinned), 'begin');
+  assert.equal(await svg(4).evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'begin');
   await page.hover(scope);
   await page.click(`${scope} >> .layup-expand`);
   assert.equal(await page.locator('.layup-viewer circle.box').count(), 2);
-  await page.locator('.layup-viewer .node[data-id="done"]').click();
-  assert.equal(await page.locator('.layup-viewer svg').evaluate(s => s.dataset.pinned), 'done');
+  await page.locator('.layup-viewer ' + objectSelector('done')).click();
+  assert.equal(await page.locator('.layup-viewer svg').evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'done');
   await page.keyboard.press('Escape');
   await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
 });
 
 test('composite frames and child states remain selectable in the viewer', async () => {
   const scope = '.layup-diagram >> nth=5';
-  const parent = svg(5).locator('.node[data-id="connected"] text').first();
-  const child = svg(5).locator('.node[data-id="sending"]');
+  const parent = svg(5).locator(objectSelector('connected') + ' text').first();
+  const child = svg(5).locator(objectSelector('connected', 'sending'));
   await child.click();
   await page.mouse.move(2, 2);
-  assert.equal(await svg(5).evaluate(s => s.dataset.pinned), 'sending');
+  assert.equal(await svg(5).evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'sending');
   await parent.click();
-  assert.equal(await svg(5).evaluate(s => s.dataset.pinned), 'connected');
+  assert.equal(await svg(5).evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'connected');
   await page.hover(scope);
   await page.click(`${scope} >> .layup-expand`);
-  assert.equal(await page.locator('.layup-viewer .node[data-id="connected"]').count(), 1);
-  await page.locator('.layup-viewer .node[data-id="sending"]').click();
-  assert.equal(await page.locator('.layup-viewer svg').evaluate(s => s.dataset.pinned), 'sending');
+  assert.equal(await page.locator('.layup-viewer ' + objectSelector('connected')).count(), 1);
+  await page.locator('.layup-viewer ' + objectSelector('connected', 'sending')).click();
+  assert.equal(await page.locator('.layup-viewer svg').evaluate(s => s.dataset.pinned ? JSON.parse(s.dataset.pinned.slice(7)).at(-1) : null), 'sending');
   await page.keyboard.press('Escape');
   await page.locator('dialog.layup-viewer').waitFor({ state: 'detached' });
 });

@@ -87,6 +87,13 @@ pub struct TextItem {
 pub enum Item {
     /// Compound drawing, used for multiline message labels and annotations.
     Group(Vec<Item>),
+    /// A legend group with the declared style's independent paint.
+    StyledGroup {
+        name: String,
+        edge: bool,
+        paint: crate::document::Paint,
+        items: Vec<Item>,
+    },
     /// A node body. `hollow` draws only the border.
     Box {
         rect: Rect,
@@ -1558,6 +1565,7 @@ fn draw_node(
         Shape::Package => (20.0, 10.0, 1.25),
         Shape::Container => (20.0, 8.0, 1.5),
     };
+    let rx = n.style.corner_radius.unwrap_or(rx);
     let white = n.style.shape == Shape::Package;
     ctx.push_for(
         idx,
@@ -1659,6 +1667,8 @@ fn draw_node(
             }
             let rtl = direction == crate::text::Direction::Rtl;
             let (tx, anchor) = match n.style.align {
+                Align::End if rtl => (x + pad_x, Anchor::Start),
+                Align::End => (x + w - pad_x, Anchor::End),
                 Align::Start if rtl => (x + w - pad_x, Anchor::End),
                 Align::Start | Align::Left => (x + pad_x, Anchor::Start),
                 Align::Right => (x + w - pad_x, Anchor::End),
@@ -1737,6 +1747,8 @@ fn draw_node(
 
 #[derive(Debug, Clone)]
 pub struct LegendEntry {
+    pub name: String,
+    pub paint: crate::document::Paint,
     pub label: String,
     /// `Some(kind)` draws a node swatch of that kind; `None` draws an arrow sample.
     pub kind: Option<(Tone, bool, bool)>,
@@ -1780,17 +1792,30 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
     }
     for e in &d.edges {
         let style = &d.arrows[&e.kind];
-        let target = d.blocks.iter().find_map(|b| find(b, &e.to));
-        let tone = match (e.tone, style.color) {
+        let endpoint = if style.paint.palette_origin == Some(crate::document::PaletteOrigin::Source)
+        {
+            &e.from
+        } else {
+            &e.to
+        };
+        let target = d.blocks.iter().find_map(|b| find(b, endpoint));
+        let mut tone = match (e.tone, style.color) {
             (Some(t), _) => t,
             (None, ArrowColor::Tone(t)) => t,
             (None, ArrowColor::Inherit) => target.map(|n| n.style.tone).unwrap_or(Tone::Gray),
         };
-        let target_kind = if style.color == ArrowColor::Inherit {
-            target.map(|n| n.kind.clone())
-        } else {
-            None
-        };
+        if style.paint.stroke_color.is_some() {
+            tone = match style.color {
+                ArrowColor::Tone(t) => t,
+                _ => Tone::Gray,
+            };
+        }
+        let target_kind =
+            if style.color == ArrowColor::Inherit && style.paint.stroke_color.is_none() {
+                target.map(|n| n.kind.clone())
+            } else {
+                None
+            };
         match used_arrows
             .iter_mut()
             .find(|(k, t, _)| *k == e.kind && *t == tone)
@@ -1818,6 +1843,8 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
         let Some(label) = &style.label else { continue };
         let w = width_with_fonts(label, Font::Sans, 12.5, 0.0, fonts) + 28.0;
         entries.push(LegendEntry {
+            name: format!("node-{k}"),
+            paint: style.paint.clone(),
             label: label.clone(),
             kind: Some((style.tone, style.hollow, style.shape == Shape::Package)),
             arrow: None,
@@ -1835,7 +1862,7 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
     for (k, tone, target_kinds) in arrows {
         let style = &d.arrows[&k];
         let base = style.label.clone().unwrap_or_else(|| k.clone());
-        let label = if style.color == ArrowColor::Inherit {
+        let label = if style.color == ArrowColor::Inherit && style.paint.stroke_color.is_none() {
             // Several kinds may share the tone; name the filled one, since
             // the edge color reads as that node's fill.
             let styles: Vec<&NodeStyle> = target_kinds
@@ -1861,6 +1888,8 @@ fn legend_entries(d: &Diagram, l: &Legend, fonts: &Fonts) -> (Vec<LegendEntry>, 
         };
         let w = width_with_fonts(&label, Font::Sans, 12.5, 0.0, fonts) + 42.0;
         entries.push(LegendEntry {
+            name: format!("edge-{k}-{}", tone.name()),
+            paint: style.paint.clone(),
             label,
             kind: None,
             arrow: Some((tone, style.dashed)),
@@ -1893,6 +1922,7 @@ fn pack_legend(entries: &[LegendEntry], w: f64) -> Vec<Vec<usize>> {
 }
 
 fn draw_legend_entry(ctx: &mut Ctx, e: &LegendEntry, x: f64, y: f64) {
+    let begin = ctx.scene.items.len();
     if let Some((tone, hollow, white)) = e.kind {
         let rect = Rect {
             x,
@@ -1939,5 +1969,19 @@ fn draw_legend_entry(ctx: &mut Ctx, e: &LegendEntry, x: f64, y: f64) {
             ink: Ink::Muted,
             letter_spacing: 0.0,
         }));
+    }
+    if e.paint != crate::document::Paint::default() {
+        let items = ctx
+            .scene
+            .items
+            .drain(begin..)
+            .map(|placed| placed.item)
+            .collect();
+        ctx.push(Item::StyledGroup {
+            name: e.name.clone(),
+            edge: e.arrow.is_some(),
+            paint: e.paint.clone(),
+            items,
+        });
     }
 }

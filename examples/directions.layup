@@ -1,10 +1,10 @@
-diagram "Horizontal branching" width=1100 layout=auto direction=right {
+diagram main "Horizontal branching" type=graph width=1100 layout=auto flow-direction=right {
   node result "Result"
   node approve "Approve"
   node request "Request"
   node reject "Reject"
-  request -> approve
-  request -> reject
-  approve -> result
-  reject -> result
+  ::request -> ::approve
+  ::request -> ::reject
+  ::approve -> ::result
+  ::reject -> ::result
 }

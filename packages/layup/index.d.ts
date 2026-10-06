@@ -151,7 +151,7 @@ export type Outline =
 
 /** Drawing coordinates belong to the original scene, before the optional slide transform. */
 export type Drawing =
-  | { readonly type: 'group'; readonly items: readonly Drawing[] }
+  | { readonly type: 'group'; readonly items: readonly Drawing[]; readonly paint?: Paint }
   | { readonly type: 'box'; readonly rect: Rect; readonly tone: Tone; readonly hollow: boolean; readonly white: boolean; readonly radius: number; readonly strokeWidth: number }
   | { readonly type: 'state-marker'; readonly rect: Rect; readonly tone: Tone; readonly finalState: boolean }
   | { readonly type: 'diamond'; readonly rect: Rect; readonly tone: Tone; readonly hollow: boolean; readonly strokeWidth: number }
@@ -167,6 +167,7 @@ export interface TextRun {
   readonly tag: boolean;
 }
 export interface SceneNode {
+  readonly paint: Paint | null;
   readonly id: string;
   /** Authored path segments for revision-one DSL; renderer IDs remain opaque. */
   readonly objectPath: readonly string[] | null;
@@ -182,8 +183,9 @@ export interface SceneNode {
   readonly metadata: { readonly [key: string]: JsonValue };
 }
 export interface SceneEdge {
+  readonly paint: Paint | null;
   readonly id: string;
-  /** Named revision-one relationship ID; null for anonymous or legacy edges. */
+  /** Named revision-one relationship ID; null for anonymous edges and structured graph input. */
   readonly authoredId: string | null;
   readonly from: string;
   readonly to: string;
@@ -240,6 +242,7 @@ export type DocumentValue =
   | { readonly type: 'record'; readonly value: { readonly [key: string]: DocumentValue } }
   | { readonly type: 'reference'; readonly value: { readonly root: boolean; readonly segments: readonly string[] } };
 export interface DocumentAttribute {
+  readonly nameSpan: SourceSpan;
   readonly value: DocumentValue;
   readonly span: SourceSpan;
   readonly valueSpan: SourceSpan;
@@ -255,10 +258,18 @@ export interface SyntaxTarget {
   readonly span: SourceSpan;
 }
 export type DocumentStatement =
-  | { readonly type: 'node'; readonly value: SyntaxTarget & { readonly declaration: string; readonly id: string; readonly title: string; readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
-  | { readonly type: 'edge'; readonly value: SyntaxTarget & { readonly id: string | null; readonly from: DocumentReference; readonly to: DocumentReference; readonly arrow: string; readonly label: string | null; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
-  | { readonly type: 'node-kind' | 'edge-kind'; readonly value: SyntaxTarget & { readonly id: string; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'node'; readonly value: SyntaxTarget & { readonly declaration: string; readonly labelSpan: SourceSpan | null; readonly id: string; readonly title: string; readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'edge'; readonly value: SyntaxTarget & { readonly id: string | null; readonly fromSpan: SourceSpan; readonly toSpan: SourceSpan; readonly arrowSpan: SourceSpan; readonly from: DocumentReference; readonly to: DocumentReference; readonly arrow: string; readonly label: string | null; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'node-style' | 'edge-style'; readonly value: SyntaxTarget & { readonly id: string; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
   | { readonly type: 'row'; readonly value: SyntaxTarget & { readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'view' | 'step'; readonly value: SyntaxTarget & { readonly idSpan: SourceSpan; readonly id: string; readonly title: string; readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'layout'; readonly value: SyntaxTarget & { readonly kind: 'section' | 'band' | 'divider' | 'gap'; readonly title: string | null; readonly attributes: { readonly [key: string]: DocumentAttribute }; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'configuration'; readonly value: SyntaxTarget & { readonly kind: 'slide' | 'legend'; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'defaults'; readonly value: SyntaxTarget & { readonly category: 'node' | 'edge' | 'participant' | 'message' | 'state' | 'transition'; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'selection'; readonly value: SyntaxTarget & { readonly kind: 'include' | 'show' | 'highlight'; readonly objects: readonly DocumentReference[]; readonly objectSpans: readonly SourceSpan[]; readonly connections: readonly string[]; readonly connectionSpans: readonly SourceSpan[] } }
+  | { readonly type: 'fragment'; readonly value: SyntaxTarget & { readonly kind: 'loop' | 'optional' | 'alternatives' | 'branch'; readonly title: string; readonly body: readonly DocumentStatement[] } }
+  | { readonly type: 'sequence-note'; readonly value: SyntaxTarget & { readonly text: string; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
+  | { readonly type: 'port'; readonly value: SyntaxTarget & { readonly id: string; readonly attributes: { readonly [key: string]: DocumentAttribute } } }
   | { readonly type: 'content'; readonly value: SyntaxTarget & { readonly kind: string; readonly text: string } };
 export interface DocumentReference { readonly root: boolean; readonly segments: readonly string[] }
 export interface SyntaxDiagram extends SyntaxTarget {
@@ -267,7 +278,7 @@ export interface SyntaxDiagram extends SyntaxTarget {
   readonly diagramType: string;
   readonly typeSpan: SourceSpan;
   readonly attributes: { readonly [key: string]: DocumentAttribute };
-  readonly body: { readonly type: 'graph'; readonly value: readonly DocumentStatement[] }
+  readonly body: { readonly type: 'graph' | 'sequence' | 'state-machine'; readonly value: readonly DocumentStatement[] }
     | { readonly type: 'opaque'; readonly value: { readonly raw: string; readonly span: SourceSpan } };
 }
 export interface DocumentInspection {
@@ -286,7 +297,23 @@ export interface DocumentManifestEntry extends SyntaxTarget {
   readonly reason: string | null;
 }
 
+export type PaintColor =
+  | { readonly type: 'literal' | 'token'; readonly value: string }
+  | { readonly type: 'themed'; readonly value: { readonly light: PaintColor; readonly dark: PaintColor } }
+  | { readonly type: 'none' };
+export interface Paint {
+  readonly paletteOrigin: "source" | "target" | null;
+  readonly fillColor: PaintColor | null;
+  readonly strokeColor: PaintColor | null;
+  readonly textColor: PaintColor | null;
+  readonly backgroundColor: PaintColor | null;
+  readonly strokeStyle: 'solid' | 'dashed' | 'dotted' | null;
+  readonly strokeWidth: number | null;
+}
 export interface DocumentEntityInfo {
+  readonly declaration: string | null;
+  readonly attributes: { readonly [key: string]: DocumentAttribute };
+  readonly paint: Paint;
   readonly annotations: readonly DocumentAnnotation[];
   readonly path: readonly string[] | null;
   readonly authoredId: string | null;
@@ -300,7 +327,7 @@ export interface DocumentInfo {
   readonly diagrams: readonly string[];
   readonly manifest: readonly DocumentManifestEntry[];
   readonly diagnostics: readonly LintDiagnostic[];
-  readonly targets: readonly (SyntaxTarget & { readonly diagramId: string; readonly category: 'object' | 'relationship' | 'style' | 'layout' | 'content' })[];
+  readonly targets: readonly (SyntaxTarget & { readonly diagramId: string; readonly category: 'object' | 'relationship' | 'style' | 'layout' | 'content' | 'view' | 'step' | 'configuration' | 'defaults' | 'selection' | 'fragment' | 'event' | 'member' })[];
   readonly diagram: DocumentEntityInfo;
   readonly objects: { readonly [renderId: string]: DocumentEntityInfo };
   readonly relationships: { readonly [renderId: string]: DocumentEntityInfo };

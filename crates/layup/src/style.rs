@@ -154,6 +154,7 @@ impl Shape {
 pub enum Align {
     /// Align with the resolved text direction.
     Start,
+    End,
     Left,
     Right,
     Center,
@@ -161,7 +162,9 @@ pub enum Align {
 
 #[derive(Debug, Clone)]
 pub struct NodeStyle {
+    pub paint: crate::document::Paint,
     pub shape: Shape,
+    pub corner_radius: Option<f64>,
     pub tone: Tone,
     /// True when no explicit tone was given: the model assigns the next
     /// tone from `AUTO_CYCLE` in document order.
@@ -179,7 +182,9 @@ pub struct NodeStyle {
 pub fn presets() -> BTreeMap<String, NodeStyle> {
     let mut m = BTreeMap::new();
     let card = NodeStyle {
+        paint: Default::default(),
         shape: Shape::Card,
+        corner_radius: None,
         tone: Tone::Gray,
         auto: true,
         hollow: false,
@@ -274,6 +279,8 @@ pub fn presets() -> BTreeMap<String, NodeStyle> {
             ..api.clone()
         },
     );
+    m.insert("interface".into(), api.clone());
+    m.insert("container".into(), m["group"].clone());
     m.insert("api".into(), api);
     m
 }
@@ -287,6 +294,7 @@ pub enum ArrowColor {
 
 #[derive(Debug, Clone)]
 pub struct ArrowStyle {
+    pub paint: crate::document::Paint,
     pub color: ArrowColor,
     pub dashed: bool,
     pub label: Option<String>,
@@ -299,6 +307,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "default".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Gray),
             dashed: false,
             label: None,
@@ -308,6 +317,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "impl".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Orange),
             dashed: false,
             label: Some("implements".into()),
@@ -317,6 +327,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "extends".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Purple),
             dashed: false,
             label: Some("extends".into()),
@@ -326,6 +337,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "uses".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Blue),
             dashed: false,
             label: Some("uses".into()),
@@ -335,6 +347,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "exports".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Inherit,
             dashed: true,
             label: Some("exports".into()),
@@ -344,6 +357,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "depends".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Gray),
             dashed: false,
             label: Some("depends on".into()),
@@ -353,6 +367,7 @@ pub fn arrow_presets() -> BTreeMap<String, ArrowStyle> {
     m.insert(
         "flow".into(),
         ArrowStyle {
+            paint: Default::default(),
             color: ArrowColor::Tone(Tone::Gray),
             dashed: false,
             label: None,

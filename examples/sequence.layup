@@ -1,29 +1,26 @@
-diagram "Submit and process a request" mode=sequence {
-  actor user "User" blue
-  participant browser "Browser" green
-  participant api "API" purple
-  participant worker "Worker" orange
-
-  user -> browser "Submit request" id=submit
-  browser -> api "POST /jobs" id=request
-  note "Validate the payload before starting work." over=api
-  api -> api "Validate and authorize" id=validate
-  api -> worker "Queue job" async id=enqueue
-  api -> browser "202 Accepted" return id=accepted
-
+diagram main "Submit and process a request" type=sequence subtitle="Validate the payload before starting work." {
+  actor user "User" palette=blue
+  participant browser "Browser" palette=green
+  participant api "API" palette=purple
+  participant worker "Worker" palette=orange
+  message submit ::user -> ::browser "Submit request"
+  message request ::browser -> ::api "POST /jobs"
+  note "Validate the payload before starting work." over=::api
+  message validate ::api -> ::api "Validate and authorize"
+  message enqueue ::api -> ::worker "Queue job" delivery=async
+  message accepted ::api -> ::browser "202 Accepted" type=reply
   loop "Until the job completes" {
-    browser -> api "GET /jobs/:id" id=poll
-    alt "Job status" {
+    message poll ::browser -> ::api "GET /jobs/:id"
+    alternatives "Job status" {
       branch "Complete" {
-        api -> browser "200 + result" return id=result
+        message result ::api -> ::browser "200 + result" type=reply
       }
       branch "Still running" {
-        api -> browser "200 + pending" return id=pending
+        message pending ::api -> ::browser "200 + pending" type=reply
       }
     }
   }
-
-  opt "Notify the user" {
-    browser -> user "Display the result" id=display
+  optional "Notify the user" {
+    message display ::browser -> ::user "Display the result"
   }
 }

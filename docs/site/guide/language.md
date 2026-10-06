@@ -1,95 +1,102 @@
 # The source language
 
-The examples below use the unversioned DSL. To try the new shared document
-rules and graph grammar in the current checkout, see
-[experimental language revision](/guide/language-v1).
-
-The DSL has three main ingredients: items, nested blocks, and relationships.
-Items end at a newline or semicolon. Braces group content, and `//` begins a
-comment outside a quoted string.
+A Layup document contains named diagrams. Shared rules cover comments, values,
+annotations and scoped references; the diagram's `type` selects its body
+grammar. The optional `layup 1` header asserts the supported revision.
+The current checkout uses this replacement syntax throughout; older title-only
+diagrams and bare presentation flags are rejected.
 
 ## Items and blocks
 
 ```layup source
-diagram "A service and its worker" layout=auto {
-  node api "Public API" blue {
+diagram main "A service and its worker" type=graph layout=auto {
+  node api "Public API" palette=blue {
     code "POST /jobs"
-    sub "Accepts a request and returns a job identifier."
+    text "Accepts a request and returns a job identifier."
   }
   group backend "Backend" {
-    node worker "Worker" green
-    node store "Storage" purple
-    worker -> store "save"
+    node worker "Worker" palette=green
+    node store "Storage" palette=purple
+    edge save worker -> store "save"
   }
-  api -> worker "dispatch"
+  edge dispatch api -> backend.worker "dispatch"
 }
 ```
 
-The kind (`node`, `group`, `decision`, and so on) determines the visual shape.
-Bare words provide IDs, tones, or flags. Quoted strings provide titles and
-labels. Attributes use `key=value`, and a body contains nested items.
+Statements end at a newline or semicolon. Braces contain nested statements.
+`//` comments continue to the end of the line; `/* … */` comments can appear
+inline, span lines and nest. Comment markers inside strings remain text.
+
+Graph object declarations have an explicit ID, optional display label and named
+properties. A quoted ID can contain punctuation without changing reference
+rules. Every graph object uses a fixed declaration such as `node` or `group`;
+`style=service` selects a presentation style without introducing a keyword.
 
 ```text
-KIND [id] ["Title"] [tone] [flags] [key=value ...] [{ content }]
+node api "Public API" style=service palette=blue
+edge dispatch api -> worker "dispatch" stroke-style=dashed
 ```
 
-Edges may appear before the nodes they reference: declarations resolve before
-layout. IDs are unique throughout the document, including inside containers.
+Edges can precede their endpoints. All supported definitions are validated
+before diagram or view selection.
 
-## Keep IDs separate from labels
+## Scoped identities and stable names
 
-Use `node api "Public API"` when another item, edge, view, or step references
-the node. Its title can change without changing the ID. `id=api` is an
-equivalent explicit attribute.
+IDs are unique within their container. A group, package, crate or composite
+state introduces a scope. A reference such as `backend.worker` resolves from
+the current scope; `::backend.worker` resolves from the diagram root.
+Sibling scopes may each declare `worker`. Rows and sequence fragments organize
+content without creating identity scopes.
 
-Ordinary graph nodes can omit an ID: Layup generates a unique slug from their
-title. Shared models and sequence participants require explicit IDs. These
-make view filtering and message references predictable.
+Labels can change without changing IDs. Objects require explicit IDs.
+Named edges use `edge ID FROM -> TO`; sequence messages require `message ID`
+and states use `transition ID`. Graph edges and state transitions can also
+be anonymous. Name relationships that views, steps or external tools use.
+Renderer IDs are opaque; use document metadata's `objectPath` and `authoredId`
+to recover authored identities.
 
-Edges also accept IDs:
+## Typed values, strings and Unicode
+
+Properties and annotation arguments distinguish choices, strings, integers,
+floats, booleans, null, lists, records and references. `blue` and `"blue"` retain
+different types in inspection even when a style property accepts both.
+Integers are exact within signed/unsigned 64-bit ranges; floats must be finite.
+Geometry imposes further constraints, such as positive widths and row weights.
 
 ```text
-api -> worker "dispatch" id=dispatch
+row weights=[1, 2] gap=24 { … }
+slide size={width: 1200, height: 1800}
+@company.analysis(data={public: true, score: 1.5, tags: ["entry", "HTTP"]})
 ```
 
-Omitted edge IDs become `edge-N` in source order, skipping explicit
-reservations. Use authored IDs for reveal steps and external integrations.
+Strings support `\"`, `\\`, `\n`, `\t` and `\r`, as well as literal
+newlines. Unknown escapes, repeated properties and duplicate record keys are
+errors. Identifiers support Unicode letters and combining marks, digits,
+underscores and internal hyphens. Dots separate reference segments; quote a
+segment whose ID contains punctuation.
 
-## Strings, numbers, and Unicode
-
-Strings support `\"`, `\\`, `\n`, `\t`, and `\r`. You can also write literal
-newlines inside a quoted string. Unknown escapes and duplicate attributes are
-errors. Numbers can be decimal or exponential, such as `.5` and `1e3`; numeric
-literals must be finite. Geometry adds constraints such as positive widths
-and row weights.
-
-Identifiers can contain Unicode letters, combining marks, digits, and common
-path punctuation such as `-`, `.`, `:`, and `/`. Refer to the exact ID spelling.
-Strings containing `//` or braces retain those characters as text.
-
-Backticks inside a title or prose string make an inline code run:
+Backticks inside a prose string create an inline code run:
 
 ```text
-sub "The worker calls `process(job)` before saving the result."
+text "The worker calls `process(job)` before saving the result."
 ```
 
-## Content versus structure
+## Content and diagram grammars
 
-`code`, `sub`, `text`, `role`, and `tag` describe a node's content. `row`,
-`group`, `section`, and `band` organize nodes. Compact decision/process/terminal
-nodes accept text content but need a surrounding container for child blocks.
-Nested `state` nodes introduce composite state scopes.
+Graph nodes accept `text`, `code` and `tag` content. Containers hold child
+objects; `row`, `section`, `band`, `divider` and `gap` organize layout.
+Sequence diagrams use participants, named messages, chronological notes and
+fragments. State diagrams use semantic states, markers and transitions, plus
+`entry` and `exit` display actions.
 
-Graph `note` is a subtitle. In a sequence, `note` is a chronological annotation;
-use `subtitle` for text under the sequence title. Inside a presentation step,
-`note` supplies speaker notes. The containing block determines its meaning.
-
-## Diagram modes
-
-| Mode | Layout and semantics |
+| Type | Layout and semantics |
 | --- | --- |
-| `mode=graph` (default) | Authored flow or `layout=auto`; arbitrary directed relationships |
-| `mode=state-machine` | Automatic machine layout by default, scoped initial/final checks and reachability |
-| `mode=sequence` | Authored participant columns and chronological messages; time moves down |
+| `type=graph` | Authored blocks or `layout=auto` with directed relationships |
+| `type=state-machine` | Scoped initial/final validation, reachability and machine placement |
+| `type=sequence` | Authored participant columns; event order advances downward |
 
-For every supported item and attribute, see [the DSL reference](/reference/dsl).
+Annotations such as `@source`, `@doc` and `@meta` attach code locations and
+evidence. Arbitrary annotations are preserved in order. Unavailable diagram
+types are preserved and skipped with warnings. See
+[shared language rules](/guide/language-v1) and
+[the DSL reference](/reference/dsl) for the complete contract.

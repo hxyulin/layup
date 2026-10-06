@@ -1,16 +1,17 @@
+mod support;
 use layup::layout::NodeRect;
 use layup::{Compiled, compile};
 
-const BASE: &str = r#"diagram "Service" layout=auto {
-    node input "Input"
-    node worker "Worker"
-    node store "Store"
-    input -> worker
-    worker -> store
+const BASE: &str = r#"diagram main "Service" type=graph layout=auto {
+  node input "Input"
+  node worker "Worker"
+  node store "Store"
+  ::input -> ::worker
+  ::worker -> ::store
 }"#;
 
 fn node<'a>(c: &'a Compiled, id: &str) -> &'a NodeRect {
-    &c.scene.nodes[c.scene.node(id).unwrap()]
+    &c.scene.nodes[support::node(&c.scene, id).unwrap()]
 }
 
 fn existing_unchanged(before: &Compiled, after: &Compiled) {
@@ -23,9 +24,9 @@ fn existing_unchanged(before: &Compiled, after: &Compiled) {
 #[test]
 fn unrelated_insertion_preserves_existing_geometry_colors_and_routes() {
     let before = compile(BASE).unwrap();
-    for marker in ["    node input", "    node worker", "    node store"] {
+    for marker in ["  node input", "  node worker", "  node store"] {
         let after =
-            compile(&BASE.replace(marker, &format!("    node notes \"Notes\"\n{marker}"))).unwrap();
+            compile(&BASE.replace(marker, &format!("  node notes \"Notes\"\n{marker}"))).unwrap();
         existing_unchanged(&before, &after);
         for (a, b) in before.scene.edges.iter().zip(&after.scene.edges) {
             assert_eq!(a.points, b.points);
@@ -39,8 +40,8 @@ fn unrelated_insertion_preserves_existing_geometry_colors_and_routes() {
 fn extending_a_chain_only_adds_space_below_it() {
     let before = compile(BASE).unwrap();
     let after = compile(&BASE.replace(
-        "    input -> worker",
-        "    node output\n    store -> output\n    input -> worker",
+        "  ::input -> ::worker",
+        "  node output\n    store -> output\n  ::input -> ::worker",
     ))
     .unwrap();
     existing_unchanged(&before, &after);
@@ -51,8 +52,8 @@ fn extending_a_chain_only_adds_space_below_it() {
 fn appending_an_independent_subsystem_does_not_mix_layers() {
     let before = compile(BASE).unwrap();
     let after = compile(&BASE.replace(
-        "    input -> worker",
-        "    node metrics\n    node archive\n    metrics -> archive\n    input -> worker",
+        "  ::input -> ::worker",
+        "  node metrics\n  node archive\n    metrics -> archive\n  ::input -> ::worker",
     ))
     .unwrap();
     existing_unchanged(&before, &after);
@@ -65,10 +66,10 @@ fn peer_growth_preserves_order_and_identity_while_reflowing() {
     let before = compile(BASE).unwrap();
     let after = compile(
         &BASE
-            .replace("    node store", "    node audit\n    node store")
+            .replace("  node store", "  node audit\n  node store")
             .replace(
-                "    worker -> store",
-                "    input -> audit\n    audit -> store\n    worker -> store",
+                "  ::worker -> ::store",
+                "    input -> audit\n    audit -> store\n  ::worker -> ::store",
             ),
     )
     .unwrap();
@@ -84,8 +85,8 @@ fn peer_growth_preserves_order_and_identity_while_reflowing() {
 fn edge_statement_order_does_not_change_node_layout() {
     let before = compile(BASE).unwrap();
     let after = compile(&BASE.replace(
-        "input -> worker\n    worker -> store",
-        "worker -> store\n    input -> worker",
+        "input -> worker\n  ::worker -> ::store",
+        "worker -> store\n  ::input -> ::worker",
     ))
     .unwrap();
     existing_unchanged(&before, &after);
@@ -93,16 +94,25 @@ fn edge_statement_order_does_not_change_node_layout() {
 
 #[test]
 fn explicit_colors_still_override_identity_colors() {
-    let c = compile(&BASE.replace("node worker", "node worker red")).unwrap();
+    let c = compile(&BASE.replace(
+        "node worker \"Worker\"",
+        "node worker \"Worker\" palette=red",
+    ))
+    .unwrap();
     assert_eq!(node(&c, "worker").tone, layup::style::Tone::Red);
 }
 
 #[test]
 fn undirected_relationships_keep_peers_in_one_region() {
     let c = compile(
-        r#"diagram "Peers" layout=auto {
-        node a; node b; node c; node d; a -- b; c -> d
-    }"#,
+        r#"diagram main "Peers" type=graph layout=auto {
+  node a
+  node b
+  node c
+  node d
+  ::a -- ::b
+  ::c -> ::d
+}"#,
     )
     .unwrap();
     assert_eq!(node(&c, "a").rect.y, node(&c, "b").rect.y);

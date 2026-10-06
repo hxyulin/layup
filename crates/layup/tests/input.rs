@@ -91,7 +91,7 @@ fn structured_graph_and_dsl_share_geometry_and_routing() {
         &Fonts::new(),
     )
     .unwrap();
-    let dsl = layup::compile("diagram \"Services\" layout=auto direction=right { node id=a \"API\"; node id=b \"Worker\"; a -flow-> b \"dispatch\" id=dispatch }").unwrap();
+    let dsl = layup::compile("diagram main \"Services\" type=graph layout=auto flow-direction=right { node a \"API\"; node b \"Worker\"; edge dispatch a -> b \"dispatch\" style=flow }").unwrap();
     assert_eq!(graph.viewport(), dsl.viewport());
     assert_eq!(graph.scene.nodes[0].rect, dsl.scene.nodes[0].rect);
     assert_eq!(graph.scene.edges[0].points, dsl.scene.edges[0].points);

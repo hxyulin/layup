@@ -425,7 +425,7 @@ pub(super) fn document_tokens_recovering(source: &str) -> (Vec<Located>, Vec<Err
                 let supported = tokens.windows(3).enumerate().any(|(index, window)| {
                     matches!(&window[0].token, Token::Word(word) if word == "type" || word == "kind")
                         && window[1].token == Token::Equal
-                        && matches!(&window[2].token, Token::Word(word) | Token::String(word) if word == "graph")
+                        && matches!(&window[2].token, Token::Word(word) | Token::String(word) if ["graph", "sequence", "state-machine"].contains(&word.as_str()))
                         && !matches!(tokens.get(index + 3).map(|t| &t.token), Some(Token::Dot))
                 });
                 if !supported {

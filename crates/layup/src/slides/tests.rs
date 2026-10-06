@@ -1,3 +1,4 @@
+use crate as layup;
 use layup::{
     compile,
     layout::Scene,
@@ -97,7 +98,7 @@ fn invalid_slide_arguments_have_precise_positions_and_preserve_ast() {
 #[test]
 fn routed_graph_fits_both_landscape_and_portrait_with_letterboxing() {
     let c = compile(
-        "diagram \"Workflow\" layout=auto { decision a \"Ready?\"; terminal b \"Done\"; process d \"Prepare\"; a -> b \"Yes\"; a -> d \"No\"; d -> a }",
+        "diagram main \"Workflow\" type=graph layout=auto {\n  node a \"Ready?\" style=decision\n  node b \"Done\" style=terminal\n  node d \"Prepare\" style=process\n  ::a -> ::b \"Yes\"\n  ::a -> ::d \"No\"\n  ::d -> ::a\n}",
     )
     .unwrap();
     for attributes in [
@@ -116,7 +117,7 @@ fn routed_graph_fits_both_landscape_and_portrait_with_letterboxing() {
 #[test]
 fn long_diagrams_report_effective_readability_without_reflow() {
     let mut source = String::from(
-        "diagram \"Many steps\" mode=state-machine direction=right { initial start; final end; start -> q0;",
+        "diagram main \"Many steps\" type=state-machine flow-direction=right { initial start; final end; start -> q0;",
     );
     for i in 0..18 {
         source.push_str(&format!("state q{i} \"Processing step {i}\";"));
@@ -142,9 +143,9 @@ fn long_diagrams_report_effective_readability_without_reflow() {
 
 #[test]
 fn label_chips_participate_in_readability_checks() {
-    for (spacing, expected_size) in [("", 12.0), ("gap 200;", 11.5)] {
+    for (spacing, expected_size) in [("node b;", 12.0), ("gap size=200; node b;", 11.5)] {
         let c = compile(&format!(
-            "diagram \"Messages\" preset=manual width=900 {{ node a; {spacing} node b; a -> b \"payload\" }}"
+            "diagram main \"Messages\" type=graph width=900 {{ defaults node palette=gray; defaults edge palette=gray; legend visibility=hidden;\n  node a\n  {spacing}\n  ::a -> b \"payload\"\n}}"
         ))
         .unwrap();
         let options = slide(&format!(
@@ -164,7 +165,7 @@ fn label_chips_participate_in_readability_checks() {
 #[test]
 fn supplied_fonts_change_fit_through_the_measured_scene() {
     let mut source = String::from(
-        "diagram \"Fonts\" mode=state-machine direction=right { initial start; final end; start -> q0;",
+        "diagram main \"Fonts\" type=state-machine flow-direction=right { initial start; final end; start -> q0;",
     );
     for i in 0..10 {
         source.push_str(&format!("state q{i} \"中中中中中中中中\";"));
@@ -176,7 +177,7 @@ fn supplied_fonts_change_fit_through_the_measured_scene() {
     let default = compile(&source).unwrap();
     let mut fonts = layup::text::Fonts::new();
     fonts
-        .add_fallback(include_bytes!("fonts/Fallback.ttf").as_slice())
+        .add_fallback(include_bytes!("../../tests/fonts/Fallback.ttf").as_slice())
         .unwrap();
     let supplied = layup::compile_with_fonts(&source, &fonts).unwrap();
     let options = slide("slide=wide min-font-size=1");
@@ -189,11 +190,10 @@ fn supplied_fonts_change_fit_through_the_measured_scene() {
 
 #[test]
 fn compilation_preserves_geometry_and_renders_the_slide_viewport() {
-    let source = "diagram \"Keep layout\" layout=auto { process a \"Request\"; process b \"Response\"; a -> b \"Payload\" }";
+    let source = "diagram main \"Keep layout\" type=graph layout=auto {\n  node a \"Request\" style=process\n  node b \"Response\" style=process\n  ::a -> ::b \"Payload\"\n}";
     let original = compile(source).unwrap();
     assert!(original.slide.is_none());
-    let fitted =
-        compile(&source.replace("layout=auto", "layout=auto slide=wide min-font-size=1")).unwrap();
+    let fitted = compile(&source.replace("{", "{ slide size=wide min-font-size=1;")).unwrap();
     let plan = fitted.slide.as_ref().unwrap();
     assert_eq!(fitted.viewport(), (1920.0, 1080.0));
     assert_eq!(fitted.scene.width, original.scene.width);
@@ -215,7 +215,9 @@ fn compilation_preserves_geometry_and_renders_the_slide_viewport() {
 #[test]
 fn nested_message_label_groups_participate_in_readability_checks() {
     use layup::layout::{Item as DrawItem, Placed};
-    let mut c = compile("diagram \"Groups\" preset=manual width=900 { node a }").unwrap();
+    let mut c =
+        compile("diagram main \"Groups\" type=graph width=900 {\n defaults node palette=gray; defaults edge palette=gray; legend visibility=hidden;\n  node a\n}")
+            .unwrap();
     let mut text = c
         .scene
         .items
@@ -239,9 +241,10 @@ fn nested_message_label_groups_participate_in_readability_checks() {
 
 #[test]
 fn finite_custom_viewports_keep_their_authored_numeric_dimensions() {
-    for dimensions in ["0.001:0.002", "100000000000000000000:1080"] {
+    for dimensions in ["0.001:0.002", "1e20:1080"] {
+        let (width, height) = dimensions.split_once(':').unwrap();
         let source = format!(
-            "diagram \"Numeric viewport\" slide=\"{dimensions}\" slide-padding=0 min-font-size=1 {{ node a }}"
+            "diagram main \"Numeric viewport\" type=graph {{\n  slide size={{width: {width}, height: {height}}} padding=0 min-font-size=1\n  node a\n}}"
         );
         let c = compile(&source).unwrap();
         let slide = c.slide.as_ref().unwrap();

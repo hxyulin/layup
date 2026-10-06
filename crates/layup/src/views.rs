@@ -760,3 +760,7 @@ fn contains_node(stmts: &[Stmt], kinds: &BTreeSet<String>) -> bool {
         _ => false,
     })
 }
+
+#[cfg(test)]
+#[path = "views/tests.rs"]
+mod tests;

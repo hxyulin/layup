@@ -21,7 +21,7 @@
 
 (arrow) @operator
 ["=" ":"] @operator
-["@" "." "::" "/" "," ";"] @punctuation.delimiter
+["@" "." "::" "," ";"] @punctuation.delimiter
 ["{" "}" "[" "]" "(" ")"] @punctuation.bracket
 
 (annotation_argument value: (reference (identifier) @constant))

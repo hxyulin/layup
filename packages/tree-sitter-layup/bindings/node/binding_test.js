@@ -31,7 +31,7 @@ for (const filename of [
 }
 
 test('highlight and folding queries compile and distinguish contextual names', () => {
-  const text = '@company.analysis(value={public: true})\ndiagram graph type=graph {\n  node node "Literal // /* */" fill-color="#fff"\n  node -> api\n  service store "Storage"\n}';
+  const text = '@company.analysis(value={public: true})\ndiagram graph type=graph {\n  node node "Literal // /* */" fill-color="#fff"\n  node -> api\n  node store "Storage" style=service\n}';
   const tree = parser().parse(text);
   assert.equal(tree.rootNode.hasError, false);
   const captures = new Parser.Query(Layup, Layup.HIGHLIGHTS_QUERY).captures(tree.rootNode);
@@ -41,7 +41,7 @@ test('highlight and folding queries compile and distinguish contextual names', (
   assert.equal(names('identifier', 'company').at(-1), 'attribute');
   assert.equal(names('identifier', 'fill-color').at(-1), 'property');
   assert.equal(names('identifier', 'public').at(-1), 'property');
-  assert.equal(names('identifier', 'service').at(-1), 'type');
+  assert.equal(names('identifier', 'service').at(-1), 'constant');
   assert.ok(names('string', '"Literal // /* */"').includes('string'));
   assert.equal(tree.rootNode.descendantsOfType(['line_comment', 'block_comment']).length, 0);
   const folds = new Parser.Query(Layup, Layup.FOLDS_QUERY).captures(tree.rootNode);
@@ -50,7 +50,7 @@ test('highlight and folding queries compile and distinguish contextual names', (
 });
 
 test('incremental edits agree with a fresh parse, including nested comments', () => {
-  const original = 'diagram g {\n  /* outer /* nested */ end */\n  node a palette=blue\n  a -> b\n}';
+  const original = 'diagram g type=graph {\n  /* outer /* nested */ end */\n  node a palette=blue\n  a -> b\n}';
   const value = parser();
   const old = value.parse(original);
   const startIndex = original.indexOf('nested');
@@ -69,7 +69,7 @@ test('incremental edits agree with a fresh parse, including nested comments', ()
 });
 
 test('unfinished attributes recover at the next declaration', () => {
-  const tree = parser().parse('diagram g {\n  node a fill-color=\n  node b "B"\n  b -> c\n}');
+  const tree = parser().parse('diagram g type=graph {\n  node a fill-color=\n  node b "B"\n  b -> c\n}');
   assert.equal(tree.rootNode.hasError, true);
   assert.ok(tree.rootNode.descendantsOfType('declaration').some(node => node.text === 'node b "B"'));
   assert.ok(tree.rootNode.descendantsOfType('connection').some(node => node.text === 'b -> c'));
@@ -90,7 +90,7 @@ test('unterminated strings and block comments report errors', () => {
 
 
 test('Unicode spans use Node UTF-16 positions and CRLF remains a separator', () => {
-  const text = 'diagram 图 {\r\n  node 𠮷 "مرحبا /* literal */"\r\n  𠮷 -> 图\r\n}';
+  const text = 'diagram 图 type=graph {\r\n  node 𠮷 "مرحبا /* literal */"\r\n  𠮷 -> 图\r\n}';
   const tree = parser().parse(text);
   assert.equal(tree.rootNode.hasError, false);
   const id = tree.rootNode.descendantsOfType('identifier').find(node => node.text === '𠮷');

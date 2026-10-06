@@ -7,22 +7,29 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const base = readFileSync('examples/slides.layup', 'utf8');
-const model = `model "Shared services" layout=auto direction=right slide=wide min-font-size=14 {
-  process browser "Browser" blue
-  process api "API" green
-  process store "Storage" purple
-  browser -> api "Request"
-  api -> store "Query"
-  view overview "System overview" { include browser api }
-  view data "Data path" slide=standard { include api store }
+const model = `diagram main "Shared services" type=graph layout=auto flow-direction=right {
+  slide size=wide min-font-size=14
+  node browser "Browser" style=process palette=blue
+  node api "API" style=process palette=green
+  node store "Storage" style=process palette=purple
+  ::browser -> ::api "Request"
+  ::api -> ::store "Query"
+  view overview "System overview" {
+    include ::browser ::api
+  }
+  view data "Data path" {
+    slide size=standard
+    include ::api ::store
+  }
 }`;
-const long = `diagram "Too much for one slide" layout=auto direction=right slide=wide min-font-size=24 {
-  ${Array.from({ length: 18 }, (_, i) => `process q${i} "Processing step ${i}"; ${i ? `q${i - 1} -> q${i};` : ''}`).join('\n')}
+const long = `diagram long "Too much for one slide" type=graph layout=auto flow-direction=right {
+  slide size=wide min-font-size=24
+  ${Array.from({ length: 18 }, (_, i) => `node q${i} "Processing step ${i}" style=process; ${i ? `q${i - 1} -> q${i};` : ''}`).join('\n')}
 }`;
 const cases = [
   { label: 'Wide slide', source: base, width: 1920, height: 1080 },
-  { label: 'Standard slide', source: base.replace('slide=wide', 'slide=standard').replace('min-font-size=18', 'min-font-size=16'), width: 1440, height: 1080 },
-  { label: 'Portrait slide', source: base.replace('slide=wide', 'slide="1080:1920"').replace('min-font-size=18', 'min-font-size=12'), width: 1080, height: 1920 },
+  { label: 'Standard slide', source: base.replace('slide size=wide', 'slide size=standard').replace('min-font-size=18', 'min-font-size=16'), width: 1440, height: 1080 },
+  { label: 'Portrait slide', source: base.replace('slide size=wide', 'slide size={width: 1080, height: 1920}').replace('min-font-size=18', 'min-font-size=12'), width: 1080, height: 1920 },
   { label: 'Dark slide', source: base, theme: 'dark', width: 1920, height: 1080 },
   { label: 'CJK and RTL', source: base.replace('"Client"', '"客户端"').replace('"API"', '"واجهة" text-direction=rtl').replace('"Storage"', '"存储"'), width: 1920, height: 1080 },
   { label: 'Shared model: overview', source: model, view: 'overview', width: 1920, height: 1080, nodes: ['browser', 'api'] },
@@ -79,7 +86,7 @@ try {
         }
       }
       if (c.nodes) {
-        const actual = [...svg.querySelectorAll('.node')].map(node => node.dataset.id);
+        const actual = [...svg.querySelectorAll('.node')].map(node => JSON.parse(node.dataset.id.slice("object:".length)).at(-1));
         if (JSON.stringify(actual) !== JSON.stringify(c.nodes)) failures.push(`${c.label}: wrong selected-view nodes`);
       }
     });

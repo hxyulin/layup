@@ -1,3 +1,4 @@
+mod support;
 use layup::{
     Theme, compile,
     layout::Item,
@@ -92,13 +93,19 @@ fn shaping_handles_combining_marks_and_rtl_fonts() {
 #[test]
 fn multilingual_nodes_render_with_bundled_fonts_and_independent_direction() {
     let c = compile(
-        r#"diagram "國際文字" layout=auto direction=right {
-        node 中文 "資料輸入" { sub "這是一段沒有空格的中文說明，應該正確換行。" }
-        node عربي "معالجة الطلب" { sub "يرسل الطلب إلى `GET /items` ثم يعيد النتيجة." }
-        node עברית "תוצאה" { sub "日本語と한국어も表示します。𠮷" }
-        中文 -> عربي
-        عربي -> עברית
-    }"#,
+        r#"diagram main "國際文字" type=graph layout=auto flow-direction=right {
+  node 中文 "資料輸入" {
+    text "這是一段沒有空格的中文說明，應該正確換行。"
+  }
+  node عربي "معالجة الطلب" {
+    text "يرسل الطلب إلى `GET /items` ثم يعيد النتيجة."
+  }
+  node עברית "תוצאה" {
+    text "日本語と한국어も表示します。𠮷"
+  }
+  ::中文 -> ::عربي
+  ::عربي -> ::עברית
+}"#,
     )
     .unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
@@ -109,7 +116,7 @@ fn multilingual_nodes_render_with_bundled_fonts_and_independent_direction() {
     assert!(svg.contains("direction=\"rtl\""));
     assert!(svg.contains("direction=\"ltr\" unicode-bidi=\"isolate\">GET"));
     assert!(svg.contains("𠮷"));
-    let id = c.scene.node("عربي").unwrap();
+    let id = support::node(&c.scene, "عربي").unwrap();
     let rect = c.scene.nodes[id].rect;
     for item in c.scene.items.iter().filter(|p| p.node == Some(id)) {
         if let Item::Text(t) = &item.item {
@@ -122,12 +129,14 @@ fn multilingual_nodes_render_with_bundled_fonts_and_independent_direction() {
 #[test]
 fn node_direction_overrides_inherit_through_containers() {
     let c = compile(
-        r#"diagram "T" text-direction=rtl {
-        node outer "Outer" text-direction=ltr {
-            node inner "123 API" { sub "456 API" }
-        }
-        node rtl "123 API"
-    }"#,
+        r#"diagram main "T" type=graph text-direction=rtl {
+  node outer "Outer" text-direction=ltr {
+    node inner "123 API" {
+      text "456 API"
+    }
+  }
+  node rtl "123 API"
+}"#,
     )
     .unwrap();
     for (id, expected) in [
@@ -135,20 +144,33 @@ fn node_direction_overrides_inherit_through_containers() {
         ("inner", Direction::Ltr),
         ("rtl", Direction::Rtl),
     ] {
-        let idx = c.scene.node(id).unwrap();
+        let idx = support::node(&c.scene, id).unwrap();
         for p in c.scene.items.iter().filter(|p| p.node == Some(idx)) {
             if let Item::Text(t) = &p.item {
                 assert_eq!(t.direction, expected, "{id}");
             }
         }
     }
-    assert!(compile(r#"diagram "T" text-direction=sideways {}"#).is_err());
-    assert!(compile(r#"diagram "T" { node n text-direction=sideways }"#).is_err());
+    assert!(
+        compile(
+            r#"diagram main "T" type=graph text-direction=sideways {
+}"#
+        )
+        .is_err()
+    );
+    assert!(
+        compile(
+            r#"diagram main "T" type=graph {
+  node n text-direction=sideways
+}"#
+        )
+        .is_err()
+    );
 }
 
 #[test]
 fn unknown_glyphs_warn_instead_of_claiming_deterministic_metrics() {
-    let c = compile("diagram \"T\" {\n node n \"🦄🦄\"\n}").unwrap();
+    let c = compile("diagram main \"T\" type=graph {\n  node n \"🦄🦄\"\n}").unwrap();
     let warnings: Vec<_> = c
         .warnings
         .iter()
@@ -161,10 +183,10 @@ fn unknown_glyphs_warn_instead_of_claiming_deterministic_metrics() {
 #[test]
 fn decomposed_identifiers_can_be_referenced() {
     let c = compile(
-        "diagram \"T\" { node cafe\u{301} \"Café\"; node 结果 \"結果\"; cafe\u{301} -> 结果 }",
+        "diagram main \"T\" type=graph { node cafe\u{301} \"Café\"; node 结果 \"結果\"; cafe\u{301} -> 结果 }",
     )
     .unwrap();
-    assert!(c.scene.node("cafe\u{301}").is_some());
+    assert!(support::node(&c.scene, "cafe\u{301}").is_some());
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
 }
 
@@ -178,10 +200,23 @@ fn supplied_font_bytes_drive_measurement_wrapping_and_embedding() {
     let measured = text::width_with_fonts("中", Font::Sans, 12.0, 0.0, &fonts);
     assert!((measured - text::width("M", Font::Sans, 12.0, 0.0)).abs() < 0.01);
     assert!((measured - text::width("中", Font::Sans, 12.0, 0.0)).abs() > 0.1);
-    let c = layup::compile_with_fonts(r#"diagram "中" width=200 { node n "中中中" { sub "中中中中中中中中中中中中中中中中中中中中" } }"#, &fonts).unwrap();
+    let c = layup::compile_with_fonts(
+        r#"diagram main "中" type=graph width=200 {
+  node n "中中中" {
+    text "中中中中中中中中中中中中中中中中中中中中"
+  }
+}"#,
+        &fonts,
+    )
+    .unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     assert!(layup::svg::render(&c, Theme::Light).contains("font-family:'Layup User "));
     assert!(fonts.add_fallback(vec![0, 1, 2]).is_err());
-    let default = compile(r#"diagram "中" { node n "中" }"#).unwrap();
+    let default = compile(
+        r#"diagram main "中" type=graph {
+  node n "中"
+}"#,
+    )
+    .unwrap();
     assert!(!layup::svg::render(&default, Theme::Light).contains("font-family:'Layup User "));
 }

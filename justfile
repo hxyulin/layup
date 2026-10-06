@@ -76,6 +76,11 @@ decision-test:
     cargo build -p layup-cli
     node tools/verify-decisions.mjs
 
+# Review independent paint channels and theme/CSS isolation in Chromium.
+paint-test: wasm
+    cargo build -p layup-cli
+    node tools/verify-paint.mjs
+
 # Review state-machine cycles, choices and multilingual text in Chromium.
 state-test:
     cargo build -p layup-cli

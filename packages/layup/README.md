@@ -57,16 +57,31 @@ WASM build step to install it.
 In the browser, `load(url)` fetches `layup.wasm` from beside the module unless
 you pass another URL.
 
-## Revision-one graph syntax (unreleased)
+## Named document syntax (unreleased)
 
-The current checkout accepts an opt-in `layup 1` document through the existing
-`compile`, `render`, `format`, and `lint` methods. It adds explicit IDs, scoped
-references, source/doc/metadata annotations, order-independent kinds, and
-multiple graph diagrams. Select one with `{ diagram: 'services' }`; Markdown
-fences accept `diagram=services`. Scene JSON exports authored `objectPath`
-segments separately from opaque render IDs. Other diagram grammars, views and
-new document JSON input remain pending. See the
-[experimental guide](https://github.com/hxyulin/layup/blob/main/docs/site/guide/language-v1.md).
+The current checkout uses the replacement source grammar for graphs, sequences
+and state machines. The optional `layup 1` directive asserts the revision;
+`diagram ID type=TYPE` selects a body grammar. Old title-only declarations,
+typed arrow names and bare style flags are rejected. Published 0.3.0 packages
+still use the previous grammar.
+
+`compile`, `render`, `format` and `lint` share the compiler's document parser.
+Select a diagram with `{ diagram: 'services' }`; Markdown fences accept
+`diagram=services`. Views and presentation plans use typed object/connection
+lists, and slide and legend options are grouped statements.
+
+`inspect(source)` returns a partial typed document and diagnostics without
+layout. It preserves exact values, arbitrary annotations and unsupported bodies.
+Scene document metadata retains authored paths and connection names separately
+from opaque render IDs, plus declaration types, typed attributes and source
+evidence. Nodes/edges expose resolved paint with independent fill/stroke/text
+channels, theme pairs and stroke style/width. Structured graph version 1 keeps
+its existing contract.
+
+See [the source reference](https://github.com/hxyulin/layup/blob/main/docs/site/reference/dsl.md)
+and [shared language rules](https://github.com/hxyulin/layup/blob/main/docs/site/guide/language-v1.md).
+ER, member/port geometry, document JSON input and public property schemas remain
+future extensions.
 
 ## Structured input and Cargo analysis (unreleased)
 

@@ -1,12 +1,12 @@
-diagram "Inside a service" layout=auto {
+diagram main "Inside a service" type=graph layout=auto {
   node service "Request service" {
     node entry "Receive"
     node decode "Decode"
     node verify "Verify"
     node result "Respond"
-    entry -> decode
-    entry -> verify
-    decode -> result
-    verify -> result
+    ::service.entry -> ::service.decode
+    ::service.entry -> ::service.verify
+    ::service.decode -> ::service.result
+    ::service.verify -> ::service.result
   }
 }

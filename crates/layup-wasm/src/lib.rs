@@ -201,10 +201,10 @@ mod tests {
 
     #[test]
     fn compile_returns_versioned_scene_and_view_errors_with_source_spans() {
-        let src = r#"model "Services" {
-          node api "API"; node worker "Worker"; api -> worker id=request;
+        let src = r#"diagram main "Services" type=graph {
+          node api "API"; node worker "Worker"; edge request api -> worker;
           view overview { include api }
-          view detail slide=wide { include api worker; step entry { show api }; step request { show worker; show-edge request } }
+          view detail { slide size=wide; include api worker; step entry { show objects=[api] }; step request { show objects=[worker]; show connections=[request] } }
         }"#;
         let compiled = layup::compile_with_options(
             src,
@@ -230,12 +230,18 @@ mod tests {
 
     #[test]
     fn renders_json_with_warnings_and_errors() {
-        let ok = render(r#"diagram "Hi" { node a "A" }"#, "theme=dark\nformat=svg");
+        let ok = render(
+            r#"diagram main "Hi" type=graph { node a "A" }"#,
+            "theme=dark\nformat=svg",
+        );
         assert!(ok.starts_with(r#"{"output":"<svg"#) && ok.ends_with(r#""warnings":[]}"#));
         assert!(ok.contains(r#"class=\"layup dark\""#));
         assert!(render("diagram {", "").starts_with(r#"{"error":{"line":1,"#));
         assert!(render("", "theme=sepia").contains("unknown theme"));
-        let class = render(r#"diagram "Hi" {}"#, "theme=auto\ndarkSelector=.dark");
+        let class = render(
+            r#"diagram main "Hi" type=graph {}"#,
+            "theme=auto\ndarkSelector=.dark",
+        );
         assert!(class.contains(":is(.dark) .layup.auto{") && !class.contains("@media"));
         assert_eq!(string("a\"\\\n\u{1}"), r#""a\"\\\n\u0001""#);
     }

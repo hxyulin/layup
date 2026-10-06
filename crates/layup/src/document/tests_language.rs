@@ -1,3 +1,4 @@
+use crate as layup;
 use layup::{
     compile,
     diagnostic::Severity,
@@ -98,7 +99,9 @@ fn recovery_collects_sibling_errors_without_swallowing_the_enclosing_block() {
     };
     assert!(root.body.as_ref().unwrap().iter().any(|s|matches!(s,Stmt::Item(i) if i.head=="node" && i.args[0]==layup::parser::Arg::Value(layup::parser::Value::Ident("good".into())))));
     assert_eq!(p.statements.len(), 2);
-    let ds = lint(src);
+    let ds = lint(
+        "diagram main type=graph {\nnode a href=\na ->\nrow weights=[1, nope] { node b } bad=\nnode good\n}",
+    );
     assert_eq!(ds.len(), 3);
     assert!(ds.iter().all(|d| d.severity == Severity::Error));
 }
@@ -159,75 +162,54 @@ fn nesting_is_bounded_and_invalid_input_never_panics() {
 
 #[test]
 fn semantic_errors_point_at_misspellings_and_offer_known_symbols() {
-    for (src, bad, help) in [
-        (
-            r#"diagram "T" { node worker; worker -> wokrer }"#,
-            "wokrer",
-            "worker",
-        ),
-        (r#"diagram "T" { node a aling=left }"#, "aling", "align"),
-        (r#"diagram "T" widht=900 { node a }"#, "widht", "width"),
-        (r#"diagram "T" { decison q }"#, "decison", "decision"),
-    ] {
-        let e = compile(src).err().unwrap();
-        let s = e.span.unwrap();
-        assert_eq!(&src[s.start..s.end], bad);
-        assert!(e.help.unwrap().contains(help));
-    }
-    let src = r#"diagram "T" { node a; node a; a -> a }"#;
-    let e = compile(src).err().unwrap();
-    assert_eq!(e.code, "semantic/duplicate-id");
-    assert_eq!(e.span.unwrap().start, src.find("node a; a").unwrap() + 5);
+    let source = "diagram main type=graph { node worker; worker -> wokrer }";
+    let error = compile(source).err().unwrap();
+    let span = error.span.unwrap();
+    assert_eq!(&source[span.start..span.end], "wokrer");
+    assert!(error.help.unwrap().contains("worker"));
+    let source = "diagram main type=graph { node a; node a }";
+    let error = compile(source).err().unwrap();
+    assert_eq!(error.code, "document/duplicate-id");
+    assert_eq!(error.related.len(), 1);
+    let source = "diagram main type=graph widht=900 { node a }";
+    let error = compile(source).err().unwrap();
+    let span = error.span.unwrap();
+    assert_eq!(&source[span.start..span.end], "widht");
+    assert!(error.help.unwrap().contains("width"));
 }
 
 #[test]
 fn invalid_geometry_numbers_are_rejected_before_layout() {
-    for src in [
-        r#"diagram "T" width=0 {}"#,
-        r#"diagram "T" { width -1 }"#,
-        r#"diagram "T" { gap -4 }"#,
-        r#"diagram "T" { row 0:1 { node a; node b } }"#,
-        r#"diagram "T" { row -1 { node a } }"#,
-        r#"diagram "T" { row 1e308:1e308 { node a; node b } }"#,
-        r#"diagram "T" { node a gutter=-1 }"#,
+    for source in [
+        "diagram main type=graph width=0 {}",
+        "diagram main type=graph { gap size=-4 }",
+        "diagram main type=graph { row weights=[0, 1] { node a; node b } }",
+        "diagram main type=graph { row weights=[1e308, 1e308] { node a; node b } }",
+        "diagram main type=graph { node a stroke-width=-1 }",
     ] {
-        assert_eq!(compile(src).err().unwrap().code, "semantic/number", "{src}");
+        assert!(compile(source).is_err(), "{source}");
     }
 }
 
 #[test]
 fn formatter_preserves_comments_strings_and_rendered_semantics_and_is_idempotent() {
-    let src = r#"// Overview
- diagram "国际" mode = state-machine direction = right{ // machine
-initial root;state parent "متصل"{initial start; state a "A"{sub "entry / f(\"x\"); path C:\\tmp"}; // action
+    let source = r#"// Overview
+diagram main "国际" type=state-machine flow-direction=right{ // machine
+initial root;state parent "متصل"{initial start; state a "A"{text "entry / f(\"x\"); path C:\\tmp"}; // action
 final done;start->a;a->done "完成"}; root ->parent // entry
 }
 "#;
-    let formatted = format(src).unwrap();
+    let formatted = format(source).unwrap();
     assert_eq!(format(&formatted).unwrap(), formatted);
-    assert!(formatted.contains("// Overview\ndiagram"));
-    assert!(
-        formatted.contains("{  // machine\n  initial root\n"),
-        "{formatted}"
-    );
-    assert!(formatted.contains(r#""entry / f(\"x\"); path C:\\tmp""#));
-    let a = compile(src).unwrap();
-    let b = compile(&formatted).unwrap();
-    assert!(a.warnings.is_empty() && b.warnings.is_empty());
-    assert!(
-        normalized_svg(&a) == normalized_svg(&b),
-        "formatting changed rendered geometry or text"
-    );
-    for src in [
-        "// only a comment\n",
-        "diagram \"T\" {\n\n // comment\n node a\n\n\n node b\n}\n",
-        "node a { code \"first\r\n  second\" }",
-        "diagram \"T\" {}",
-        "",
-    ] {
-        let f = format(src).unwrap();
-        assert_eq!(format(&f).unwrap(), f, "{src:?}");
+    for comment in ["// Overview", "// machine", "// action", "// entry"] {
+        assert!(formatted.contains(comment));
     }
+    assert!(formatted.contains(r#""entry / f(\"x\"); path C:\\tmp""#));
+    let before = compile(source).unwrap();
+    let after = compile(&formatted).unwrap();
+    assert!(before.warnings.is_empty() && after.warnings.is_empty());
+    assert_eq!(normalized_svg(&before), normalized_svg(&after));
+    assert!(format("").is_err());
 }
 
 fn normalized_svg(compiled: &layup::Compiled) -> String {
@@ -242,6 +224,7 @@ fn normalized_svg(compiled: &layup::Compiled) -> String {
                     {
                         fields.remove("span");
                         fields.remove("valueSpan");
+                        fields.remove("nameSpan");
                     }
                     if fields.contains_key("arguments") && fields.contains_key("name") {
                         fields.remove("raw");
@@ -309,49 +292,57 @@ fn formatting_existing_diagrams_is_idempotent_and_preserves_rendering() {
 
 #[test]
 fn lint_rules_distinguish_duplicates_from_distinct_transitions() {
-    let src = r#"diagram "T" {
-        style unused tone=purple
-        arrow unused-arrow dashed
-        node a blue blue
+    let source = r#"diagram main type=graph {
+        node-style unused palette=purple
+        edge-style unused-arrow stroke-style=dashed
+        node a palette=blue
         node b
-        a -> b "go" bus
-        a -> b "go" bus
-        a -> b "retry" bus
+        a -> b "go" bus=true
+        a -> b "go" bus=true
+        a -> b "retry" bus=true
     }"#;
-    let ds = lint(src);
+    let diagnostics = lint(source);
     for code in [
         "lint/unused-style",
         "lint/unused-arrow",
-        "lint/overridden-flag",
         "lint/duplicate-transition",
     ] {
-        assert!(ds.iter().any(|d| d.code == code), "{ds:?}");
+        assert!(
+            diagnostics.iter().any(|d| d.code == code),
+            "{diagnostics:?}"
+        );
     }
     assert_eq!(
-        ds.iter()
+        diagnostics
+            .iter()
             .filter(|d| d.code == "lint/duplicate-transition")
             .count(),
         1
     );
-    assert!(ds.iter().all(|d| d.severity == Severity::Warning));
-    assert!(lint(r#"diagram "T" { style special base=state; style used base=special; used a; arrow event blue; a -event-> a }"#).iter().all(|d| !d.code.starts_with("lint/unused")));
+    assert!(diagnostics.iter().all(|d| d.severity == Severity::Warning));
+    assert!(
+        lint("diagram main type=graph { node a palette=blue palette=green }")
+            .iter()
+            .any(|d| d.severity == Severity::Error)
+    );
+    assert!(lint("diagram main type=graph { node-style special; node-style used base=special; node a style=used; edge-style event palette=blue; a -> a style=event }").iter().all(|d| !d.code.starts_with("lint/unused")));
 }
 
 #[test]
-fn lint_ignores_directive_bodies_when_locating_real_transitions() {
-    let source = "diagram \"T\" {\n title \"T\" { arrow unused blue; a -> b }\n node a\n node b\n a -> b\n a -> b\n}";
+fn lint_rejects_ignored_directive_bodies_and_locates_real_connections() {
+    let invalid = "diagram main type=graph { node a { code \"literal\" { node hidden } } }";
+    assert!(lint(invalid).iter().any(|d| d.severity == Severity::Error));
+    let source = "diagram main type=graph {\nnode a\nnode b\na -> b\na -> b\n}";
     let diagnostics = lint(source);
-    assert_eq!(diagnostics.len(), 2, "{diagnostics:?}");
-    assert_eq!(diagnostics[0].code, "lint/ignored-body");
-    let duplicate = &diagnostics[1];
-    assert_eq!(duplicate.code, "lint/duplicate-transition");
-    assert_eq!(duplicate.line, Some(6));
-    assert_eq!(duplicate.related[0].0.line, 5);
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    assert_eq!(diagnostics[0].code, "lint/duplicate-transition");
+    assert_eq!(diagnostics[0].line, Some(5));
+    assert_eq!(diagnostics[0].related[0].0.line, 4);
 }
 
 #[test]
 fn terminal_excerpts_account_for_cjk_and_tabs_and_keep_machine_columns_scalar() {
-    let src = "diagram \"T\" {\n\tnode 中文 aling=left\n}";
+    let src = "diagram main \"T\" type=graph {\n\tnode 中文 aling=left\n}";
     let e = compile(src).err().unwrap();
     let d = layup::diagnostic::Diagnostic::from_error(&e);
     assert_eq!(d.span.unwrap().column, 10);

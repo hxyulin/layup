@@ -5,16 +5,16 @@ use layup::{
     text::{Direction, Run},
 };
 
-const SOURCE: &str = r#"diagram "Architecture" layout=auto {
+const SOURCE: &str = r#"diagram main "Architecture" type=graph layout=auto {
   group backend "Backend" {
     node api "API" href="https://example.com/docs?a=1&b=2" {
       code "fn handle()"
     }
-    decision accepted "Accepted?"
+    node accepted "Accepted?" style=decision
   }
-  terminal done "Done"
-  api -> accepted "request" id=request dashed tone=purple
-  accepted -> done "yes"
+  node done "Done" style=terminal
+  edge request ::backend.api -> ::backend.accepted "request" stroke-style=dashed palette=purple
+  ::backend.accepted -> ::done "yes"
 }"#;
 
 #[test]
@@ -28,16 +28,35 @@ fn export_carries_version_original_geometry_references_and_source_spans() {
     );
     assert!(json.contains("\"title\":\"Architecture\",\"mode\":\"graph\""));
     assert!(json.contains("\"selectedView\":null,\"views\":[]"));
-    assert!(json.contains("\"parentId\":\"backend\""));
-    assert!(json.contains("\"id\":\"request\",\"from\":\"api\",\"to\":\"accepted\""));
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let api = parsed["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["objectPath"] == serde_json::json!(["backend", "api"]))
+        .unwrap();
+    assert_eq!(api["parentId"], "object:[\"backend\"]");
+    assert_eq!(parsed["edges"][0]["authoredId"], "request");
+    assert_eq!(parsed["edges"][0]["from"], "object:[\"backend\",\"api\"]");
+    assert_eq!(
+        parsed["edges"][0]["to"],
+        "object:[\"backend\",\"accepted\"]"
+    );
     assert!(json.contains("\"style\":{\"tone\":\"purple\",\"dashed\":true,\"headStart\":false,\"headEnd\":true,\"bus\":false,\"asynchronous\":false}"));
-    assert!(json.contains("\"nodeId\":\"api\",\"drawing\":"));
+    assert!(
+        parsed["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["nodeId"] == "object:[\"backend\",\"api\"]"
+                && item["drawing"].is_object())
+    );
     assert!(json.contains("\"type\":\"diamond\""));
     assert!(json.contains("\"type\":\"rounded\""));
     assert!(json.contains("\"href\":\"https://example.com/docs?a=1&b=2\""));
     for node in &compiled.scene.nodes {
         let fragment = &SOURCE[node.span.start..node.span.end];
-        assert!(fragment.starts_with(&node.kind));
+        assert!(fragment.starts_with("node ") || fragment.starts_with("group "));
         assert!(json.contains(&format!(
             "\"span\":{{\"start\":{},\"end\":{},\"line\":{}",
             node.span.start, node.span.end, node.span.line
@@ -55,7 +74,7 @@ fn export_carries_version_original_geometry_references_and_source_spans() {
 #[test]
 fn slide_transform_is_separate_from_original_scene_geometry() {
     let compiled = layup::compile(
-        "diagram \"Slide\" slide=wide slide-padding=64 min-font-size=20 { node api \"API\" }",
+        "diagram main \"Slide\" type=graph {\n  slide size=wide padding=64 min-font-size=20\n  node api \"API\"\n}",
     )
     .unwrap();
     let json = layup::scene::export(&compiled).unwrap();
@@ -74,7 +93,7 @@ fn slide_transform_is_separate_from_original_scene_geometry() {
 
 #[test]
 fn all_drawing_variants_preserve_text_style_direction_and_nested_groups() {
-    let mut compiled = layup::compile("diagram \"Items\" { node a }").unwrap();
+    let mut compiled = layup::compile("diagram main \"Items\" type=graph {\n  node a\n}").unwrap();
     let r = Rect {
         x: 1.1234567890123457,
         y: 2.5,
@@ -170,8 +189,11 @@ fn export_identifies_fonts_without_serializing_payloads_or_file_paths() {
     let bytes = include_bytes!("../fonts/IBMPlexSans-Regular.ttf");
     let mut fonts = layup::text::Fonts::new();
     fonts.add_fallback(&bytes[..]).unwrap();
-    let compiled =
-        layup::compile_with_fonts("diagram \"字体\" { node a \"中文\" }", &fonts).unwrap();
+    let compiled = layup::compile_with_fonts(
+        "diagram main \"字体\" type=graph {\n  node a \"中文\"\n}",
+        &fonts,
+    )
+    .unwrap();
     let json = layup::scene::export(&compiled).unwrap();
     assert!(json.contains("\"sans\":\"Layup Sans\",\"mono\":\"Layup Mono\""));
     assert!(json.contains("\"bundledFallbacks\":[\"Layup Arabic\",\"Layup Hebrew\"]"));
@@ -185,11 +207,27 @@ fn export_identifies_fonts_without_serializing_payloads_or_file_paths() {
 
 #[test]
 fn selected_views_and_presentation_are_exported_together() {
-    let source = r#"model "System" layout=auto {
-      node a; node b; a -> b
-      view overview "Overview" { include a b; step first { show a }; step second { show b; highlight b } }
-      view detail "Detail" { include b; step only { show b } }
-    }"#;
+    let source = r#"diagram main "System" type=graph layout=auto {
+  node a
+  node b
+  ::a -> ::b
+  view overview "Overview" {
+    include ::a ::b
+    step first {
+      show objects=[::a]
+    }
+    step second {
+      show objects=[::b]
+      highlight objects=[::b]
+    }
+  }
+  view detail "Detail" {
+    include ::b
+    step only {
+      show objects=[::b]
+    }
+  }
+}"#;
     let compiled = layup::compile_with_options(
         source,
         &layup::CompileOptions {
@@ -204,13 +242,18 @@ fn selected_views_and_presentation_are_exported_together() {
         "\"selectedView\":\"detail\",\"views\":[{\"id\":\"overview\",\"title\":\"Overview\""
     ));
     assert!(json.contains("\"presentation\":{\"version\":1,\"steps\":[{\"id\":\"only\""));
-    assert!(json.contains("\"visibleNodes\":[\"b\"]"));
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        parsed["presentation"]["steps"][0]["visibleNodes"],
+        serde_json::json!(["object:[\"b\"]"])
+    );
     assert!(json.contains("\"edges\":[]"));
 }
 
 #[test]
 fn exported_warnings_include_available_source_ranges() {
-    let mut compiled = layup::compile("diagram \"Warnings\" { node api }").unwrap();
+    let mut compiled =
+        layup::compile("diagram main \"Warnings\" type=graph {\n  node api\n}").unwrap();
     compiled.warnings.push(layup::Warning {
         line: Some(1),
         msg: "A \"warning\"\nwith context".into(),
@@ -226,7 +269,9 @@ fn exported_warnings_include_available_source_ranges() {
 
 #[test]
 fn nonfinite_geometry_is_rejected_at_every_nesting_level() {
-    let mut compiled = layup::compile("diagram \"Finite\" { node a; node b; a -> b }").unwrap();
+    let mut compiled =
+        layup::compile("diagram main \"Finite\" type=graph {\n  node a\n  node b\n  ::a -> ::b\n}")
+            .unwrap();
     let original = compiled.scene.width;
     compiled.scene.width = f64::NAN;
     assert!(layup::scene::export(&compiled).is_err());
@@ -248,7 +293,10 @@ fn nonfinite_geometry_is_rejected_at_every_nesting_level() {
 
 #[test]
 fn invalid_scene_references_fail_without_panicking() {
-    let mut compiled = layup::compile("diagram \"References\" { node a; node b; a -> b }").unwrap();
+    let mut compiled = layup::compile(
+        "diagram main \"References\" type=graph {\n  node a\n  node b\n  ::a -> ::b\n}",
+    )
+    .unwrap();
     compiled.scene.nodes[0].parent = Some(usize::MAX);
     assert!(layup::scene::export(&compiled).is_err());
     compiled.scene.nodes[0].parent = None;
@@ -264,7 +312,7 @@ fn invalid_scene_references_fail_without_panicking() {
 
 #[test]
 fn empty_source_ranges_remain_explicit_in_mutated_scenes() {
-    let mut compiled = layup::compile("diagram \"Ranges\" { node a }").unwrap();
+    let mut compiled = layup::compile("diagram main \"Ranges\" type=graph {\n  node a\n}").unwrap();
     compiled.scene.nodes[0].span = Span::default();
     let json = layup::scene::export(&compiled).unwrap();
     assert!(json.contains(
@@ -274,18 +322,29 @@ fn empty_source_ranges_remain_explicit_in_mutated_scenes() {
 
 #[test]
 fn sequence_metadata_exposes_message_identity_async_style_and_fragment_geometry() {
-    let source = r#"diagram "Protocol" mode=sequence {
-      actor client "Client"
-      participant api "API"
-      loop "Retry" { client -> api "request" async id=request }
-      note "Process" over=api
-      api -> client "response" return
-    }"#;
+    let source = r#"diagram main "Protocol" type=sequence {
+  actor client "Client"
+  participant api "API"
+  loop "Retry" {
+    message request ::client -> ::api "request" delivery=async
+  }
+  note "Process" over=::api
+  message connection-2 ::api -> ::client "response" type=reply
+}"#;
     let mut compiled = layup::compile(source).unwrap();
     let json = layup::scene::export(&compiled).unwrap();
     assert!(json.contains("\"mode\":\"sequence\""));
     assert!(json.contains("\"asynchronous\":true"));
-    assert!(json.contains("\"sequence\":{\"participants\":[\"client\",\"api\"],\"messages\":[{\"id\":\"request\",\"asynchronous\":true"));
+    let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(
+        parsed["sequence"]["participants"],
+        serde_json::json!(["object:[\"client\"]", "object:[\"api\"]"])
+    );
+    assert_eq!(
+        parsed["sequence"]["messages"][0]["id"],
+        "relationship:\"request\""
+    );
+    assert_eq!(parsed["sequence"]["messages"][0]["asynchronous"], true);
     assert!(json.contains("\"annotations\":[{\"kind\":\"loop\",\"label\":\"Retry\",\"rect\":{"));
     compiled.sequence.as_mut().unwrap().annotations[0].rect.w = f64::INFINITY;
     assert!(layup::scene::export(&compiled).is_err());

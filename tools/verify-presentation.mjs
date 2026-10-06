@@ -6,17 +6,30 @@ import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 
-const source = `diagram "Request walkthrough" slide=wide {
-  row { node api "API / 接口" href="https://example.com/api"; node worker "Worker" }
-  api -> worker "dispatch"
-  step overview "API entry" { show api; highlight api; note "Start with the API." }
-  step request "Dispatch request" { show worker; show-edge edge-1; highlight-edge edge-1; note "<b>These are plain text notes.</b> مرحبا" }
+const source = `diagram main "Request walkthrough" type=graph {
+  slide size=wide
+  row {
+    node api "API / 接口" href="https://example.com/api"
+    node worker "Worker"
+  }
+  edge dispatch ::api -> ::worker "dispatch"
+  step overview "API entry" {
+    show objects=[::api]
+    highlight objects=[::api]
+    speaker-note "Start with the API."
+  }
+  step request "Dispatch request" {
+    show objects=[::worker]
+    show connections=[dispatch]
+    highlight connections=[dispatch]
+    speaker-note "<b>These are plain text notes.</b> مرحبا"
+  }
 }`;
 mkdirSync('out/presentation', { recursive: true });
 const render = format => execFileSync(resolve('target/debug/layup'), ['render', '-', '-o', '-', ...(format === 'html' ? ['--html'] : [])], { input: source }).toString();
 const standalone = render('html');
 const svg = render('svg');
-const focusHtml = execFileSync(resolve('target/debug/layup'), ['render', '-', '-o', '-', '--html'], { input: 'diagram "Shape focus" layout=auto slide=wide { initial start; decision choice "Continue?"; terminal end "Done"; start -> choice; choice -> end }' }).toString();
+const focusHtml = execFileSync(resolve('target/debug/layup'), ['render', '-', '-o', '-', '--html'], { input: 'diagram main "Shape focus" type=graph layout=auto {\n  slide size=wide\n  node start "Start" style=terminal\n  node choice "Continue?" style=decision\n  node end "Done" style=terminal\n  ::start -> ::choice\n  ::choice -> ::end\n}' }).toString();
 writeFileSync('out/presentation/index.html', standalone);
 const wrap = svg => `<div class="layup-diagram">${svg}<button class="layup-expand" aria-label="Expand diagram" hidden>Expand</button></div>`;
 const inline = `<!doctype html><meta charset=utf-8><style>body{margin:30px}svg{max-width:100%;height:auto}.layup-diagram{max-width:900px}</style>${wrap(svg)}<script type="module" src="/client.js"></script>`;
@@ -88,10 +101,10 @@ try {
   await page.evaluate(() => document.querySelector('iframe').contentWindow.postMessage({ layup: 'step', action: 'previous' }, '*'));
   await frame.locator('.layup-step-status').filter({ hasText: '1 / 2' }).waitFor();
   for (const id of ['start', 'choice']) {
-    await page.goto(url + `/focus?focus=${id}`);
+    await page.goto(url + `/focus?focus=${encodeURIComponent("object:" + JSON.stringify([id]))}`);
     const result = await page.evaluate(id => {
       const svg = document.querySelector('svg.layup');
-      const box = svg.querySelector(`.node[data-id="${id}"] .box`);
+      const box = [...svg.querySelectorAll(".node")].find(n => n.dataset.id === "object:" + JSON.stringify([id])).querySelector(".box");
       const b = box.getBBox();
       const m = svg.getCTM().inverse().multiply(box.getCTM());
       const center = new DOMPoint(b.x + b.width/2, b.y + b.height/2).matrixTransform(m);
@@ -107,7 +120,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Next presentation step' }).isDisabled(), true);
   await page.screenshot({ path: 'out/presentation/preview.png', fullPage: true });
   assert.deepEqual(errors, []);
-  console.log('Presentation verified: standalone, inline, keyboard, full-window playback, dynamic insertion, safe notes, iframe commands/reports, initial step, reduced motion, and slide-transformed circle/diamond focus.');
+  console.log('Presentation verified: standalone, inline, keyboard, full-window playback, dynamic insertion, safe notes, iframe commands/reports, initial step, reduced motion, and slide-transformed pill/diamond focus.');
 } finally {
   await browser.close();
   await new Promise(resolve => server.close(resolve));

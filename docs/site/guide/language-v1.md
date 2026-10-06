@@ -1,16 +1,16 @@
 # Named documents and shared syntax
 
 The current checkout implements Layup's shared document language and scoped
-graph grammar. A file can start directly with a named diagram. An optional
+graph, sequence and state-machine grammars. A file can start directly with a named diagram. An optional
 `layup 1` header asserts the supported source revision; it does not select a
 dialect. Unknown revisions and non-integer revision numbers are errors.
 These additions will ship after the published 0.3.0 packages.
 
 The shared language owns comments, values, annotations, names, references and
-diagram envelopes. `type` selects a diagram's body grammar. Graph bodies are
-implemented; unavailable types are preserved as opaque source with a warning.
-Title-only legacy diagrams continue to support the existing sequence, state,
-view and presentation features while their document grammars are migrated.
+diagram envelopes. `type` selects a diagram's body grammar. Graph, sequence and state-machine bodies are implemented, including views and
+presentation steps. Unavailable types are preserved as opaque source with a
+warning. The replacement grammar is the only source entry point; title-only
+headers, implicit IDs, bare styling flags and typed arrow lexemes are rejected.
 
 ## Try a graph
 
@@ -35,12 +35,13 @@ contextual and can be IDs. Quote literal `true`, `false` and `null` names.
 Styles use attributes such as `palette=blue`, `font-family=mono`,
 `text-align=center` and `stroke-style=dashed`. Style declarations belong
 at diagram level. Bases may refer forward; cycles and duplicates are errors.
-Attribute order never changes meaning. Prototype spellings such as `kind`,
-`tone`, `node-kind` and `edge-kind` remain accepted during feature migration;
-assigning the same property through two spellings is an error. Independent
-paint channels from the vocabulary design remain a renderer checkpoint.
+Attribute order never changes meaning. Use `fill-color`, `stroke-color`,
+`text-color`, `background-color` (canvas), and `stroke-width` for direct paint.
+Colors can be literal, theme tokens, or `{light: COLOR, dark: COLOR}` pairs.
+`auto` clears a channel override; `none` removes shape/line paint. Obsolete
+spellings such as `kind`, `tone`, `node-kind` and `edge-kind` are rejected.
 
-A named `edge ID ...` can be referenced by future views or steps. Anonymous
+A named `edge ID ...` can be referenced by views or steps. Anonymous
 connections use the endpoints directly. Both accept `->`, `<-`, `<->` and `--`
 and one optional quoted caption. `source-side` and `target-side` refer to
 semantic endpoints; for `a <- b`, the source is `b`. `route-side` sets the
@@ -189,11 +190,32 @@ rendered exports. Renderer IDs remain opaque; use `document.diagramId`,
 Markdown fences accept `diagram=services`. The playground renders the default
 supported diagram. Try the [scoped example](/playground?example=language-v1).
 
-## Remaining checkpoints
+## Diagram-specific syntax
 
-Defaults, views, steps, slides, explicit legends, independent paint overrides,
-ports and additional diagram body grammars still require migration. The
-proposed document JSON input remains pending; current graph JSON and
-`compileModel`/`renderModel` retain their separate contract. See the
-[language design](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-DESIGN.md)
-and [vocabulary review](https://github.com/hxyulin/layup/blob/main/docs/LANGUAGE-VOCABULARY.md).
+The common grammar dispatches to graph, sequence or state-machine rules.
+Sequence bodies use `participant`, `actor`, named `message` declarations,
+`loop`, `optional`, `alternatives`/`branch`, and participant notes. Message
+`type=call|reply` is separate from call `delivery=sync|async`.
+
+State bodies use `state`, `initial`, `final`, `choice`, and named `transition`
+declarations. Composite states introduce scopes; layout rows/sections do not.
+Transition `event`, `guard` and `action` are display text.
+
+All supported bodies own views, ordered presentation steps and slide
+configuration. Graph/state bodies additionally support explicit legends.
+Use `show objects=[...] connections=[...]`, `highlight` with the same lists,
+and `speaker-note`. A view can override shared slide settings with its own
+`slide size=...` declaration.
+
+See the [complete syntax reference](/reference/dsl), [sequence guide](/diagrams/sequences),
+[state guide](/diagrams/states), and [presentation guide](/guide/presentations).
+
+## Remaining extensions
+
+ER bodies, member-port geometry, public annotation-schema registration and
+structured document JSON input remain separate work. Current analyzer graph
+JSON and `compileModel`/`renderModel` retain their version-one contract.
+The inspection API exposes the typed body, declaration/property/reference
+spans and preserved extension data. Rendered document metadata also retains
+object/connection declaration categories, attributes, source evidence and
+resolved paint without embedding opaque foreign bodies.

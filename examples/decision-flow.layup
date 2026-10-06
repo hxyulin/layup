@@ -1,9 +1,11 @@
-diagram "Validate a request" layout=auto direction=right width=1200 {
-  process request "Receive request" blue { code "POST /orders" }
-  decision valid "Is the request valid?" yellow
-  terminal accepted "Accept order" green
-  terminal rejected "Reject request" red
-  request -> valid
-  valid -> accepted "Yes"
-  valid -> rejected "No"
+diagram main "Validate a request" type=graph layout=auto flow-direction=right width=1200 {
+  node request "Receive request" style=process palette=blue {
+    code "POST /orders"
+  }
+  node valid "Is the request valid?" style=decision palette=yellow
+  node accepted "Accept order" style=terminal palette=green
+  node rejected "Reject request" style=terminal palette=red
+  ::request -> ::valid
+  ::valid -> ::accepted "Yes"
+  ::valid -> ::rejected "No"
 }

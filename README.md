@@ -76,39 +76,36 @@ The Rust engine also runs in JavaScript through WebAssembly.
 
 ## Quickstart
 
+The current checkout uses the replacement named-diagram grammar shown below.
+Build this checkout to use it; published 0.3.0 packages use the previous syntax.
+
 Try the [playground](https://hxyulin.github.io/layup/playground.html) to edit
-examples and download diagrams without installing anything. The docs cover
-v0.3.0; see the [changelog](CHANGELOG.md) for release history.
+examples and download diagrams without installing anything. See the [changelog](CHANGELOG.md) for release history.
 
 <details>
 <summary><strong>Install the CLI and render your first diagram</strong></summary>
 
-Install [Rust stable](https://rustup.rs/), then install the CLI from crates.io:
+Install [Rust stable](https://rustup.rs/) and build the current checkout:
 
 ```sh
-cargo install layup-cli --version 0.3.0 --locked
+git clone https://github.com/hxyulin/layup.git
+cd layup
+cargo install --path crates/layup-cli --locked
 ```
 
-Or use [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) to install a
-prebuilt binary:
-
-```sh
-cargo binstall layup-cli --version 0.3.0
-```
-
-Release binaries cover Linux x86_64/ARM64 (glibc 2.35+), macOS Intel/Apple Silicon,
-and Windows x86_64. Other targets can build with `cargo install`.
-The installed command is named `layup`.
+The installed command is named `layup`. Published 0.3.0 packages and
+[release binaries](https://github.com/hxyulin/layup/releases/tag/v0.3.0)
+use the previous grammar.
 
 Save this as `hello.layup`:
 
 ```layup
-diagram "A request" layout=auto direction=right {
-  process client "Client" blue
-  process api "API" green
-  process store "Storage" purple
-  client -> api "Request"
-  api -> store "Query"
+diagram main "A request" type=graph layout=auto flow-direction=right {
+  node client "Client" style=process palette=blue
+  node api "API" style=process palette=green
+  node store "Storage" style=process palette=purple
+  ::client -> ::api "Request"
+  ::api -> ::store "Query"
 }
 ```
 

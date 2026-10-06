@@ -42,16 +42,16 @@ syntax formatting.
 An unknown attribute can produce:
 
 ```text
-diagram.layup:3:15: error[semantic]: unknown node attribute `aling`
- 3 |   node worker aling=left
+diagram.layup:3:15: error[document/attribute]: unsupported attribute `text-aling`
+ 3 |   node worker text-aling=left
    |               ^^^^^
-  help: did you mean `align`?
+  help: did you mean `text-align`?
 ```
 
 Diagnostics contain `line`, `column`, `severity`, `code`, `message`, an
 optional `span`, optional `help`, and `related` locations. Duplicate attributes
 point at both declarations; unclosed blocks point at the opening brace.
-Suggestions use known node IDs, node kinds and supported diagram/node
+Suggestions use known node IDs, node styles and supported diagram/node
 attribute names. Older semantic and layout checks that report only a line
 use a matching named token or the first token on that line as their range;
 they do not all identify an exact attribute value yet.
@@ -68,9 +68,9 @@ CLI JSON records wrap each diagnostic:
 ```json
 { "file": "diagram.layup", "fenceLine": null, "diagnostic": {
   "line": 3, "column": 15, "severity": "error", "code": "semantic",
-  "message": "unknown node attribute `aling`",
+  "message": "unknown node attribute `text-aling`",
   "span": { "start": 48, "end": 53, "line": 3, "column": 15, "endLine": 3, "endColumn": 20 },
-  "help": "did you mean `align`?", "related": []
+  "help": "did you mean `text-align`?", "related": []
 } }
 ```
 
@@ -83,13 +83,11 @@ Non-CLI APIs report positions relative to the source string they receive.
 
 | Code | Reported condition |
 | --- | --- |
-| `lex/*`, `parse/*` | Invalid characters, strings, numbers, arrows, attributes, statements or blocks |
+| `document/*` | Invalid characters, strings, numbers, arrows, attributes, statements or blocks |
 | `semantic`, `semantic/*` | Invalid model, references, duplicate IDs, geometry numbers or machine semantics |
 | `layout` | Existing measurement, placement, routing, reachability or glyph warnings |
 | `lint/unused-style` | Unused custom style; referenced base styles count as used |
-| `lint/unused-arrow` | Unused arrow kind |
-| `lint/overridden-flag` | Repeated/conflicting bare fill, font, alignment, stroke or tone flags |
-| `lint/ignored-body` | A body attached to a directive that ignores its contents |
+| `lint/unused-arrow` | Unused edge style |
 | `lint/duplicate-transition` | Identical endpoints, kind, label, styling and routing attributes |
 
 Distinct labels or routing attributes distinguish transitions. Authoring
@@ -108,14 +106,14 @@ to collect layout and authoring warnings.
 ```rust
 let formatted = layup::format::format(source)?;
 let diagnostics = layup::lint::lint(source);
-let partial = layup::parser::parse_recovering(source);
-// partial.statements and partial.errors are available for tooling.
+let partial = layup::document::parse_recovering(source);
+// partial.document and partial.errors are available for tooling.
 ```
 
-`lexer::lex_lossless` retains comments. `lexer::lex_recovering` returns tokens
-and lexical errors; `parser::parse_recovering` returns a partial generic
-syntax tree and errors. Tokens, items, arguments and edge endpoints have
-source spans. Strict `lex`, `parse` and `compile` remain `Result` APIs.
+`document::parse` is strict; `document::inspect` exposes a partial typed
+document plus diagnostics. Source/value/attribute-name/reference spans use the
+same range contract. These APIs preserve unsupported bodies and arbitrary
+annotations. The old generic lexer/parser is a backend implementation detail.
 `lint_with_fonts(source, &fonts)` uses supplied fallback faces.
 
 `Error` retains `line`, `msg` and its display format and adds
@@ -137,19 +135,19 @@ const measured = layup.lint(source, { fonts }); // same fallback policy as rende
 from `lint`. Render warnings retain `{ line, message }`; lint diagnostics are
 richer. Markdown render errors include source columns and suggestion help.
 
-## Syntax compatibility
+## Source grammar
 
-Unicode identifiers, scoped names, paths, URLs, comments, multiline strings,
-existing node kinds and edge forms continue to work. Typed arrow names may
-contain hyphens (`a -data-flow-> b`); compact untyped arrows (`a->b`, `a<-b`)
-work. Numbers accept fractions and exponents such as `.5` and `1e3`.
+The optional `layup 1` header asserts the revision. Named diagrams select
+`type=graph`, `type=sequence` or `type=state-machine`. Unknown types are
+preserved and skipped with warnings. The replacement grammar rejects the old
+title-only header, typed arrow spellings, implicit IDs and bare style flags.
+See [the reference](site/reference/dsl.md) for supported declarations.
 
-Invalid syntax is deliberately stricter: duplicate attributes are rejected,
-unknown string escapes are errors rather than silently losing a backslash,
-and numeric literals must be finite. Supported escapes are `\"`, `\\`,
-`\n`, `\t` and `\r`; literal Windows paths need escaped backslashes.
-Geometry validation rejects nonpositive canvas widths and row weights,
-negative gutters/gaps and overflowing weight totals before layout.
+Unicode identifiers, quoted segments, scoped references, multiline strings,
+inline comments and nested block comments share one implementation.
+Numbers support fractions and exponents; exact integers retain their tagged
+representation in inspection JSON. Unknown string escapes, duplicate
+properties and unsupported declaration bodies are errors.
 
 Tests cover malformed-input recovery, Unicode ranges, formatter idempotence
 and rendered equivalence across repository diagrams, CLI status and batch

@@ -12,9 +12,9 @@ with highlight and folding queries. It recognizes `.layup` files, inline
 values, Unicode identifiers and qualified references. The package guide
 includes a Neovim setup and a Node parsing example.
 
-The grammar covers existing diagrams, the revision-one graph prototype and
-the proposed replacement vocabulary. Syntax highlighting can therefore
-recognize constructs that the compiler does not yet implement. Use
+The grammar covers shared document syntax and graph, sequence and state
+bodies. Extension declaration heads can be highlighted before a renderer
+implements them. Use
 `layup lint` for authoritative language and semantic diagnostics. Custom diagram
 bodies can use the shared declaration syntax; arbitrary embedded languages
 require additional grammars and editor injection queries.
@@ -46,12 +46,10 @@ rendering; `--strict` makes them fail CI.
 | --- | --- |
 | `layout` | Overflow, routing, reachability, missing glyphs, slide readability |
 | `lint/unused-style` | Custom styles without uses; shared-model uses count across views |
-| `lint/unused-arrow` | Unused arrow kinds |
-| `lint/overridden-flag` | Repeated or conflicting fill/font/alignment/stroke/tone flags |
-| `lint/ignored-body` | A body attached to a directive that ignores it |
+| `lint/unused-arrow` | Unused edge styles |
 | `lint/duplicate-transition` | Identical graph/machine transitions; sequence retries are distinct events |
 
-Unknown names can include typo suggestions and related locations. The live
+Duplicate properties and unsupported bodies are errors. Unknown names can include typo suggestions and related locations. The live
 editor shows rich diagnostics and selects the corresponding source when you
 click one. Invalid edits retain the last successful preview; downloads of
 rendered output wait for valid current source.

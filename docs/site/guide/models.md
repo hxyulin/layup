@@ -5,21 +5,21 @@ IDs, relationships, source locations, and style declarations shared while
 allowing different layout and presentation choices.
 
 ```layup source
-model "Job system" layout=auto {
+diagram main "Job system" type=graph layout=auto {
   node client "Client"
   node api "API"
   group backend "Backend" {
     node worker "Worker"
     node store "Store"
   }
-  client -> api id=request
-  api -> worker id=dispatch
-  worker -> store id=save
-  view overview "System overview" direction=right {
-    include client api backend
+  edge request ::client -> ::api
+  edge dispatch ::api -> ::backend.worker
+  edge save ::backend.worker -> ::backend.store
+  view overview "System overview" flow-direction=right {
+    include ::client ::api ::backend
   }
-  view storage "Storage detail" direction=down {
-    include worker store
+  view storage "Storage detail" flow-direction=down {
+    include ::backend.worker ::backend.store
   }
 }
 ```
@@ -37,7 +37,7 @@ model "Job system" layout=auto {
 - The first authored view is the default. Explicit selection uses `--view`
   or an API option.
 
-Generated edge IDs are assigned before filtering the complete model, so a
+Opaque anonymous edge IDs are assigned before filtering the complete model, so a
 relationship retains its ID between views. Prefer explicit IDs for steps and
 external integrations that should survive source edits.
 
@@ -45,7 +45,7 @@ external integrations that should survive source edits.
 
 <Playground preset="models" />
 
-Switch the **View** selector. Add an attribute such as `direction=left` to
+Switch the **View** selector. Add an attribute such as `flow-direction=left` to
 one view, or change a shared node title and inspect both results.
 
 ```sh
@@ -67,8 +67,8 @@ result. Models can inherit slide attributes and let individual views override
 the viewport or readability threshold.
 
 All include references, duplicate identities, and shared edge references are
-validated before filtering. Other semantic and layout checks apply to the
-selected result. Unused declaration linting considers uses across the shared
+validated before filtering. Styles, object references and every authored presentation plan are validated
+before selection. Layout and machine checks apply to the selected result. Unused declaration linting considers uses across the shared
 source. Validate each view in CI to cover all rendered variants.
 
 State-machine views must retain valid initial scopes. Sequence notes tied to

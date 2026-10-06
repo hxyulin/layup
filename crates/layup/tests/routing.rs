@@ -1,3 +1,4 @@
+mod support;
 use layup::{Compiled, compile};
 
 fn assert_routes(c: &Compiled) {
@@ -46,8 +47,8 @@ fn pinned_sides_are_preserved_by_fallback() {
     let c = compile(PINNED_PORTS).unwrap();
     assert_routes(&c);
     let edge = &c.scene.edges[0];
-    let source = c.scene.nodes[c.scene.node("source").unwrap()].rect;
-    let target = c.scene.nodes[c.scene.node("target").unwrap()].rect;
+    let source = c.scene.nodes[support::node(&c.scene, "source").unwrap()].rect;
+    let target = c.scene.nodes[support::node(&c.scene, "target").unwrap()].rect;
     assert_eq!(edge.points[0].0, source.right());
     assert!(edge.points[1].0 > source.right());
     assert!(edge.points[edge.points.len() - 2].0 > target.right());
@@ -56,14 +57,28 @@ fn pinned_sides_are_preserved_by_fallback() {
 
 #[test]
 fn simple_routes_keep_their_straight_path() {
-    let c = compile(r#"diagram "Straight" { node a; node b; a -> b }"#).unwrap();
+    let c = compile(
+        r#"diagram main "Straight" type=graph {
+  node a
+  node b
+  ::a -> ::b
+}"#,
+    )
+    .unwrap();
     assert_routes(&c);
     assert_eq!(c.scene.edges[0].points.len(), 2);
 }
 
 #[test]
 fn explicit_outside_lanes_remain_explicit() {
-    let c = compile(r#"diagram "Outside" { node a; node b; b -> a via=right }"#).unwrap();
+    let c = compile(
+        r#"diagram main "Outside" type=graph {
+  node a
+  node b
+  ::b -> ::a route-side=right
+}"#,
+    )
+    .unwrap();
     assert!(
         c.scene.edges[0]
             .points
@@ -74,46 +89,51 @@ fn explicit_outside_lanes_remain_explicit() {
 
 #[test]
 fn self_edges_have_a_real_loop_outside_the_node() {
-    let c = compile(r#"diagram "Loop" { node a; a -> a }"#).unwrap();
+    let c = compile(
+        r#"diagram main "Loop" type=graph {
+  node a
+  ::a -> ::a
+}"#,
+    )
+    .unwrap();
     assert_routes(&c);
     assert!(c.scene.edges[0].points.len() >= 4);
 }
 
-const SKIP_NODE: &str = r#"diagram "Skip a busy stage" {
+const SKIP_NODE: &str = r#"diagram main "Skip a busy stage" type=graph {
   node input "Input"
   node busy "Independent work"
   node output "Output"
-  input -> output "bypass"
-}
-"#;
+  ::input -> ::output "bypass"
+}"#;
 
-const RETURN_PATH: &str = r#"diagram "A return path" {
+const RETURN_PATH: &str = r#"diagram main "A return path" type=graph {
   node start "Start"
   node work "Work"
   node finish "Finish"
-  start -> work
-  work -> finish
-  finish -> start "retry"
-}
-"#;
+  ::start -> ::work
+  ::work -> ::finish
+  ::finish -> ::start "retry"
+}"#;
 
-const PINNED_PORTS: &str = r#"diagram "Keep explicit ports" {
+const PINNED_PORTS: &str = r#"diagram main "Keep explicit ports" type=graph {
   node source "Source"
   node obstacle "Obstacle"
   node target "Target"
-  source -> target from=right to=right "around"
-}
-"#;
+  ::source -> ::target "around" source-side=right target-side=right
+}"#;
 
 #[test]
 fn repeated_skip_edges_use_separate_lanes() {
     let c = compile(
-        r#"diagram "Lanes" {
-        node a; node obstacle; node b
-        a -> b
-        a -> b
-        a -> b
-    }"#,
+        r#"diagram main "Lanes" type=graph {
+  node a
+  node obstacle
+  node b
+  ::a -> ::b
+  ::a -> ::b
+  ::a -> ::b
+}"#,
     )
     .unwrap();
     assert_routes(&c);

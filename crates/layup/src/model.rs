@@ -4,7 +4,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::Error;
-use crate::parser::{Arg, EdgeStmt, Item, Stmt, Value, parse};
+use crate::parser::{Arg, EdgeStmt, Item, Stmt, Value};
 use crate::style::{
     AUTO_CYCLE, Align, ArrowColor, ArrowStyle, NodeStyle, Shape, Tone, arrow_presets, presets,
 };
@@ -218,35 +218,7 @@ const FLAG_WORDS: &[&str] = &[
 ];
 
 pub fn build(src: &str) -> Result<Diagram, Error> {
-    if crate::document::is_document(src) {
-        return crate::document::build(src);
-    }
-    let result = (|| {
-        let mut resolved = crate::views::resolve(&parse(src)?, None)?;
-        crate::presentation::extract(&mut resolved.statements)?;
-        if let [Stmt::Item(root)] = resolved.statements.as_mut_slice() {
-            crate::slides::Slide::take(root)?;
-        }
-        if crate::sequence::is_sequence(&resolved.statements) {
-            Ok(crate::sequence::build(&resolved.statements)?.diagram)
-        } else {
-            build_statements(&resolved.statements)
-        }
-    })();
-    result.map_err(|mut error| {
-        if let Ok(tokens) = crate::lexer::lex(src) {
-            if error.line.is_none() {
-                error.span = tokens
-                    .iter()
-                    .find(|t| !matches!(t.tok, crate::lexer::Tok::Newline))
-                    .or_else(|| tokens.last())
-                    .map(|t| Box::new(t.span));
-                error.line = error.span.as_ref().map(|s| s.line);
-            }
-            crate::diagnostic::locate(&mut error, &tokens);
-        }
-        error
-    })
+    crate::document::build(src)
 }
 
 pub(crate) fn build_statements(stmts: &[Stmt]) -> Result<Diagram, Error> {
@@ -418,6 +390,13 @@ pub(crate) fn build_statements_with_tags(
     d.kinds = b.kinds;
     d.arrows = b.arrows;
     d.legend = b.legend;
+    let automatic_legend = body.iter().any(|statement| {
+        matches!(statement, Stmt::Item(item) if item.head == "legend"
+            && item.args.iter().any(|arg| matches!(arg, Arg::Value(Value::Ident(value)) if value == "auto")))
+    });
+    if automatic_legend && !needs_legend(&d) {
+        d.legend = None;
+    }
     if d.preset == Preset::Clean {
         assign_auto_tones(&mut d.blocks, d.auto_layout);
         fill_default_gutters(&mut d.blocks);
@@ -939,8 +918,9 @@ impl Builder {
                         style = base.clone();
                     }
                     "shape" => {
+                        style.corner_radius = (v.as_text() == "rectangle").then_some(0.0);
                         style.shape = match v.as_text().as_str() {
-                            "card" => Shape::Card,
+                            "card" | "rectangle" => Shape::Card,
                             "api" => Shape::Api,
                             "process" => Shape::Process,
                             "decision" | "diamond" => Shape::Decision,
@@ -1431,6 +1411,7 @@ fn tone_value(v: &Value, line: usize) -> Result<Tone, Error> {
 fn align_value(v: &Value, line: usize) -> Result<Align, Error> {
     match v.as_text().as_str() {
         "start" => Ok(Align::Start),
+        "end" => Ok(Align::End),
         "left" => Ok(Align::Left),
         "right" => Ok(Align::Right),
         "center" => Ok(Align::Center),
@@ -1489,6 +1470,9 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
+    fn build(source: &str) -> Result<super::Diagram, crate::Error> {
+        super::build_statements(&crate::parser::parse(source)?)
+    }
     use super::*;
 
     #[test]

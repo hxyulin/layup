@@ -1,3 +1,4 @@
+import { objectSelector } from '../../../packages/layup/test/helpers.js';
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -104,19 +105,19 @@ test('server-rendered diagrams and client navigation retain fonts and styles', a
 
 test('the worker renders current source and ignores superseded edits', async () => {
   await openEditor();
-  await edit('diagram "Changed live" layout=auto direction=right { node api "API"; node worker "Worker"; api -> worker "dispatch" }');
+  await edit('diagram main "Changed live" type=graph layout=auto flow-direction=right {\n  node api "API"\n  node worker "Worker"\n  ::api -> ::worker "dispatch"\n}');
   assert.match(await preview().textContent(), /Changed live/);
-  await source().fill('diagram "Obsolete" { node old }');
-  await source().fill('diagram "Most recent" { node newest }');
+  await source().fill('diagram main "Obsolete" type=graph {\n  node old\n}');
+  await source().fill('diagram main "Most recent" type=graph {\n  node newest\n}');
   await ready();
-  assert.equal(await preview().locator('.node[data-id="newest"]').count(), 1);
-  assert.equal(await preview().locator('.node[data-id="old"]').count(), 0);
+  assert.equal(await preview().locator(objectSelector('newest')).count(), 1);
+  assert.equal(await preview().locator(objectSelector('old')).count(), 0);
 });
 
 test('diagnostics preserve the last render and select exact Unicode source', async () => {
   await openEditor();
   const before = await preview().getAttribute('viewBox');
-  await source().fill('diagram "错误" {\n node 客户端 "Client"\n 客户端 -> missng\n}');
+  await source().fill('diagram main "错误" type=graph {\n  node 客户端 "Client"\n  ::客户端 -> missng\n}');
   await page.waitForSelector('.live-editor .status-error');
   assert.equal(await preview().getAttribute('viewBox'), before);
   assert.equal(await editor().locator('.last-valid').count(), 1);
@@ -124,15 +125,15 @@ test('diagnostics preserve the last render and select exact Unicode source', asy
   await editor().locator('.editor-diagnostics button').first().click();
   const selected = await source().evaluate(input => input.value.slice(input.selectionStart, input.selectionEnd));
   assert.equal(selected, 'missng');
-  await source().fill('diagram "Recover" { node a tone=wrong; node b tone=wrong }');
+  await source().fill('diagram main "Recover" type=graph {\n  node a palette=wrong\n  node b palette=wrong\n}');
   await page.waitForSelector('.live-editor .status-error');
-  await edit('diagram "Recovered" { node a "Good" }');
+  await edit('diagram main "Recovered" type=graph {\n  node a "Good"\n}');
   assert.equal(await editor().locator('.editor-diagnostics').count(), 0);
 });
 
 test('formatting preserves strings and comments, and Tab leaves the editor', async () => {
   await openEditor();
-  await edit('diagram "Format"{node a "A" // keep this\nnode b "B";a->b "call"}');
+  await edit('diagram main "Format" type=graph {\n  node a "A" // keep this\n  node b "B"\n  a->b "call"\n}');
   await editor().getByRole('button', { name: 'Format', exact: true }).click();
   await ready();
   const formatted = await source().inputValue();
@@ -145,7 +146,7 @@ test('formatting preserves strings and comments, and Tab leaves the editor', asy
 
 test('all canonical examples render; named views and presentation steps work', async () => {
   await openEditor();
-  for (const id of ['architecture', 'decisions', 'states', 'composite', 'sequence', 'international', 'rtl', 'slides', 'models', 'language-v1', 'presentation']) {
+  for (const id of ['architecture', 'decisions', 'states', 'composite', 'sequence', 'international', 'rtl', 'slides', 'models', 'language-v1', 'paint', 'presentation']) {
     await editor().getByLabel('Example', { exact: true }).selectOption(id);
     await ready();
     assert.ok(await preview().locator('.node').count(), id);
@@ -163,8 +164,8 @@ test('all canonical examples render; named views and presentation steps work', a
   await ready();
   await editor().getByLabel('View', { exact: true }).selectOption('detail');
   await ready();
-  assert.equal(await preview().locator('.node[data-id="client"]').count(), 0);
-  assert.equal(await preview().locator('.node[data-id="worker"]').count(), 1);
+  assert.equal(await preview().locator(objectSelector('client')).count(), 0);
+  assert.equal(await preview().locator(objectSelector('processing', 'worker')).count(), 1);
 });
 
 test('editing source removes stale view selection without hiding source errors', async () => {
@@ -175,14 +176,14 @@ test('editing source removes stale view selection without hiding source errors',
   assert.match(await editor().locator('.editor-notice').textContent(), /first available view/);
   assert.equal(JSON.parse((await download('Download scene JSON')).content).selectedView, 'renamed');
   await openEditor('models');
-  await edit('diagram "Replaced model" { node replacement "Valid source" }');
-  assert.equal(await preview().locator('.node[data-id="replacement"]').count(), 1);
+  await edit('diagram main "Replaced model" type=graph {\n  node replacement "Valid source"\n}');
+  assert.equal(await preview().locator(objectSelector('replacement')).count(), 1);
   assert.equal(await editor().getByLabel('View', { exact: true }).isEnabled(), false);
   await editor().getByLabel('Example', { exact: true }).selectOption('models');
   await ready();
   await editor().getByLabel('View', { exact: true }).selectOption('detail');
   await ready();
-  await source().fill(model.replace('worker -> store "save"', 'worker -> missing "save"'));
+  await source().fill(model.replace('::processing.worker -> ::processing.store "save"', '::processing.worker -> missing "save"'));
   await page.waitForSelector('.status-error');
   assert.equal(await editor().getByLabel('View', { exact: true }).inputValue(), 'detail');
   assert.match(await editor().locator('.editor-diagnostics').textContent(), /missing/);
@@ -194,7 +195,7 @@ test('query-only example navigation and browser history update a reused playgrou
     await follow(`${site}playground.html?example=${id}`);
     await exampleReady(id);
   }
-  assert.equal(await preview().locator('.node[data-id="running"]').count(), 1);
+  assert.equal(await preview().locator(objectSelector('running')).count(), 1);
   await page.goBack();
   await exampleReady('models');
   assert.equal(await editor().getByLabel('View', { exact: true }).inputValue(), 'overview');
@@ -204,8 +205,8 @@ test('query-only example navigation and browser history update a reused playgrou
 
 test('same-page share links load source; choosing another example clears the share', async () => {
   await openEditor();
-  const first = 'diagram "Shared first" { node one "你好" }';
-  const second = 'diagram "Shared second" { node two "مرحبا" }';
+  const first = 'diagram main "Shared first" type=graph {\n  node one "你好"\n}';
+  const second = 'diagram main "Shared second" type=graph {\n  node two "مرحبا"\n}';
   for (const text of [first, second]) {
     await follow(`${site}playground.html#${new URLSearchParams({ diagram: encodeShare(text) })}`);
     await page.waitForFunction(text => document.querySelector('.live-editor textarea')?.value === text && document.querySelector('.status-ready'), text);
@@ -222,9 +223,9 @@ test('same-page share links load source; choosing another example clears the sha
   assert.equal(new URL(page.url()).searchParams.get('example'), 'slides');
   await page.reload();
   await exampleReady('slides');
-  await edit('diagram "Unsaved edit" { node edited }');
+  await edit('diagram main "Unsaved edit" type=graph {\n  node edited\n}');
   await follow(`${page.url().split('#')[0]}#heading`);
-  assert.equal(await source().inputValue(), 'diagram "Unsaved edit" { node edited }');
+  assert.equal(await source().inputValue(), 'diagram main "Unsaved edit" type=graph {\n  node edited\n}');
 });
 
 test('both playground panes resize with pointer and keyboard controls', async () => {
@@ -305,7 +306,7 @@ test('downloads use current source, portable themes, and selected scene metadata
   const json = JSON.parse((await download('Download scene JSON')).content);
   assert.equal(json.version, 1);
   assert.equal(json.selectedView, 'detail');
-  assert.ok(!json.nodes.some(node => node.id === 'client'));
+  assert.ok(!json.nodes.some(node => node.objectPath?.at(-1) === 'client'));
   const html = await download('Download HTML');
   assert.match(html.content, /<!doctype html>/i);
   assert.match(html.content, /function createPresentation/);
@@ -317,7 +318,7 @@ test('downloads use current source, portable themes, and selected scene metadata
 
 test('UTF-8 share links restore editable source without sending it to the server', async () => {
   await openEditor();
-  const text = 'diagram "中文 / العربية" { node a "你好" }';
+  const text = 'diagram main "中文 / العربية" type=graph {\n  node a "你好"\n}';
   await edit(text);
   await editor().getByRole('button', { name: 'Copy share link', exact: true }).click();
   const link = await page.evaluate(() => navigator.clipboard.readText());
@@ -331,14 +332,14 @@ test('UTF-8 share links restore editable source without sending it to the server
 
 test('user-supplied font bytes reach the worker and executable links are omitted', async () => {
   await openEditor();
-  await edit('diagram "Fallback" { node a "中文中文" }');
+  await edit('diagram main "Fallback" type=graph {\n  node a "中文中文"\n}');
   await editor().locator('.editor-fonts summary').click();
   await editor().getByLabel('Fallback font files').setInputFiles(fileURLToPath(new URL('../../../crates/layup/tests/fonts/Fallback.ttf', import.meta.url)));
   await ready();
   assert.match(await preview().locator('style').textContent(), /Layup User/);
   await editor().getByRole('button', { name: 'Clear fonts', exact: true }).click();
   await ready();
-  const unsafe = 'diagram "Shared link" { node a "A" href="javascript:window.untrustedLink=true" }';
+  const unsafe = 'diagram main "Shared link" type=graph {\n  node a "A" href="javascript:window.untrustedLink=true"\n}';
   await edit(unsafe);
   assert.equal(await preview().locator('a').getAttribute('href'), null);
   const svg = await download('Download SVG');

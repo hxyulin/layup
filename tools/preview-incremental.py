@@ -6,6 +6,7 @@ import io
 import subprocess
 import tarfile
 import tempfile
+from checkpoint_sources import legacy_source
 
 root = Path(__file__).resolve().parent.parent
 out = root / "out/checkpoint-04"
@@ -42,13 +43,17 @@ with tempfile.TemporaryDirectory(prefix="layup-incremental-baseline-") as tmp:
         for policy, binary in [("Checkpoint 3", baseline_bin), ("Checkpoint 4", root/"target/debug/layup")]:
             for stage, path in [("Before edit", base), ("After edit", edited)]:
                 stem = f"{name}-{policy[-1]}-{'before' if path == base else 'after'}"
-                result = subprocess.run([str(binary), "render", str(path), "-o", str(out/f"{stem}.svg")], capture_output=True, text=True, check=True)
+                source_path = path
+                if binary == baseline_bin:
+                    source_path = out/f"{stem}.layup"
+                    source_path.write_text(legacy_source(root, path))
+                result = subprocess.run([str(binary), "render", str(source_path), "-o", str(out/f"{stem}.svg")], capture_output=True, text=True, check=True)
                 warnings = "\n".join(line for line in result.stderr.splitlines() if "warning:" in line)
                 diagnostic = f"<pre>{html.escape(warnings)}</pre>" if warnings else "<p class='ok'>No layout warnings</p>"
                 cards.append(f"<article><h3>{policy} — {stage}</h3><a href='{stem}.svg'><img src='{stem}.svg' alt='{title}: {policy}, {stage}'></a>{diagnostic}</article>")
         sections.append(f"<section><h2>{title}</h2><p>{note}</p><div class='pair'>{''.join(cards)}</div><details><summary>Edited source</summary><pre>{html.escape(edited.read_text())}</pre></details></section>")
 (out/"index.html").write_text("""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Layup checkpoint 4 — predictable edits</title>
 <style>body{font:16px/1.5 system-ui,sans-serif;background:#f5f7fa;color:#17212f;max-width:1500px;margin:32px auto;padding:0 24px}section{margin:36px 0}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}article{background:white;border:1px solid #d9e1e9;border-radius:12px;padding:16px;min-width:0}img{width:100%;height:auto}pre{white-space:pre-wrap;font-size:12px;overflow-wrap:anywhere}.ok{color:#23683e;font-size:13px}summary{cursor:pointer}@media(max-width:850px){.pair{grid-template-columns:1fr}}</style>
-<h1>Checkpoint 4: predictable edits</h1><p>Each example shows the same edit under two policies: checkpoint 3 on the top row, checkpoint 4 on the bottom. Compare left to right to see what moves. Colors change once to the new ID-based scheme, then stay stable as peers are inserted. No saved layout is used.</p>
+<h1>Checkpoint 4: predictable edits</h1><p>Each example shows the same edit under two policies: checkpoint 3 on the top row, checkpoint 4 on the bottom. Compare left to right to see what moves. Colors change once to the new ID-based scheme, then stay stable as peers are inserted. Equivalent fixtures use each compiler’s source grammar. No saved layout is used.</p>
 """ + "".join(sections) + "</html>")
 print(out/"index.html")

@@ -191,48 +191,6 @@ pub fn quote(s: &str) -> String {
 
 /// Attach a token span to an older line-based semantic diagnostic. Select the
 /// named token when available, otherwise point at the first token on the line.
-pub(crate) fn locate(error: &mut crate::Error, tokens: &[crate::lexer::Token]) {
-    if error.span.is_some() {
-        return;
-    }
-    let Some(line) = error.line else {
-        return;
-    };
-    let named: Vec<_> = error
-        .msg
-        .split('`')
-        .enumerate()
-        .filter_map(|(i, s)| (i % 2 == 1).then_some(s.split('=').next().unwrap_or(s)))
-        .collect();
-    let at_line: Vec<_> = tokens
-        .iter()
-        .filter(|t| {
-            t.line == line
-                && !matches!(
-                    t.tok,
-                    crate::lexer::Tok::Newline | crate::lexer::Tok::Comment(_)
-                )
-        })
-        .collect();
-    let token = named
-        .iter()
-        .find_map(|name| {
-            at_line
-                .iter()
-                .rev()
-                .find(|t| match &t.tok {
-                    crate::lexer::Tok::Ident(s) | crate::lexer::Tok::Str(s) => s == name,
-                    crate::lexer::Tok::Arrow { kind: Some(s), .. } => s == name,
-                    _ => false,
-                })
-                .copied()
-        })
-        .or_else(|| at_line.first().copied());
-    if let Some(t) = token {
-        error.span = Some(Box::new(t.span));
-    }
-}
-
 pub(crate) fn suggestion<'a>(
     name: &str,
     choices: impl IntoIterator<Item = &'a str>,

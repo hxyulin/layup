@@ -2,16 +2,21 @@
 //! self-contained SVG or an interactive HTML page.
 //!
 //! ```
-//! let diagram = layup::compile(r#"diagram "Hello" { node api "API" }"#)?;
+//! let diagram = layup::compile(r#"diagram main "Hello" type=graph {
+//!   node api "API"
+//! }"#)?;
 //! let svg = layup::svg::render(&diagram, layup::Theme::Light);
 //! assert!(svg.contains("@font-face"));
 //! # Ok::<(), layup::Error>(())
 //! ```
 //!
-//! Pipeline: `parser` (tokens to items) -> `model` (typed diagram) ->
+//! Pipeline: `document` (shared syntax and per-diagram grammars) ->
+//! internal lowering IR -> `model` (semantic diagram) ->
 //! `layout` (block layout with measured text) -> `route` (orthogonal edges)
 //! -> `svg` / `html` emitters. `check` reports layout problems.
 
+#[cfg(test)]
+extern crate self as layup;
 mod arrange;
 pub mod check;
 pub mod diagnostic;
@@ -204,19 +209,7 @@ pub fn compile_with_options(
     options: &CompileOptions,
     fonts: &text::Fonts,
 ) -> Result<Compiled, Error> {
-    compile_document(src, options, fonts).map_err(|mut error| {
-        if let Ok(tokens) = lexer::lex(src) {
-            if error.line.is_none() {
-                error.span = tokens
-                    .iter()
-                    .find(|t| !matches!(t.tok, lexer::Tok::Newline))
-                    .map(|t| Box::new(t.span));
-                error.line = error.span.as_ref().map(|s| s.line);
-            }
-            diagnostic::locate(&mut error, &tokens);
-        }
-        error
-    })
+    compile_document(src, options, fonts)
 }
 
 fn compile_document(
@@ -224,15 +217,7 @@ fn compile_document(
     options: &CompileOptions,
     fonts: &text::Fonts,
 ) -> Result<Compiled, Error> {
-    if document::is_document(src) {
-        return document::compile(src, options, fonts);
-    }
-    if options.diagram.is_some() {
-        return Err(Error::new(
-            "diagram selection requires a named diagram document",
-        ));
-    }
-    compile_statements(&parser::parse(src)?, options, fonts)
+    document::compile(src, options, fonts)
 }
 
 pub(crate) fn compile_statements(
@@ -248,6 +233,16 @@ pub(crate) fn compile_lowered(
     options: &CompileOptions,
     fonts: &text::Fonts,
     legacy_tags: bool,
+) -> Result<Compiled, Error> {
+    compile_lowered_with_semantics(statements, options, fonts, legacy_tags, None)
+}
+
+pub(crate) fn compile_lowered_with_semantics(
+    statements: &[parser::Stmt],
+    options: &CompileOptions,
+    fonts: &text::Fonts,
+    legacy_tags: bool,
+    semantic_styles: Option<(&std::collections::BTreeMap<String, String>, &model::Diagram)>,
 ) -> Result<Compiled, Error> {
     let mut resolved = views::resolve(statements, options.view.as_deref())?;
     let steps = presentation::extract(&mut resolved.statements)?;
@@ -270,6 +265,23 @@ pub(crate) fn compile_lowered(
         Some(document) => document.diagram.clone(),
         None => model::build_statements_with_tags(&resolved.statements, legacy_tags)?,
     };
+    if let Some((kinds, styles)) = semantic_styles {
+        document::restore_styles(&mut diagram, kinds);
+        for (name, style) in &mut diagram.kinds {
+            if let Some(authored) = styles
+                .kinds
+                .get(name)
+                .or_else(|| styles.kinds.get(&format!("__layup_kind_{name}")))
+            {
+                style.paint = authored.paint.clone();
+            }
+        }
+        for (name, style) in &mut diagram.arrows {
+            if let Some(authored) = styles.arrows.get(name) {
+                style.paint = authored.paint.clone();
+            }
+        }
+    }
     if diagram.mode == model::Mode::StateMachine {
         machine::check(&diagram, &mut warnings);
     }
@@ -300,7 +312,11 @@ pub(crate) fn compile_lowered(
         )
         .collect();
     while let Some((item, line)) = drawings.pop() {
-        if let layout::Item::Group(children) = item {
+        if let layout::Item::Group(children)
+        | layout::Item::StyledGroup {
+            items: children, ..
+        } = item
+        {
             drawings.extend(children.iter().map(|child| (child, line)));
         }
         if let layout::Item::Text(t) = item {

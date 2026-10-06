@@ -41,14 +41,20 @@ features:
 ## From a request to an explanation
 
 ```layup
-diagram "How a request reaches storage" layout=auto direction=right {
-  node browser "Browser" { code "POST /jobs" }
-  node api "API" { sub "Validate and authorize" }
-  node worker "Worker" { code "process(job)" }
+diagram main "How a request reaches storage" type=graph layout=auto flow-direction=right {
+  node browser "Browser" {
+    code "POST /jobs"
+  }
+  node api "API" {
+    text "Validate and authorize"
+  }
+  node worker "Worker" {
+    code "process(job)"
+  }
   node store "Object storage"
-  browser -> api "submit"
-  api -> worker "dispatch"
-  worker -> store "persist"
+  ::browser -> ::api "submit"
+  ::api -> ::worker "dispatch"
+  ::worker -> ::store "persist"
 }
 ```
 

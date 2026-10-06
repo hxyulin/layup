@@ -9,7 +9,7 @@ out = root / "out/checkpoint-01"
 out.mkdir(parents=True, exist_ok=True)
 branch = (root / "examples/auto-layout.layup").read_text()
 nested = (root / "docs/checkpoints/01-auto-layout/nested.layup").read_text()
-expanded = branch.replace('  node store', '  node audit "Audit" { code "record(event)" }\n  node store').replace('  auth -> store', '  gateway -> audit\n  audit -> store\n  auth -> store')
+expanded = branch.replace('  node store', '  node audit "Audit" { code "record(event)" }\n  node store').replace('  ::auth -> ::store', '  ::gateway -> ::audit\n  ::audit -> ::store\n  ::auth -> ::store')
 cases = [
     ("Branching", "Same declarations and edges. Only layout=auto changes.", branch.replace("layout=auto", "layout=manual"), branch),
     ("Nested", "Automatic placement also applies inside the authored service container.", nested.replace("layout=auto", "layout=manual"), nested),

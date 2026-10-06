@@ -1,10 +1,16 @@
-diagram "A growing service" layout=auto {
-  node input "Input" { code "accept(request)" }
-  node worker "Worker" { code "process(request)" }
-  node store "Store" { code "persist(result)" }
+diagram main "A growing service" type=graph layout=auto {
+  node input "Input" {
+    code "accept(request)"
+  }
+  node worker "Worker" {
+    code "process(request)"
+  }
+  node store "Store" {
+    code "persist(result)"
+  }
   node metrics "Metrics"
   node archive "Archive"
-  metrics -> archive
-  input -> worker
-  worker -> store
+  ::metrics -> ::archive
+  ::input -> ::worker
+  ::worker -> ::store
 }

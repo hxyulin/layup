@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Replace the source DSL with named diagrams and per-type graph, sequence and
+  state-machine grammars. The optional `layup 1` assertion checks the revision;
+  legacy headers, typed arrow names, implicit object IDs and bare style flags
+  are rejected. Structured graph version 1 retains its existing contract.
+- Add scoped identities, exact typed values, arbitrary ordered annotations,
+  preserved unavailable diagram bodies and recovering document inspection.
+- Use explicit node/edge styles, category defaults, direct paint channels,
+  logical text alignment, grouped slide/legend settings and typed view/reveal
+  selections. Scene metadata retains declarations, attributes and resolved paint.
+- Migrate canonical diagrams, Markdown guides, frontend fixtures and Tree-sitter
+  syntax highlighting together. ER, member/port geometry, full-document JSON
+  input and public property schemas remain future extensions.
+
+
+## Unreleased
+
 - Version-1 semantic graph input in Rust and JS/WASM, with original symbol IDs,
   hierarchy, custom kinds, named views, original-code locations and metadata.
 - CLI render/compile/check detect graph `.json` files; render/compile accept

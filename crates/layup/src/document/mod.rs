@@ -3,7 +3,9 @@
 mod compile;
 mod format;
 mod lex;
+mod paint;
 mod parse;
+pub use paint::{Color, Paint, PaletteOrigin, StrokeStyle};
 
 use crate::diagnostic::Diagnostic;
 use serde::{Serialize, Serializer};
@@ -11,6 +13,7 @@ use std::collections::BTreeMap;
 
 use crate::{CompileOptions, Compiled, Error, diagnostic::Span, text::Fonts};
 
+pub(crate) use compile::restore_styles;
 pub use compile::{EntityInfo, Info, ManifestEntry, TargetInfo};
 
 /// Exact signed/unsigned 64-bit integer; tagged document values serialize as decimal strings.
@@ -63,6 +66,7 @@ pub struct Attribute {
     pub value: Value,
     pub span: Span,
     pub value_span: Span,
+    pub name_span: Span,
 }
 pub type Attributes = BTreeMap<String, Attribute>;
 
@@ -103,16 +107,69 @@ pub struct Diagram {
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum Body {
     Graph(Vec<GraphStatement>),
+    Sequence(Vec<GraphStatement>),
+    StateMachine(Vec<GraphStatement>),
     Opaque { raw: String, span: Span },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", content = "value", rename_all = "kebab-case")]
 pub enum GraphStatement {
+    Layout {
+        kind: LayoutKind,
+        title: Option<String>,
+        attributes: Attributes,
+        annotations: Vec<Annotation>,
+        body: Vec<GraphStatement>,
+        span: Span,
+    },
+    Configuration {
+        kind: ConfigurationKind,
+        attributes: Attributes,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+    Defaults {
+        category: DefaultCategory,
+        attributes: Attributes,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+    View(NamedBlock),
+    Step(NamedBlock),
+    Selection {
+        kind: SelectionKind,
+        objects: Vec<Reference>,
+        object_spans: Vec<Span>,
+        connections: Vec<String>,
+        connection_spans: Vec<Span>,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+    Fragment {
+        kind: FragmentKind,
+        title: String,
+        body: Vec<GraphStatement>,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+    SequenceNote {
+        text: String,
+        attributes: Attributes,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+    Port {
+        id: String,
+        attributes: Attributes,
+        annotations: Vec<Annotation>,
+        span: Span,
+    },
+
     Node(Node),
     Edge(Edge),
-    NodeKind(Kind),
-    EdgeKind(Kind),
+    NodeStyle(Kind),
+    EdgeStyle(Kind),
     Row {
         annotations: Vec<Annotation>,
         attributes: Attributes,
@@ -131,6 +188,7 @@ pub enum GraphStatement {
 #[serde(rename_all = "camelCase")]
 pub struct Node {
     pub declaration: String,
+    pub label_span: Option<Span>,
     pub id: String,
     pub title: String,
     pub attributes: Attributes,
@@ -143,6 +201,9 @@ pub struct Node {
 #[serde(rename_all = "camelCase")]
 pub struct Edge {
     pub id: Option<String>,
+    pub from_span: Span,
+    pub to_span: Span,
+    pub arrow_span: Span,
     pub from: Reference,
     pub to: Reference,
     pub arrow: String,
@@ -161,80 +222,102 @@ pub struct Kind {
     pub span: Span,
 }
 
-/// Recognize named document declarations and explicit revision assertions.
-/// An invalid assertion never falls back to the title-only legacy grammar.
-pub fn is_document(source: &str) -> bool {
-    let mut rest = source;
-    loop {
-        rest = rest.trim_start();
-        if rest.starts_with("//") {
-            let Some(end) = rest.find('\n') else {
-                return false;
-            };
-            rest = &rest[end + 1..];
-        } else if rest.starts_with("/*") {
-            let Ok(end) = lex::block_comment_length(rest) else {
-                return false;
-            };
-            rest = &rest[end..];
-        } else {
-            if rest.starts_with('@')
-                || rest.strip_prefix("layup").is_some_and(|tail| {
-                    tail.is_empty()
-                        || !tail
-                            .starts_with(|c: char| unicode_ident::is_xid_continue(c) || c == '-')
-                })
-            {
-                return true;
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedBlock {
+    pub id_span: Span,
+    pub id: String,
+    pub title: String,
+    pub attributes: Attributes,
+    pub annotations: Vec<Annotation>,
+    pub body: Vec<GraphStatement>,
+    pub span: Span,
+}
+macro_rules! syntax_choices {
+    ($name:ident { $($variant:ident),* }) => {
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+        #[serde(rename_all = "kebab-case")]
+        pub enum $name { $($variant),* }
+    };
+}
+syntax_choices!(LayoutKind {
+    Section,
+    Band,
+    Divider,
+    Gap
+});
+syntax_choices!(ConfigurationKind { Slide, Legend });
+syntax_choices!(DefaultCategory {
+    Node,
+    Edge,
+    Participant,
+    Message,
+    State,
+    Transition
+});
+syntax_choices!(SelectionKind {
+    Include,
+    Show,
+    Highlight
+});
+syntax_choices!(FragmentKind {
+    Loop,
+    Optional,
+    Alternatives,
+    Branch
+});
+
+impl Body {
+    pub fn statements(&self) -> Option<&[GraphStatement]> {
+        match self {
+            Self::Graph(body) | Self::Sequence(body) | Self::StateMachine(body) => Some(body),
+            Self::Opaque { .. } => None,
+        }
+    }
+}
+impl GraphStatement {
+    pub fn annotations(&self) -> &[Annotation] {
+        match self {
+            Self::Node(n) => &n.annotations,
+            Self::Edge(e) => &e.annotations,
+            Self::NodeStyle(k) | Self::EdgeStyle(k) => &k.annotations,
+            Self::View(n) | Self::Step(n) => &n.annotations,
+            Self::Row { annotations, .. }
+            | Self::Content { annotations, .. }
+            | Self::Layout { annotations, .. }
+            | Self::Configuration { annotations, .. }
+            | Self::Defaults { annotations, .. }
+            | Self::Selection { annotations, .. }
+            | Self::Fragment { annotations, .. }
+            | Self::SequenceNote { annotations, .. }
+            | Self::Port { annotations, .. } => annotations,
+        }
+    }
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Node(n) => n.span,
+            Self::Edge(e) => e.span,
+            Self::NodeStyle(k) | Self::EdgeStyle(k) => k.span,
+            Self::View(n) | Self::Step(n) => n.span,
+            Self::Row { span, .. }
+            | Self::Content { span, .. }
+            | Self::Layout { span, .. }
+            | Self::Configuration { span, .. }
+            | Self::Defaults { span, .. }
+            | Self::Selection { span, .. }
+            | Self::Fragment { span, .. }
+            | Self::SequenceNote { span, .. }
+            | Self::Port { span, .. } => *span,
+        }
+    }
+    pub fn children(&self) -> &[GraphStatement] {
+        match self {
+            Self::Node(n) => &n.body,
+            Self::View(n) | Self::Step(n) => &n.body,
+            Self::Row { body, .. } | Self::Layout { body, .. } | Self::Fragment { body, .. } => {
+                body
             }
-            let mut lexer = lex::Lexer::new(rest);
-            let next = |lexer: &mut lex::Lexer<'_>| {
-                loop {
-                    let token = lexer.next().ok()?;
-                    if !matches!(
-                        token.token,
-                        lex::Token::Comment | lex::Token::BlockComment | lex::Token::Newline
-                    ) {
-                        return Some(token.token);
-                    }
-                }
-            };
-            if next(&mut lexer) != Some(lex::Token::Word("diagram".into())) {
-                return false;
-            }
-            match next(&mut lexer) {
-                Some(lex::Token::Word(_)) => return next(&mut lexer) != Some(lex::Token::Equal),
-                Some(lex::Token::String(_)) => {
-                    let mut previous = None;
-                    let mut depth = 0usize;
-                    while let Some(token) = next(&mut lexer) {
-                        match token {
-                            lex::Token::Eof => break,
-                            lex::Token::Open
-                                if depth == 0 && previous != Some(lex::Token::Equal) =>
-                            {
-                                break;
-                            }
-                            lex::Token::Open | lex::Token::ParenOpen | lex::Token::ListOpen => {
-                                depth += 1
-                            }
-                            lex::Token::Close | lex::Token::ParenClose | lex::Token::ListClose => {
-                                depth = depth.saturating_sub(1)
-                            }
-                            _ => {}
-                        }
-                        if depth == 0
-                            && token == lex::Token::Equal
-                            && matches!(previous, Some(lex::Token::Word(ref word)) if word == "type" || word == "kind")
-                        {
-                            return true;
-                        }
-                        previous = Some(token);
-                    }
-                    return false;
-                }
-                _ => return false,
-            }
+            _ => &[],
         }
     }
 }
@@ -279,21 +362,92 @@ pub fn parse(source: &str) -> Result<Document, Error> {
 
 /// Resolve and validate the default diagram without measuring text or routing.
 pub fn build(source: &str) -> Result<crate::model::Diagram, Error> {
-    compile::build(&parse(source)?)
+    let document = parse(source)?;
+    compile::build(&document).map_err(|mut error| {
+        error.msg = readable(&document, &error.msg);
+        locate_error(source, &mut error);
+        error
+    })
 }
 
 pub fn compile(source: &str, options: &CompileOptions, fonts: &Fonts) -> Result<Compiled, Error> {
-    compile::compile(&parse(source)?, options, fonts).map_err(|mut error| {
-        if error.span.is_none()
-            && let Ok(tokens) = lex::document_tokens(source)
-        {
-            error.span = tokens
-                .iter()
-                .find(|t| Some(t.span.line) == error.line)
-                .map(|t| Box::new(t.span));
+    let document = parse(source)?;
+    let result = compile::compile(&document, options, fonts).map(|mut compiled| {
+        for warning in &mut compiled.warnings {
+            warning.msg = readable(&document, &warning.msg);
         }
+        compiled
+    });
+    result.map_err(|mut error| {
+        error.msg = readable(&document, &error.msg);
+        locate_error(source, &mut error);
         error
     })
+}
+
+fn locate_error(source: &str, error: &mut Error) {
+    if error.span.is_some() {
+        return;
+    }
+    let Ok(tokens) = lex::document_tokens(source) else {
+        return;
+    };
+    let names = error
+        .msg
+        .split('`')
+        .enumerate()
+        .filter_map(|(i, name)| (i % 2 == 1).then_some(name.split('=').next().unwrap_or(name)))
+        .collect::<Vec<_>>();
+    let on_line = tokens
+        .iter()
+        .filter(|token| {
+            (error.line.is_none() || Some(token.span.line) == error.line)
+                && !matches!(
+                    token.token,
+                    lex::Token::Newline
+                        | lex::Token::Comment
+                        | lex::Token::BlockComment
+                        | lex::Token::Eof
+                )
+        })
+        .collect::<Vec<_>>();
+    let token = names.iter().find_map(|name| {
+        on_line.iter().rev().find(|token|
+            matches!(&token.token, lex::Token::Word(word) | lex::Token::String(word) if word == name)
+        ).copied()
+    }).or_else(|| on_line.first().copied());
+    if let Some(token) = token {
+        error.span = Some(Box::new(token.span));
+        error.line = Some(token.span.line);
+    }
+}
+
+fn readable(document: &Document, message: &str) -> String {
+    fn visit(body: &[GraphStatement], scope: &[String], pairs: &mut Vec<(String, String)>) {
+        for statement in body {
+            if let GraphStatement::Node(node) = statement {
+                let path = [scope.to_vec(), vec![node.id.clone()]].concat();
+                pairs.push((
+                    format!("object:{}", serde_json::to_string(&path).unwrap()),
+                    path.join("."),
+                ));
+                visit(&node.body, &path, pairs);
+            } else {
+                visit(statement.children(), scope, pairs);
+            }
+        }
+    }
+    let mut pairs = Vec::new();
+    for diagram in &document.diagrams {
+        if let Some(body) = diagram.body.statements() {
+            visit(body, &[], &mut pairs);
+        }
+    }
+    pairs
+        .into_iter()
+        .fold(message.into(), |message: String, (id, name)| {
+            message.replace(&id, &name)
+        })
 }
 
 pub fn format(source: &str) -> Result<String, Error> {
@@ -379,29 +533,16 @@ fn diagnose_extensions(document: &mut Document) {
         f: &impl Fn(&[Annotation], &mut Vec<Diagnostic>),
     ) {
         for statement in body {
-            match statement {
-                GraphStatement::Node(node) => {
-                    f(&node.annotations, warnings);
-                    visit(&node.body, warnings, f);
-                }
-                GraphStatement::Edge(edge) => f(&edge.annotations, warnings),
-                GraphStatement::NodeKind(kind) | GraphStatement::EdgeKind(kind) => {
-                    f(&kind.annotations, warnings)
-                }
-                GraphStatement::Row {
-                    annotations, body, ..
-                } => {
-                    f(annotations, warnings);
-                    visit(body, warnings, f);
-                }
-                GraphStatement::Content { annotations, .. } => f(annotations, warnings),
-            }
+            f(statement.annotations(), warnings);
+            visit(statement.children(), warnings, f);
         }
     }
     for diagram in &document.diagrams {
         annotation_warnings(&diagram.annotations, &mut document.warnings);
         match &diagram.body {
-            Body::Graph(body) => visit(body, &mut document.warnings, &annotation_warnings),
+            Body::Graph(body) | Body::Sequence(body) | Body::StateMachine(body) => {
+                visit(body, &mut document.warnings, &annotation_warnings)
+            }
             Body::Opaque { .. } => {
                 let known =
                     ["sequence", "state-machine", "er"].contains(&diagram.diagram_type.as_str());
@@ -413,3 +554,6 @@ fn diagnose_extensions(document: &mut Document) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests_language;

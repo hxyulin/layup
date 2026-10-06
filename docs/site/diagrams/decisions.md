@@ -4,18 +4,18 @@ Use a decision tree to explain a branching rule. Use a flowchart when branches
 merge, retry, or return to earlier processing.
 
 ```layup source
-diagram "Validate a request" layout=auto direction=down {
-  process receive "Receive request"
-  decision valid "Are all requirements met?" yellow
-  terminal accept "Accept" green
-  terminal reject "Request changes" orange
-  receive -> valid
-  valid -> accept "Yes"
-  valid -> reject "No"
+diagram main "Validate a request" type=graph layout=auto flow-direction=down {
+  node receive "Receive request" style=process
+  node valid "Are all requirements met?" style=decision palette=yellow
+  node accept "Accept" style=terminal palette=green
+  node reject "Request changes" style=terminal palette=orange
+  ::receive -> ::valid
+  ::valid -> ::accept "Yes"
+  ::valid -> ::reject "No"
 }
 ```
 
-| Kind | Use |
+| Built-in style | Use |
 | --- | --- |
 | `decision` | Diamond question with measured, wrapped text |
 | `process` | Rounded processing step |

@@ -9,44 +9,59 @@ import { pathToFileURL } from 'node:url';
 const base = readFileSync('examples/sequence.layup', 'utf8');
 const international = readFileSync('examples/sequence-international.layup', 'utf8');
 const model = readFileSync('examples/presentation-model.layup', 'utf8');
-const playback = `diagram "Step through a request" mode=sequence slide=wide min-font-size=1 {
-  participant client "Client" blue
-  participant api "API" green
-  client -> api "Request" id=request
-  api -> api "Validate\nAuthenticate" id=validate
-  api -> client "Response" return id=response
-  step request "Send the request" { show client api; show-edge request; highlight-edge request }
-  step validate "Validate it" { show-edge validate; highlight-edge validate }
-  step response "Return the response" { show-edge response; highlight-edge response }
+const playback = `diagram main "Step through a request" type=sequence {
+  slide size=wide min-font-size=1
+  participant client "Client" palette=blue
+  participant api "API" palette=green
+  message request ::client -> ::api "Request"
+  message validate ::api -> ::api "Validate\nAuthenticate"
+  message response ::api -> ::client "Response" type=reply
+  step request "Send the request" {
+    show objects=[::client, ::api]
+    show connections=[request]
+    highlight connections=[request]
+  }
+  step validate "Validate it" {
+    show connections=[validate]
+    highlight connections=[validate]
+  }
+  step response "Return the response" {
+    show connections=[response]
+    highlight connections=[response]
+  }
 }`;
 const cases = [
   ['Request lifecycle', base, 'light'],
-  ['Participant order: left', base.replace('mode=sequence', 'mode=sequence direction=left'), 'light'],
+  ['Participant order: left', base.replace('type=sequence', 'type=sequence participant-direction=left'), 'light'],
   ['Dark theme', base, 'dark'],
   ['International messages', international, 'light'],
-  ['International messages: left', international.replace('mode=sequence', 'mode=sequence direction=left'), 'light'],
-  ['Multiline messages at authored width', `diagram "Multiline labels" mode=sequence width=900 {
-    participant a "Browser with a long participant title"
-    participant b "API"
-    a -> b "A request with several parameters and additional context\nExplicit second line" id=request
-    b -> b "Perform local validation\nThen persist the result" id=validate
-    note "Notes can also span multiple lines.\nThis line is authored explicitly." from=a to=b
-    b -> a "Return a response after all processing has completed" return id=response
-  }`, 'light'],
-  ['One participant and a self-call', 'diagram "Local operation" mode=sequence { participant worker "Worker"; worker -> worker "Process the batch" async id=process }', 'light'],
+  ['International messages: left', international.replace('type=sequence', 'type=sequence participant-direction=left'), 'light'],
+  ['Multiline messages at authored width', `diagram main "Multiline labels" type=sequence width=900 {
+  participant a "Browser with a long participant title"
+  participant b "API"
+  message request ::a -> ::b "A request with several parameters and additional context\nExplicit second line"
+  message validate ::b -> ::b "Perform local validation\nThen persist the result"
+  note "Notes can also span multiple lines.\nThis line is authored explicitly." between=[::a, ::b]
+  message response ::b -> ::a "Return a response after all processing has completed" type=reply
+}`, 'light'],
+  ['One participant and a self-call', 'diagram main "Local operation" type=sequence {\n  participant worker "Worker"\n  message process ::worker -> ::worker "Process the batch" delivery=async\n}', 'light'],
   ['Sequence on a slide', playback, 'light'],
-  ['RTL title, subtitle and fragments', `diagram "طلب متعدد الخطوات" mode=sequence text-direction=rtl {
-    subtitle "تفاصيل معالجة الطلب"
-    participant client "عميل"; participant api "خادم"
-    loop "إعادة المحاولة" { client -> api "طلب"; api -> client "استجابة" return }
-  }`, 'light'],
-  ['Participant styles, monospace and wrapped roles', `diagram "Styled participants" mode=sequence width=900 {
-    style participant process mono blue
-    style actor process hollow purple
-    actor user "User"
-    participant api "ConnectionPool<RequestContext>" role="The service owns authorization, validation, processing and persistence for every incoming request."
-    user -> api "Call"
-  }`, 'light'],
+  ['RTL title, subtitle and fragments', `diagram main "طلب متعدد الخطوات" type=sequence text-direction=rtl subtitle="تفاصيل معالجة الطلب" {
+
+  participant client "عميل"
+  participant api "خادم"
+  loop "إعادة المحاولة" {
+    message connection-1 ::client -> ::api "طلب"
+    message connection-2 ::api -> ::client "استجابة" type=reply
+  }
+}`, 'light'],
+  ['Participant styles, monospace and wrapped roles', `diagram main "Styled participants" type=sequence width=900 {
+  node-style participant base=process font-family=mono palette=blue
+  node-style actor base=process fill-color=none palette=purple
+  actor user "User" style=actor
+  participant api "ConnectionPool<RequestContext>" style=participant role="The service owns authorization, validation, processing and persistence for every incoming request."
+  message connection-1 ::user -> ::api "Call"
+}`, 'light'],
   ['Shared model walkthrough', model, 'light', 'walkthrough'],
 ];
 mkdirSync('out/sequences', { recursive: true });
@@ -131,9 +146,9 @@ try {
       }
     });
     const sample = document.querySelector('article svg');
-    const returned = sample.querySelector('.edge[data-edge-id="accepted"] path.ln');
+    const returned = sample.querySelector('.edge[data-edge-id*="accepted"] path.ln');
     if (!returned.hasAttribute('stroke-dasharray')) failures.push('Return message is not dashed');
-    const asynchronous = sample.querySelector('.edge[data-edge-id="enqueue"] path.ln');
+    const asynchronous = sample.querySelector('.edge[data-edge-id*="enqueue"] path.ln');
     if (!asynchronous.getAttribute('marker-end').includes('mo-')) failures.push('Async message has no open arrowhead');
     const marker = document.getElementById(asynchronous.getAttribute('marker-end').slice(5, -1)).querySelector('path');
     if (marker.getAttribute('fill') !== 'none') failures.push('Async arrowhead is filled');
@@ -159,9 +174,9 @@ try {
     return highlighted && getComputedStyle(highlighted).opacity === '1' && others.every(edge => getComputedStyle(edge).opacity === '0.3');
   });
   await settledHighlight();
-  const visibleEdges = () => page.locator('.edge').evaluateAll(edges => edges.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => e.dataset.edgeId));
+  const visibleEdges = () => page.locator('.edge').evaluateAll(edges => edges.filter(e => getComputedStyle(e).visibility !== 'hidden').map(e => JSON.parse(e.dataset.edgeId.slice("relationship:".length))));
   assert.deepEqual(await visibleEdges(), ['request']);
-  assert.equal(await page.locator('.edge[data-edge-id="response"] text').evaluate(text => getComputedStyle(text).visibility), 'hidden');
+  assert.equal(await page.locator('.edge[data-edge-id*="response"] text').evaluate(text => getComputedStyle(text).visibility), 'hidden');
   await page.screenshot({ path: 'out/sequences/step-request.png' });
   await page.locator('[data-step="next"]').click();
   await settledHighlight();

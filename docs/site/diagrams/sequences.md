@@ -1,19 +1,19 @@
 # Sequence diagrams
 
-Use `mode=sequence` to explain the order of calls, responses, retries, and
+Use `type=sequence` to explain the order of calls, responses, retries, and
 asynchronous work. Participant columns are authored; time always advances
 downward.
 
 ```layup source
-diagram "Create a job" mode=sequence {
+diagram main "Create a job" type=sequence {
   actor user "User"
   participant api "API"
   participant worker "Worker"
-  user -> api "Submit" id=request
-  api -> api "Validate"
-  note "Authorize before dispatch." over=api
-  api -> worker "Queue work" async id=enqueue
-  api -> user "202 Accepted" return
+  message request ::user -> ::api "Submit"
+  message connection-2 ::api -> ::api "Validate"
+  note "Authorize before dispatch." over=::api
+  message enqueue ::api -> ::worker "Queue work" delivery=async
+  message connection-4 ::api -> ::user "202 Accepted" type=reply
 }
 ```
 
@@ -25,39 +25,43 @@ an `actor` role. Participant bodies are not supported.
 
 | Syntax | Meaning |
 | --- | --- |
-| `a -> b "Call"` | Message from A to B |
-| `a -> b "Notify" async` | Open asynchronous arrowhead |
-| `b -> a "Response" return` | Dashed return arrow |
-| `a -> a "Validate"` | Self-call loop |
+| `message call a -> b "Call"` | Message from A to B |
+| `message notify a -> b "Notify" delivery=async` | Open asynchronous arrowhead |
+| `message response b -> a "Response" type=reply` | Dashed return arrow |
+| `message validate a -> a "Validate"` | Self-call loop |
 | `note "Text" over=a` | Note over one lifeline |
-| `note "Text" from=a to=b` | Note spanning two participants |
+| `note "Text" between=[a, b]` | Note spanning two participants |
 | `note "Text"` | Note spanning the diagram |
 
-Existing typed arrows, colors, labels, `labeled`, and IDs remain available.
+Messages accept `style`, `palette`, paint properties and positional captions.\nUse `label=style` to request a style’s default caption.
 Repeated messages are separate chronological events, so retry calls do not
-trigger duplicate-transition lint warnings. `direction=left` reverses columns;
+trigger duplicate-transition lint warnings. `participant-direction=left` reverses columns;
 `right` is the default. Up/down flow and graph routing ports do not apply.
 
 ## Loops, options, and alternatives
 
 ```layup source
-diagram "Poll for a result" mode=sequence {
+diagram main "Poll for a result" type=sequence {
   participant browser "Browser"
   participant api "API"
   loop "Until complete" {
-    browser -> api "GET /jobs/:id"
-    alt "Job status" {
-      branch "Complete" { api -> browser "200 + result" return }
-      branch "Pending" { api -> browser "200 + pending" return }
+    message connection-1 ::browser -> ::api "GET /jobs/:id"
+    alternatives "Job status" {
+      branch "Complete" {
+        message connection-2 ::api -> ::browser "200 + result" type=reply
+      }
+      branch "Pending" {
+        message connection-3 ::api -> ::browser "200 + pending" type=reply
+      }
     }
   }
-  opt "Notify the user" {
-    note "Display the completed result." over=browser
+  optional "Notify the user" {
+    note "Display the completed result." over=::browser
   }
 }
 ```
 
-Fragments have a quoted label and nonempty event body. `alt` needs at least
+Fragments have a quoted label and nonempty event body. `alternatives` needs at least
 two `branch` blocks. Nesting reserves room for headings and frames; deeply
 nested fragments can need a wider canvas.
 
@@ -70,5 +74,5 @@ participant creation/destruction, parallel fragments, and timing axes are
 future work.
 
 For a talk, keep participant lifelines visible and reveal individual messages
-with explicit `show-edge` steps. Try the
+with explicit `show connections=[…]` steps. Try the
 [request/retry presentation](/playground?example=presentation).

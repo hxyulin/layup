@@ -1,14 +1,15 @@
-diagram "Job lifecycle" mode=state-machine direction=right width=1400 {
+diagram main "Job lifecycle" type=state-machine flow-direction=right width=1400 {
   initial start
-  state idle "Idle" blue
-  state running "Running" green { sub "entry / begin()" }
-  state paused "Paused" yellow
+  state idle "Idle" palette=blue
+  state running "Running" palette=green {
+    text "entry / begin()"
+  }
+  state paused "Paused" palette=yellow
   final done
-
-  start -> idle
-  idle -> running "start / begin()"
-  running -> paused "pause"
-  paused -> running "resume"
-  running -> running "tick / update()"
-  running -> done "finish [completed]"
+  transition connection-1 ::start -> ::idle
+  transition connection-2 ::idle -> ::running "start / begin()"
+  transition connection-3 ::running -> ::paused "pause"
+  transition connection-4 ::paused -> ::running "resume"
+  transition connection-5 ::running -> ::running "tick / update()"
+  transition connection-6 ::running -> ::done "finish [completed]"
 }

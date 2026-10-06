@@ -1,7 +1,6 @@
-diagram "Place neighbors without a row" layout=auto {
-  note "Beside keeps a chain together and sets its left-to-right order."
-  node output "Output" beside=transform
+diagram main "Place neighbors without a row" type=graph layout=auto subtitle="Beside keeps a chain together and sets its left-to-right order." {
+  node output "Output" beside=::transform
   node notes "Notes"
   node input "Input"
-  node transform "Transform" beside=input
+  node transform "Transform" beside=::input
 }

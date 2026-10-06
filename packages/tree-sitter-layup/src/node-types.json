@@ -101,34 +101,6 @@
         {
           "type": "annotation_argument",
           "named": true
-        },
-        {
-          "type": "boolean",
-          "named": true
-        },
-        {
-          "type": "list",
-          "named": true
-        },
-        {
-          "type": "null",
-          "named": true
-        },
-        {
-          "type": "number",
-          "named": true
-        },
-        {
-          "type": "record",
-          "named": true
-        },
-        {
-          "type": "reference",
-          "named": true
-        },
-        {
-          "type": "string",
-          "named": true
         }
       ]
     }
@@ -285,10 +257,6 @@
         {
           "type": "string",
           "named": true
-        },
-        {
-          "type": "weights",
-          "named": true
         }
       ]
     }
@@ -347,10 +315,6 @@
         },
         {
           "type": "string",
-          "named": true
-        },
-        {
-          "type": "weights",
           "named": true
         }
       ]
@@ -557,21 +521,6 @@
     }
   },
   {
-    "type": "weights",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "number",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "\n",
     "named": false
   },
@@ -593,10 +542,6 @@
   },
   {
     "type": ".",
-    "named": false
-  },
-  {
-    "type": "/",
     "named": false
   },
   {
@@ -632,19 +577,7 @@
     "named": false
   },
   {
-    "type": "alt",
-    "named": false
-  },
-  {
     "type": "alternatives",
-    "named": false
-  },
-  {
-    "type": "api",
-    "named": false
-  },
-  {
-    "type": "arrow",
     "named": false
   },
   {
@@ -665,10 +598,6 @@
     "named": false
   },
   {
-    "type": "card",
-    "named": false
-  },
-  {
     "type": "choice",
     "named": false
   },
@@ -681,15 +610,7 @@
     "named": false
   },
   {
-    "type": "decision",
-    "named": false
-  },
-  {
     "type": "defaults",
-    "named": false
-  },
-  {
-    "type": "desc",
     "named": false
   },
   {
@@ -702,10 +623,6 @@
   },
   {
     "type": "edge",
-    "named": false
-  },
-  {
-    "type": "edge-kind",
     "named": false
   },
   {
@@ -757,10 +674,6 @@
     "named": false
   },
   {
-    "type": "highlight-edge",
-    "named": false
-  },
-  {
     "type": "include",
     "named": false
   },
@@ -790,23 +703,7 @@
     "named": false
   },
   {
-    "type": "model",
-    "named": false
-  },
-  {
-    "type": "module",
-    "named": false
-  },
-  {
-    "type": "name",
-    "named": false
-  },
-  {
     "type": "node",
-    "named": false
-  },
-  {
-    "type": "node-kind",
     "named": false
   },
   {
@@ -826,10 +723,6 @@
     "named": true
   },
   {
-    "type": "opt",
-    "named": false
-  },
-  {
     "type": "optional",
     "named": false
   },
@@ -846,15 +739,7 @@
     "named": false
   },
   {
-    "type": "process",
-    "named": false
-  },
-  {
     "type": "relationship",
-    "named": false
-  },
-  {
-    "type": "role",
     "named": false
   },
   {
@@ -867,10 +752,6 @@
   },
   {
     "type": "show",
-    "named": false
-  },
-  {
-    "type": "show-edge",
     "named": false
   },
   {
@@ -894,35 +775,11 @@
     "named": true
   },
   {
-    "type": "style",
-    "named": false
-  },
-  {
-    "type": "sub",
-    "named": false
-  },
-  {
-    "type": "subtitle",
-    "named": false
-  },
-  {
     "type": "tag",
     "named": false
   },
   {
-    "type": "terminal",
-    "named": false
-  },
-  {
     "type": "text",
-    "named": false
-  },
-  {
-    "type": "title",
-    "named": false
-  },
-  {
-    "type": "trait",
     "named": false
   },
   {
@@ -931,10 +788,6 @@
   },
   {
     "type": "true",
-    "named": false
-  },
-  {
-    "type": "type",
     "named": false
   },
   {

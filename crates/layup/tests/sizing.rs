@@ -1,14 +1,15 @@
+mod support;
 use layup::{compile, layout::Rect};
 
 fn rect(c: &layup::Compiled, id: &str) -> Rect {
-    c.scene.nodes[c.scene.node(id).unwrap()].rect
+    c.scene.nodes[support::node(&c.scene, id).unwrap()].rect
 }
 
 #[test]
 fn automatic_width_fits_long_horizontal_machines_in_both_directions() {
     for direction in ["right", "left"] {
         let mut source = format!(
-            "diagram \"Long workflow\" mode=state-machine direction={direction} {{ initial start; final end;"
+            "diagram main \"Long workflow\" type=state-machine flow-direction={direction} {{ initial start; final end;"
         );
         for i in 0..14 {
             source.push_str(&format!("state q{i} \"Processing step {i}\";"));
@@ -42,11 +43,11 @@ fn automatic_width_fits_long_horizontal_machines_in_both_directions() {
 fn wide_trees_grow_and_compact_nodes_use_content_widths() {
     for direction in ["down", "up", "right", "left"] {
         let mut source = format!(
-            "diagram \"Outcomes\" layout=auto direction={direction} {{ decision root \"Which outcome?\";"
+            "diagram main \"Outcomes\" type=graph layout=auto flow-direction={direction} {{ node root \"Which outcome?\" style=decision;"
         );
         for i in 0..16 {
             source.push_str(&format!(
-                "terminal q{i} \"Outcome {i}\"; root -> q{i} \"{i}\";"
+                "node q{i} \"Outcome {i}\" style=terminal; root -> q{i} \"{i}\";"
             ));
         }
         source.push('}');
@@ -64,20 +65,27 @@ fn wide_trees_grow_and_compact_nodes_use_content_widths() {
             assert!(c.scene.width > 2200.0);
         }
     }
-    let c = compile(r#"diagram "Sizes" mode=state-machine direction=right { initial s; state a "A"; state b "Processing application"; final end; s -> a; a -> b; b -> end }"#).unwrap();
+    let c = compile(
+        r#"diagram main "Sizes" type=state-machine flow-direction=right {
+  initial s
+  state a "A"
+  state b "Processing application"
+  final end
+  transition connection-1 ::s -> ::a
+  transition connection-2 ::a -> ::b
+  transition connection-3 ::b -> ::end
+}"#,
+    )
+    .unwrap();
     assert!(rect(&c, "a").w < rect(&c, "b").w);
     assert_eq!(rect(&c, "s").w, 20.0);
 }
 
 #[test]
-fn explicit_width_and_manual_presets_keep_authored_canvas() {
-    for head in [
-        "width=1100 layout=auto",
-        "width=1100",
-        "preset=manual layout=auto width=1100",
-    ] {
+fn explicit_width_and_manual_layout_keep_authored_canvas() {
+    for head in ["width=1100 layout=auto", "width=1100"] {
         let c = compile(&format!(
-            "diagram \"Authored\" {head} {{ process a \"A\"; process b \"B\"; a -> b }}"
+            "diagram main \"Authored\" type=graph {head} {{\n  node a \"A\" style=process\n  node b \"B\" style=process\n  ::a -> ::b\n}}"
         ))
         .unwrap();
         assert_eq!(c.scene.width, 1100.0);
@@ -88,7 +96,7 @@ fn explicit_width_and_manual_presets_keep_authored_canvas() {
 #[test]
 fn automatic_sizes_use_supplied_font_metrics() {
     let mut source = String::from(
-        "diagram \"Metrics\" mode=state-machine direction=right { initial start; final end;",
+        "diagram main \"Metrics\" type=state-machine flow-direction=right { initial start; final end;",
     );
     for i in 0..10 {
         source.push_str(&format!("state q{i} \"中中中中中中中中\";"));

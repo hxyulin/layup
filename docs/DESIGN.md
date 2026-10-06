@@ -69,7 +69,13 @@ Files end in `.layup`. The syntax is brace-structured, one item per line
 
 Source-aware lexing, recovering parsing, diagnostics, lint rules and syntax
 formatting are described in [the language-tools guide](LANGUAGE-TOOLS.md).
-Strings support `\"`, `\\`, `\n`, `\t` and `\r` escapes; unknown escapes and
+Strings support `\"`, `\\`, `\
+> Historical renderer design and placement rationale. Source sketches and
+> vocabulary in this document describe the pre-migration grammar; they are
+> retained as design history. Use [the current language design](LANGUAGE-DESIGN.md)
+> and [DSL reference](site/reference/dsl.md) for supported source syntax.
+
+n`, `\t` and `\r` escapes; unknown escapes and
 duplicate attributes are rejected. Numbers support finite decimal fractions
 and exponents. Typed arrow names may contain hyphens.
 
@@ -229,14 +235,14 @@ Cycles and dense graphs may still need routing hints. Run `just preview-auto` fo
 ### Decision trees
 
 ```text
-diagram "Request" layout=auto direction=right {
-  process request "Request"
-  decision valid "Valid?"
-  terminal accepted "Accepted" green
-  terminal rejected "Rejected" red
-  request -> valid
-  valid -> accepted "Yes"
-  valid -> rejected "No"
+diagram main "Request" type=graph layout=auto flow-direction=right {
+  node request "Request" style=process
+  node valid "Valid?" style=decision
+  node accepted "Accepted" style=terminal palette=green
+  node rejected "Rejected" style=terminal palette=red
+  ::request -> ::valid
+  ::valid -> ::accepted "Yes"
+  ::valid -> ::rejected "No"
 }
 ```
 
@@ -271,17 +277,19 @@ labels, and branches can also use arbitrary categories or numeric ranges.
 ### State machines and composite scopes
 
 ```text
-diagram "Job" mode=state-machine direction=right {
+diagram main "Job" type=state-machine flow-direction=right {
   initial start
   state idle "Idle"
-  state active "Active" { sub "entry / begin()" }
+  state active "Active" {
+    text "entry / begin()"
+  }
   choice finish
   final done
-  start -> idle
-  idle -> active "start"
-  active -> finish "check"
-  finish -> active "[retry] / reset()"
-  finish -> done "[complete]"
+  transition connection-1 ::start -> ::idle
+  transition connection-2 ::idle -> ::active "start"
+  transition connection-3 ::active -> ::finish "check"
+  transition connection-4 ::finish -> ::active "[retry] / reset()"
+  transition connection-5 ::finish -> ::done "[complete]"
 }
 ```
 

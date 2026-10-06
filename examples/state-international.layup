@@ -1,13 +1,14 @@
-diagram "申请处理" mode=state-machine direction=left width=1400 {
+diagram main "申请处理" type=state-machine flow-direction=left width=1400 {
   initial start
-  state waiting "等待申请" blue { sub "资料到齐后开始审核。" }
-  state review "مراجعة الطلب" yellow text-direction=rtl
-  state accepted "申请通过" green
+  state waiting "等待申请" palette=blue {
+    text "资料到齐后开始审核。"
+  }
+  state review "مراجعة الطلب" palette=yellow text-direction=rtl
+  state accepted "申请通过" palette=green
   final done
-
-  start -> waiting
-  waiting -> review "提交 / 检查资料"
-  review -> waiting "补充资料"
-  review -> accepted "موافقة"
-  accepted -> done "归档"
+  transition connection-1 ::start -> ::waiting
+  transition connection-2 ::waiting -> ::review "提交 / 检查资料"
+  transition connection-3 ::review -> ::waiting "补充资料"
+  transition connection-4 ::review -> ::accepted "موافقة"
+  transition connection-5 ::accepted -> ::done "归档"
 }

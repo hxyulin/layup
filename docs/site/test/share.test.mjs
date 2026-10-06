@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { decodeShare, encodeShare } from '../.vitepress/theme/share.js';
 
 test('share payloads round-trip international source and view selection', () => {
-  const source = 'model "中文 / العربية / 😀" { // comment\n node 客户端 "客户端"\n view 详情 { include 客户端 }\n}';
+  const source = 'diagram main "中文 / العربية / 😀" type=graph {\n  node 客户端 "客户端"\n  view 详情 {\n    include ::客户端\n  }\n}';
   const hash = `#${new URLSearchParams({ diagram: encodeShare(source, '详情') })}`;
   assert.deepEqual(decodeShare(hash), { version: 1, source, view: '详情' });
   assert.equal(decodeShare('#heading'), null);

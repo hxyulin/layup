@@ -18,22 +18,23 @@ layup compile examples/presentation-model.layup --view walkthrough -o scene.json
 
 ## Slide sizing
 
-Add `slide=wide` to a diagram or model to fit the finished scene into a
-1920 × 1080 viewport. `slide=standard` uses 1440 × 1080. Quoted `"16:9"` and
-`"4:3"` are aliases; `slide="1200:1800"` sets explicit dimensions. Units are
+Add `slide size=wide` to a diagram or model to fit the finished scene into a
+1920 × 1080 viewport. `slide size=standard` uses 1440 × 1080. Quoted `"16:9"` and
+`"4:3"` are aliases; `slide size={width: 1200, height: 1800}` sets explicit dimensions. Units are
 SVG user units, independent of the size at which a browser displays the SVG.
 
 ```text
-diagram "Pipeline" layout=auto direction=right slide=wide {
+diagram main "Pipeline" type=graph layout=auto flow-direction=right {
+  slide size=wide
   node api "API"
   node worker "Worker"
-  api -> worker "dispatch"
+  ::api -> ::worker "dispatch"
 }
 ```
 
 The complete scene, including titles and routed edges, scales uniformly and
 centers inside the viewport. Padding defaults to 48 units and can be changed
-with `slide-padding=N`. The engine preserves the original layout, font
+with `padding=N`. The engine preserves the original layout, font
 measurements, edge routes and aspect ratio; unused space forms a margin.
 Use `width=N` to control the layout canvas separately from slide dimensions.
 
@@ -49,36 +50,33 @@ For dense diagrams, use smaller views or simplify the content.
 Direct children of a diagram can define named steps:
 
 ```text
-diagram "Dispatch" layout=auto {
+diagram main "Dispatch" type=graph layout=auto {
   node api "API"
   node worker "Worker"
-  api -> worker "dispatch" id=dispatch
-
+  edge dispatch ::api -> ::worker "dispatch"
   step overview "Meet the services" {
-    show api worker
-    highlight api
-    note "The API accepts work for the worker."
+    show objects=[::api, ::worker]
+    highlight objects=[::api]
+    speaker-note "The API accepts work for the worker."
   }
   step request "Dispatch a job" {
-    show-edge dispatch
-    highlight-edge dispatch
+    show connections=[dispatch]
+    highlight connections=[dispatch]
   }
 }
 ```
 
-`show` and `show-edge` accumulate across steps. `highlight` and
-`highlight-edge` apply only to the current step and require visible targets.
+`show` and `show connections=[…]` accumulate across steps. `highlight` and
+`highlight connections=[…]` apply only to the current step and require visible targets.
 Showing a container includes its subtree; showing a descendant retains its
 ancestor frames. Edges normally appear when both endpoints are visible. Once
-an edge is named by `show-edge` anywhere in the plan, it appears only after
+an edge is named by `show connections=[…]` anywhere in the plan, it appears only after
 its explicit reveal and after both endpoints are visible. This lets sequence
 messages appear one at a time while participant lifelines remain visible.
 
-Edges accept `id=NAME` in all diagram modes. Without it, the engine assigns
-`edge-N` IDs in source order, skipping reserved explicit IDs. A shared model
-assigns these IDs before view filtering so an edge keeps its identity between
-views. Prefer explicit IDs for presentation steps and external references
-that should survive source edits.
+Named connections use `edge ID`, `message ID` or `transition ID` in their
+respective grammars. Opaque renderer IDs are assigned before view selection.
+Use authored names for steps and `authoredId` metadata for integrations.
 
 Static SVG and HTML initially display the complete diagram. The HTML viewer's
 **Present** button starts the plan; **Previous**, **Next** and **All** control
@@ -110,22 +108,22 @@ A model declares nodes and relationships once. Each named view includes the
 nodes it needs and can override diagram attributes:
 
 ```text
-model "Job system" layout=auto slide=wide {
+diagram main "Job system" type=graph layout=auto {
+  slide size=wide
   node client "Client"
   node api "API"
   group backend "Backend" {
     node worker "Worker"
     node store "Store"
   }
-  client -> api id=request
-  api -> worker id=dispatch
-  worker -> store id=save
-
-  view overview "System overview" direction=right {
-    include client api backend
+  edge request ::client -> ::api
+  edge dispatch ::api -> ::backend.worker
+  edge save ::backend.worker -> ::backend.store
+  view overview "System overview" flow-direction=right {
+    include ::client ::api ::backend
   }
-  view storage "Storage detail" direction=down {
-    include worker store
+  view storage "Storage detail" flow-direction=down {
+    include ::backend.worker ::backend.store
   }
 }
 ```
@@ -153,12 +151,16 @@ The Markdown plugin accepts a default `view` option and a fence override:
 
 ````markdown
 ```layup view=storage
-model "Job system" {
+diagram main "Job system" type=graph {
   node worker "Worker"
   node store "Store"
-  worker -> store
-  view overview { include worker store }
-  view storage { include store }
+  ::worker -> ::store
+  view overview {
+    include ::worker ::store
+  }
+  view storage {
+    include ::store
+  }
 }
 ```
 ````

@@ -1,12 +1,11 @@
-diagram "跨语言请求 / طلب متعدد اللغات" mode=sequence {
-  participant client "客户端" blue
-  participant api "واجهة البرمجة" text-direction=rtl green
-  participant store "データベース" purple
-
-  client -> api "发送请求\nإرسال الطلب" id=request
-  note "权限检查 / فحص الصلاحيات" over=api
-  api -> api "验证令牌\nالتحقق من الرمز" id=validate
-  api -> store "读取记录 / 読み取り" id=query
-  store -> api "返回结果 / النتيجة" return id=records
-  api -> client "请求完成\nاكتمل الطلب" return id=response
+diagram main "跨语言请求 / طلب متعدد اللغات" type=sequence subtitle="权限检查 / فحص الصلاحيات" {
+  participant client "客户端" palette=blue
+  participant api "واجهة البرمجة" text-direction=rtl palette=green
+  participant store "データベース" palette=purple
+  message request ::client -> ::api "发送请求\nإرسال الطلب"
+  note "权限检查 / فحص الصلاحيات" over=::api
+  message validate ::api -> ::api "验证令牌\nالتحقق من الرمز"
+  message query ::api -> ::store "读取记录 / 読み取り"
+  message records ::store -> ::api "返回结果 / النتيجة" type=reply
+  message response ::api -> ::client "请求完成\nاكتمل الطلب" type=reply
 }

@@ -35,23 +35,24 @@ export and SVG metadata preserve selected original-code locations and evidence.
 The Node-only Cargo adapter in `packages/layup/cargo.js` extracts resolved
 package relationships and production targets without building the workspace.
 
-1. **Read syntax.** `lexer.rs` tokenizes the source; `parser.rs` builds generic
-   items and edge statements. Syntax is separate from node-kind semantics.
-   Tokens and syntax nodes carry UTF-8 byte spans and scalar columns. The
-   recovering parser collects sibling errors; compilation uses strict parsing.
-   A `layup 1` header dispatches to `document/`, whose shared lexer/value/reference
-   parser builds a typed document and graph statements. Its validator resolves
-   scoped paths, annotations and kind inheritance across every diagram before
-   selection. A backend adapter lowers the selected graph into the existing
-   model/layout pipeline; legacy parser rules do not interpret the new syntax.
-   `Compiled::document` retains authored path segments and evidence independently
-   of opaque renderer IDs and original DSL source spans. Additional body grammars
-   and document JSON input remain implementation checkpoints.
+1. **Read syntax.** `document/lex.rs` and `document/parse.rs` implement the
+   shared language and graph, sequence and state body grammars. Tokens carry
+   UTF-8 byte spans and scalar columns. Inspection recovers sibling errors;
+   compilation requires valid syntax. The optional `layup 1` directive asserts
+   the revision; it does not select another parser. `document/compile.rs`
+   resolves scoped paths, annotations, style inheritance and presentation
+   references across all supported definitions before selection, then lowers
+   the selected definition into backend statements. `lexer.rs` and `parser.rs`
+   define the internal statement representation and its historical test parser;
+   source frontends do not invoke them. `Compiled::document` retains authored
+   identities, typed attributes, paint and evidence independently of renderer
+   IDs. Unsupported bodies are preserved as raw text and skipped with warnings.
+   Versioned document JSON input remains future work.
 2. **Resolve semantics.** `views.rs` selects and filters a shared model while
    preserving source spans and semantic IDs. `presentation.rs` extracts step
    definitions and `slides.rs` extracts viewport options. `model.rs` builds a typed `Diagram`, resolves styles
    from `style.rs`, assigns node IDs, validates edge targets, and builds the
-   legend. `machine.rs` adds opt-in scoped-machine validation and unreachable
+   legend. `machine.rs` adds type-selected scoped-machine validation and unreachable
    state warnings, including composite initial paths. Each scope projects
    descendant transitions onto its immediate members; traversal removes back edges only from placement
    constraints, preserving all original transitions for routing.
@@ -88,7 +89,8 @@ syntax and adds authoring rules to existing warnings. Semantic validation
 still stops at its first error. See [the language-tools guide](LANGUAGE-TOOLS.md).
 
 `svg::render` serializes the compiled scene into an SVG with theme variables,
-semantic node and edge attributes, and embedded font data. `html::render`
+semantic node and edge attributes, per-entity theme-aware paint and embedded
+font data. `html::render`
 wraps that SVG with pan, zoom, selection, theme controls, and iframe messaging.
 Neither renderer needs a network connection. CJK uses viewer fonts by
 default; explicitly supplied fallback faces are embedded for offline use.

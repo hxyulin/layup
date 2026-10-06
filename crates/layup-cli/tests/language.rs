@@ -48,7 +48,7 @@ fn path(path: &Path) -> &str {
 
 #[test]
 fn formatter_supports_stdin_check_and_preflighted_batch_writes() {
-    let source = "diagram \"T\"{node a;node b;a->b}// tail\n";
+    let source = "diagram main \"T\" type=graph{node a;node b;a->b}// tail\n";
     let formatted = layup::format::format(source).unwrap();
     let result = run(&["fmt"], source);
     assert!(result.status.success());
@@ -59,7 +59,7 @@ fn formatter_supports_stdin_check_and_preflighted_batch_writes() {
 
     let workspace = Workspace::new();
     let good = workspace.file("good.layup", source);
-    let bad_source = "diagram \"T\" { node a href= }";
+    let bad_source = "diagram main \"T\" type=graph { node a href= }";
     let bad = workspace.file("bad.layup", bad_source);
     assert!(
         !run(&["fmt", "--write", path(&good), path(&bad)], "")
@@ -85,26 +85,26 @@ fn formatter_supports_stdin_check_and_preflighted_batch_writes() {
 
 #[test]
 fn lint_reports_multiple_errors_and_strict_warnings_with_exit_status() {
-    let invalid = "diagram \"T\" {\n node a href=\n a ->\n node b \"bad\\q\"\n}";
+    let invalid = "diagram main \"T\" type=graph {\n node a href=\n a ->\n node b width=\n}";
     let result = run(&["lint", "-", "--json"], invalid);
     assert!(!result.status.success());
     let json = String::from_utf8(result.stdout).unwrap();
     assert_eq!(json.matches("\"severity\":\"error\"").count(), 3);
-    assert!(json.contains("parse/attribute-value") && json.contains("lex/escape"));
+    assert!(json.contains("document/syntax"));
     assert!(result.stderr.is_empty());
-    let warning = "diagram \"T\" { style unused blue; node a }";
+    let warning = "diagram main \"T\" type=graph { node-style unused palette=blue; node a }";
     assert!(run(&["lint", "-"], warning).status.success());
     assert!(!run(&["lint", "-", "--strict"], warning).status.success());
     assert!(run(&["check", "-", "--strict"], warning).status.success());
     let result = run(
         &["render", "-", "-o", "-"],
-        "diagram \"T\" {\n node 中文 aling=left\n}",
+        "diagram main \"T\" type=graph {\n node 中文 text-aling=left\n}",
     );
     let shown = String::from_utf8(result.stderr).unwrap();
     assert!(
         shown.contains("-:2:10:")
             && shown.contains("^^^^^")
-            && shown.contains("did you mean `align`?"),
+            && shown.contains("did you mean `text-align`?"),
         "{shown}"
     );
 }
@@ -112,25 +112,28 @@ fn lint_reports_multiple_errors_and_strict_warnings_with_exit_status() {
 #[test]
 fn markdown_json_spans_are_absolute_including_crlf_and_multibyte_prefixes() {
     let workspace = Workspace::new();
-    let source = "# 标题\r\n\r\n```layup\r\ndiagram \"T\" {\r\n node a href=\r\n}\r\n```\r\n";
+    let source = "# 标题\r\n\r\n```layup\r\ndiagram main \"T\" type=graph {\r\n node a href=\r\n}\r\n```\r\n";
     let file = workspace.file("guide.md", source);
     let result = run(&["lint", path(&file), "--json"], "");
     assert!(!result.status.success());
     let json = String::from_utf8(result.stdout).unwrap();
     assert!(json.contains("\"fenceLine\":3"));
     assert!(json.contains("\"line\":5"));
-    let start = source.find("href=").unwrap() + 5;
+    let start = source.find("href=").unwrap() + 6;
     assert!(
-        json.contains(&format!("\"start\":{start},\"end\":{}", start + 2)),
+        json.contains(&format!("\"start\":{start},\"end\":{}", start + 1)),
         "{json}"
     );
     let shown = run(&["lint", path(&file)], "");
     assert!(
         String::from_utf8(shown.stderr)
             .unwrap()
-            .contains(&format!("{}:5:14:", file.display()))
+            .contains(&format!("{}:5:15:", file.display()))
     );
     // CommonMark accepts an unclosed fence through the end of the document.
-    let file = workspace.file("unclosed.md", "```layup\ndiagram \"T\" {\n node a href=\n}");
+    let file = workspace.file(
+        "unclosed.md",
+        "```layup\ndiagram main \"T\" type=graph {\n node a href=\n}",
+    );
     assert!(!run(&["lint", path(&file)], "").status.success());
 }

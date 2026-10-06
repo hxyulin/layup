@@ -6,23 +6,29 @@ and relationships, then add layout and detail as your explanation grows.
 ## 1. Describe a small system
 
 ```layup source
-diagram "Hello Layup" {
-  node api "Requests" { code "GET /items" }
-  node worker "Worker" { code "poll()" }
-  node store "Store" { code "items.put()" }
-  api -> worker "sends"
-  worker -uses-> store labeled
+diagram main "Hello Layup" type=graph {
+  node api "Requests" {
+    code "GET /items"
+  }
+  node worker "Worker" {
+    code "poll()"
+  }
+  node store "Store" {
+    code "items.put()"
+  }
+  ::api -> ::worker "sends"
+  ::worker -> ::store label=style style=uses
 }
 ```
 
 `diagram` supplies the title. `node api "Requests"` separates the stable ID
 `api` from the displayed title. `code` adds a monospace line, and `->` connects
-two IDs. `-uses->` is a typed relationship; `labeled` adds its default caption.
+two IDs. `style=uses` selects a relationship style; `label=style` requests its default caption.
 Omitted colors receive automatic tones.
 
 ## 2. Change it live
 
-Rename a title, add a node, or put `layout=auto direction=right` after the
+Rename a title, add a node, or put `layout=auto flow-direction=right` after the
 diagram title. The renderer updates after a short pause in typing.
 
 <Playground preset="hello" />
@@ -33,23 +39,17 @@ changing strings or comments. **Download source** saves your current edits.
 
 ## 3. Render a file
 
-Install [Rust stable](https://rustup.rs/), then get the v0.3.0 CLI from crates.io:
+The replacement language documented here is available from the current
+checkout. Install [Rust stable](https://rustup.rs/) and build that checkout:
 
 ```sh
-cargo install layup-cli --version 0.3.0 --locked
+git clone https://github.com/hxyulin/layup.git
+cd layup
+cargo install --path crates/layup-cli --locked
 ```
 
-If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), you
-can install a prebuilt binary instead:
-
-```sh
-cargo binstall layup-cli --version 0.3.0
-```
-
-Prebuilt binaries cover Linux x86_64/ARM64 (glibc 2.35+), macOS Intel/Apple
-Silicon, and Windows x86_64. For other targets, use `cargo install` to build
-from source. Both methods install the `layup` command. Archives and checksums
-are on the [GitHub release](https://github.com/hxyulin/layup/releases/tag/v0.3.0).
+Published 0.3.0 CLI and npm packages use the previous grammar. A new package
+release is separate from this source migration.
 
 Save your source as `hello.layup`, then run:
 

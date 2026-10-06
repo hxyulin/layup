@@ -1,20 +1,22 @@
 # State machines
 
 Use a state machine to describe an object's lifecycle: a connection, job,
-workflow, or operating mode. `mode=state-machine` enables automatic machine
+workflow, or operating mode. `type=state-machine` enables automatic machine
 placement and semantic checks.
 
 ```layup source
-diagram "Job lifecycle" mode=state-machine direction=right {
+diagram main "Job lifecycle" type=state-machine flow-direction=right {
   initial start
   state idle "Idle"
-  state running "Running" { sub "entry / begin()" }
+  state running "Running" {
+    entry "begin()"
+  }
   final done
-  start -> idle
-  idle -> running "start / begin()"
-  running -> running "tick / update()"
-  running -> idle "reset"
-  running -> done "finish [completed]"
+  transition connection-1 ::start -> ::idle
+  transition connection-2 ::idle -> ::running "start / begin()"
+  transition connection-3 ::running -> ::running "tick / update()"
+  transition connection-4 ::running -> ::idle "reset"
+  transition connection-5 ::running -> ::done "finish [completed]"
 }
 ```
 
@@ -52,7 +54,7 @@ routing. A named view must retain a valid initial scope after filtering.
 Cycle placement follows declaration order from the initial marker. Return
 edges and self-loops stay visible; rearranging transition statements does not
 move the states. All four flow directions, authored rows, manual placement,
-ports, and hints remain available.
+endpoint-side routing controls and layout hints remain available.
 
 History, parallel regions, fork/join, and executed transition traces are
 future extensions. [Progressive reveal](/guide/presentations) can explain an

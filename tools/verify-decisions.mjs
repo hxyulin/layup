@@ -10,20 +10,29 @@ mkdirSync('out/decisions', { recursive: true });
 const tree = readFileSync('examples/decision-tree.layup', 'utf8');
 const cases = ['down', 'up', 'right', 'left'].map(direction => [
   `Decision tree: ${direction}`,
-  tree.replace('layout=auto width=1000', `layout=auto direction=${direction} width=1400`),
+  tree.replace('layout=auto width=1000', `layout=auto flow-direction=${direction} width=1400`),
   'light',
 ]);
 for (const file of ['decision-flow', 'decision-international']) {
   cases.push([file, readFileSync(`examples/${file}.layup`, 'utf8'), 'light']);
 }
 cases.push(['Dark theme', tree, 'dark']);
-cases.push(['Merges and a return path', `diagram "Retry validation" layout=auto direction=right width=1400 {
-  process request "Request"; decision q "Ready?"; process retry "Prepare again"; terminal done "Complete"
-  request -> q; q -> retry "No"; retry -> q "Retry"; q -> done "Yes"
+cases.push(['Merges and a return path', `diagram main "Retry validation" type=graph layout=auto flow-direction=right width=1400 {
+  node request "Request" style=process
+  node q "Ready?" style=decision
+  node retry "Prepare again" style=process
+  node done "Complete" style=terminal
+  ::request -> ::q
+  ::q -> ::retry "No"
+  ::retry -> ::q "Retry"
+  ::q -> ::done "Yes"
 }`, 'light']);
-cases.push(['Long branch captions', `diagram "Check access" layout=auto width=1400 {
-  decision q "Does the user have permission?"; terminal a "Allow access"; terminal b "Ask an administrator"
-  q -> a "Permission has been granted"; q -> b "Permission is missing"
+cases.push(['Long branch captions', `diagram main "Check access" type=graph layout=auto width=1400 {
+  node q "Does the user have permission?" style=decision
+  node a "Allow access" style=terminal
+  node b "Ask an administrator" style=terminal
+  ::q -> ::a "Permission has been granted"
+  ::q -> ::b "Permission is missing"
 }`, 'light']);
 let html = '<!doctype html><meta charset=utf-8><title>Decision tree review</title><style>body{background:#eee;margin:24px;font:16px sans-serif}svg{display:block;max-width:100%;height:auto;background:white;margin-bottom:32px}</style>';
 for (const [label, source, theme] of cases) {

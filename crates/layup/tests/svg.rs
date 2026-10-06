@@ -3,10 +3,16 @@ use layup::{Theme, compile};
 
 #[test]
 fn linked_nodes_wrap_their_items_in_an_anchor() {
-    let c = compile(r#"diagram "T" { node a "A" href="guide/a?x=1&y=2"; node b "B" }"#).unwrap();
+    let c = compile(
+        r#"diagram main "T" type=graph {
+  node a "A" href="guide/a?x=1&y=2"
+  node b "B"
+}"#,
+    )
+    .unwrap();
     let svg = render(&c, Theme::Light);
-    let a = svg.find(r#"data-id="a""#).unwrap();
-    let b = svg.find(r#"data-id="b""#).unwrap();
+    let a = svg.find(r#"data-id="object:[&quot;a&quot;]""#).unwrap();
+    let b = svg.find(r#"data-id="object:[&quot;b&quot;]""#).unwrap();
     let link = svg.find(r#"<a href="guide/a?x=1&amp;y=2">"#).unwrap();
     assert!(a < link && link < b);
     assert_eq!(svg.matches("<a ").count(), svg.matches("</a>").count());
@@ -15,7 +21,13 @@ fn linked_nodes_wrap_their_items_in_an_anchor() {
 #[test]
 fn inline_diagrams_do_not_share_ids() {
     let svg = |title: &str| {
-        let src = format!(r#"diagram "{title}" {{ node a; node b; a -> b }}"#);
+        let src = format!(
+            r#"diagram main "{title}" type=graph {{
+  node a
+  node b
+  ::a -> ::b
+}}"#
+        );
         render(&compile(&src).unwrap(), Theme::Light)
     };
     let (one, two) = (svg("One"), svg("Two"));
@@ -39,7 +51,12 @@ fn inline_diagrams_do_not_share_ids() {
 
 #[test]
 fn dark_selector_replaces_the_media_query() {
-    let c = compile(r#"diagram "T" { node a }"#).unwrap();
+    let c = compile(
+        r#"diagram main "T" type=graph {
+  node a
+}"#,
+    )
+    .unwrap();
     let auto = render(&c, Theme::Auto);
     assert!(auto.contains("@media (prefers-color-scheme: dark)"));
     let class = render_with(

@@ -4,7 +4,7 @@ import MarkdownIt from 'markdown-it';
 import { readFileSync } from 'node:fs';
 import layup, { vitepress } from '../markdown-it.js';
 
-const doc = 'Intro\n\n```layup\ndiagram "T" {\n  node a "A {{ b }}"\n}\n```\n\n```js\nlet x\n```\n';
+const doc = 'Intro\n\n```layup\ndiagram main "T" type=graph {\n  node a "A {{ b }}"\n}\n```\n\n```js\nlet x\n```\n';
 
 test('renders layup fences and leaves others alone', () => {
   const html = new MarkdownIt().use(layup).render(doc);
@@ -24,7 +24,7 @@ test('vitepress output survives Vue compilation', () => {
 
 test('reports errors at the Markdown line', () => {
   const md = new MarkdownIt().use(layup, { strict: true });
-  assert.throws(() => md.render('x\n\n```layup\ndiagram "T" {\n  a -> b\n}\n```\n', { relativePath: 'guide.md' }), /^Error: guide\.md:5:3: layup error: /);
+  assert.throws(() => md.render('x\n\n```layup\ndiagram main "T" type=graph {\n  a -> b\n}\n```\n', { relativePath: 'guide.md' }), /^Error: guide\.md:5:3: layup error: /);
   const shown = new MarkdownIt().use(layup);
   const original = console.error;
   console.error = () => {};
@@ -36,16 +36,16 @@ test('reports errors at the Markdown line', () => {
 });
 
 test('shows the source after the diagram when asked', () => {
-  const html = new MarkdownIt().use(layup).render('```layup source\ndiagram "T" { node a }\n```\n');
+  const html = new MarkdownIt().use(layup).render('```layup source\ndiagram main "T" type=graph { node a }\n```\n');
   const diagram = html.indexOf('<div class="layup-diagram">');
-  const code = html.indexOf('<pre><code class="language-text">diagram &quot;T&quot; { node a }');
+  const code = html.indexOf('<pre><code class="language-text">diagram main &quot;T&quot; type=graph { node a }');
   assert.ok(diagram >= 0 && code > diagram, html);
-  assert.doesNotMatch(new MarkdownIt().use(layup).render('```layup\ndiagram "T" {}\n```\n'), /<pre>/);
+  assert.doesNotMatch(new MarkdownIt().use(layup).render('```layup\ndiagram main "T" type=graph {}\n```\n'), /<pre>/);
 });
 
 
 test('passes supplied fallback fonts through the Markdown plugin', () => {
   const font = readFileSync(new URL('../../../crates/layup/tests/fonts/Fallback.ttf', import.meta.url));
-  const html = new MarkdownIt().use(layup, { fonts: [font], strict: true }).render('```layup\ndiagram "中" { node n "中中中" }\n```');
+  const html = new MarkdownIt().use(layup, { fonts: [font], strict: true }).render('```layup\ndiagram main "中" type=graph { node n "中中中" }\n```');
   assert.match(html, /font-family:'Layup User /);
 });

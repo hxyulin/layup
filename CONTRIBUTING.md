@@ -74,7 +74,7 @@ and its deliberately broader syntax coverage.
 
 For layout or text changes, also run the relevant visual review recipe:
 `international-test`, `decision-test`, `state-test`, `sequence-test`,
-`slide-test` or `presentation-test`. These generate local artifacts under
+`slide-test`, `paint-test` or `presentation-test`. These generate local artifacts under
 `out/`. Inspect both themes and the directions affected by the change.
 International text uses bundled Latin/Arabic/Hebrew fonts and system or
 user-provided CJK fonts. Do not bundle a CJK font to make a fixture pass.

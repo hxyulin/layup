@@ -39,11 +39,11 @@ try {
 
   await page.screenshot({ path: 'out/international/preview.png', fullPage: true });
   const custom = execFileSync(resolve('target/debug/layup'), ['render', '-', '-o', '-', '--font', resolve('crates/layup/tests/fonts/Fallback.ttf')], {
-    input: 'diagram "User font" { row { node cjk "中中中"; node latin "MMM" } }',
+    input: 'diagram main "User font" type=graph {\n  row {\n    node cjk "中中中"\n    node latin "MMM"\n  }\n}',
   }).toString();
   await page.setContent(custom);
   await page.evaluate(() => document.fonts.ready);
-  const lengths = await page.evaluate(() => ['cjk', 'latin'].map(id => document.querySelector(`.node[data-id="${id}"] text`).getComputedTextLength()));
+  const lengths = await page.evaluate(() => ['cjk', 'latin'].map(id => [...document.querySelectorAll(".node")].find(n => n.dataset.id === "object:" + JSON.stringify([id])).querySelector("text").getComputedTextLength()));
   assert.ok(Math.abs(lengths[0] - lengths[1]) < 0.6, `supplied glyph advances differ: ${lengths}`);
   console.log(`Verified ${result.count} text elements: exact metrics for supplied/bundled fonts and containment for system fallback.`);
 } finally {

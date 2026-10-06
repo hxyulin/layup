@@ -51,7 +51,7 @@ diagrams and additional compact shapes remain possible follow-ups.
 
 ## State machine diagrams: composite states implemented
 
-`mode=state-machine` enables automatic machine placement and opt-in
+`type=state-machine` enables automatic machine placement and opt-in
 validation. `state`, `initial`, `final`, and `choice` shapes render rounded
 states, dots, bullseyes, and small or labeled diamonds. Transition labels
 use ordinary strings with the convention `event [guard] / action`; state
@@ -83,7 +83,7 @@ should follow concrete use cases.
 
 ## Presentation and sequence diagrams: implemented
 
-`mode=sequence` adds authored participant columns, lifelines, synchronous and
+`type=sequence` adds authored participant columns, lifelines, synchronous and
 asynchronous messages, returns, self-calls, notes and nested loop/opt/alt
 fragments. Time advances downward; left/right controls column order. Text
 shares measured wrapping, RTL shaping and supplied-font behavior with other

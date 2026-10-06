@@ -1,30 +1,60 @@
 # Styling and international text
 
-Layup uses semantic tones and measured typography. The same scene can render
+Layup uses named palettes and measured typography. The same scene can render
 light, dark, or automatic themes without changing its geometry.
 
-## Tones and custom kinds
+## Palettes and styles
 
-The tones are `gray`, `blue`, `green`, `yellow`, `purple`, `orange`, and `red`.
-Omitting a tone gives ordinary nodes automatic colors. Authored layout cycles
+The palettes are `gray`, `blue`, `green`, `yellow`, `purple`, `orange`, and `red`.
+Omitting a palette gives ordinary nodes automatic colors. Authored layout cycles
 colors in declaration order; automatic graphs derive them from node IDs so
 unrelated insertions do not change existing colors.
 
 ```layup source
-diagram "Ports and adapters" layout=auto direction=right {
-  style service base=node tone=blue
-  style port shape=api hollow purple label="port"
-  service api "HTTP service" { code "GET /orders" }
-  port repository "Repository" { code "find(id)" }
-  api -uses-> repository labeled
+diagram main "Ports and adapters" type=graph layout=auto flow-direction=right {
+  node-style service base=node palette=blue
+  node-style port base=interface fill-color=none palette=purple legend-label="port"
+  node api "HTTP service" style=service {
+    code "GET /orders"
+  }
+  node repository "Repository" style=port {
+    code "find(id)"
+  }
+  ::api -> ::repository label=style style=uses
 }
 ```
 
-`base=` copies a kind; `shape=` sets its geometry. `hollow`/`filled` choose
-fill, `mono`/`sans` choose header typography, and `align=` controls alignment.
-`role=` adds a role label. `tag=` or a title starting with `[tag]` supplies
-semantic context. Typed edge defaults and custom arrows are listed in the
+`base=` inherits a style; `shape=` selects graph geometry. `fill-color=none`
+removes fill, `font-family=mono|sans` selects header typography, and
+`text-align=` controls alignment. `role=` adds a visible role label and
+`tag "..."` supplies explicit context. Direct fill/stroke/text colors can use
+`{light: COLOR, dark: COLOR}` values. Connection styles are listed in the
 [DSL reference](/reference/dsl#edges).
+
+## Independent paint channels
+
+Paint properties override the coordinated palette without changing layout.
+Literal colors stay literal in light and dark exports; theme pairs adapt.
+Setting `auto` resets an inherited override and `none` removes fill or stroke.
+A container's paint does not implicitly propagate to its children.
+
+```layup source
+diagram paint "Direct paint" type=graph layout=auto flow-direction=right background-color={light: "#ffffff", dark: "#101827"} {
+  node-style service base=process palette=blue fill-color={light: "#eff6ff", dark: "#172554"} stroke-color={light: "#1d4ed8", dark: "#93c5fd"} text-color={light: "#1e3a8a", dark: "#bfdbfe"}
+  node api "API" style=service
+  node worker "Worker" style=service palette=green
+  edge request api -> worker "request" stroke-color={light: "#1d4ed8", dark: "#93c5fd"} stroke-style=dotted stroke-width=2
+}
+```
+
+[The paint example](https://github.com/hxyulin/layup/blob/main/examples/paint.layup)
+also separates `default-label` from `legend-label` and combines inherited styles
+with a rectangle outline and no fill. Legend samples retain declared style paint;
+instance overrides remain local to their objects. Colors can be literals, theme tokens
+(`background`, `text`, `muted`, `code`, `frame`), or light/dark pairs.
+
+Try [the paint example in the playground](/playground?example=paint), including
+both themes and inherited overrides.
 
 ## Direction and Unicode
 
@@ -33,7 +63,7 @@ Graph flow and text direction are independent. Set
 strong paragraph character. Node overrides apply to descendants, and code
 runs stay isolated left-to-right inside RTL prose.
 
-`align=start` follows text direction; `left`, `right`, and `center` are
+`text-align=start|end` follows text direction; `left`, `right`, and `center` are
 physical alignments. CJK prose wraps at Unicode line-break opportunities,
 including punctuation rules, without requiring spaces. Explicit newlines
 create additional text lines. Arabic and Hebrew use shaped glyphs.

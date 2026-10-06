@@ -3,10 +3,10 @@ use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-const MODEL: &str = r#"model "Services" {
-  node api "API"; node worker "Worker"; api -> worker id=dispatch;
+const MODEL: &str = r#"diagram main "Services" type=graph {
+  node api "API"; node worker "Worker"; edge dispatch api -> worker;
   view overview "Overview" { include api }
-  view detail "Details" { include api worker; step entry { show api }; step request { show worker; show-edge dispatch } }
+  view detail "Details" { include api worker; step entry { show objects=[api] }; step request { show objects=[worker]; show connections=[dispatch] } }
 }"#;
 
 struct Workspace(PathBuf);
@@ -51,7 +51,7 @@ fn run(args: &[&str], source: &str) -> Output {
 
 #[test]
 fn compile_defaults_to_stdout_and_matches_the_rust_scene_export() {
-    let source = "diagram \"国际\" slide=wide { node api \"API\"; node worker \"Worker\"; api -> worker id=dispatch; step intro { show api }; step request { show worker; show-edge dispatch } }";
+    let source = "diagram main \"国际\" type=graph { slide size=wide; node api \"API\"; node worker \"Worker\"; edge dispatch api -> worker; step intro { show objects=[api] }; step request { show objects=[worker]; show connections=[dispatch] } }";
     let compiled = layup::compile(source).unwrap();
     let expected = layup::scene::export(&compiled).unwrap();
     let result = run(&["compile", "-"], source);
@@ -92,7 +92,8 @@ fn compile_defaults_to_stdout_and_matches_the_rust_scene_export() {
 
 #[test]
 fn strict_compile_preserves_existing_output_and_errors_do_not_emit_json() {
-    let warning = "diagram \"Small text\" slide=wide min-font-size=1000 { node api }";
+    let warning =
+        "diagram main \"Small text\" type=graph { slide size=wide min-font-size=1000; node api }";
     let workspace = Workspace::new();
     let output = workspace.file("scene.json", "previous scene");
     let result = run(
@@ -103,13 +104,16 @@ fn strict_compile_preserves_existing_output_and_errors_do_not_emit_json() {
     assert!(result.stdout.is_empty());
     assert_eq!(std::fs::read_to_string(&output).unwrap(), "previous scene");
     assert!(run(&["compile", "-"], warning).status.success());
-    let result = run(&["compile", "-"], "diagram \"T\" { node 中文 aling=left }");
+    let result = run(
+        &["compile", "-"],
+        "diagram main \"T\" type=graph { node 中文 text-aling=left }",
+    );
     assert!(!result.status.success());
     assert!(result.stdout.is_empty());
     assert!(
         String::from_utf8(result.stderr)
             .unwrap()
-            .contains("did you mean `align`?")
+            .contains("did you mean `text-align`?")
     );
 }
 
@@ -127,14 +131,14 @@ fn global_view_selection_is_honored_by_compile_render_check_lint_and_build() {
         );
         let text = String::from_utf8(result.stdout).unwrap();
         assert!(text.contains("\"selectedView\":\"detail\""));
-        assert!(text.contains("\"id\":\"dispatch\""));
-        assert!(text.contains("\"visibleEdges\":[\"dispatch\"]"));
+        assert!(text.contains("\"authoredId\":\"dispatch\""));
+        assert!(text.contains("\"visibleEdges\":[\"relationship:"));
     }
     let result = run(&["render", "-", "-o", "-", "--view", "overview"], MODEL);
     assert!(result.status.success());
     let svg = String::from_utf8(result.stdout).unwrap();
-    assert!(svg.contains("data-id=\"api\""));
-    assert!(!svg.contains("data-id=\"worker\""));
+    assert!(svg.contains("data-id=\"object:[&quot;api&quot;]\""));
+    assert!(!svg.contains("data-id=\"object:[&quot;worker&quot;]\""));
     assert!(
         run(&["check", "-", "--view", "detail", "--strict"], MODEL)
             .status
@@ -178,7 +182,7 @@ fn global_view_selection_is_honored_by_compile_render_check_lint_and_build() {
     assert!(
         std::fs::read_to_string(input.with_extension("svg"))
             .unwrap()
-            .contains("data-id=\"worker\"")
+            .contains("data-id=\"object:[&quot;worker&quot;]\"")
     );
     assert!(
         std::fs::read_to_string(input.with_extension("html"))

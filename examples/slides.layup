@@ -1,10 +1,9 @@
 // A compact source canvas keeps this short pipeline prominent on a 16:9 slide.
-diagram "A request through the system" layout=auto direction=right width=480 slide=wide slide-padding=48 min-font-size=18 {
-  note "Uniform scaling preserves node shapes, routing, and international text."
-  process client "Client" blue
-  process api "API" green
-  process store "Storage" purple
-
-  client -> api "Request"
-  api -> store "Query"
+diagram main "A request through the system" type=graph layout=auto flow-direction=right width=480 subtitle="Uniform scaling preserves node shapes, routing, and international text." {
+  slide size=wide padding=48 min-font-size=18
+  node client "Client" style=process palette=blue
+  node api "API" style=process palette=green
+  node store "Storage" style=process palette=purple
+  ::client -> ::api "Request"
+  ::api -> ::store "Query"
 }

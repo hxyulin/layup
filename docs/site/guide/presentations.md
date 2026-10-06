@@ -1,30 +1,32 @@
 # Slides and progressive reveal
 
 A diagram for a talk needs readable sizing and a controlled introduction.
-Layup supplies both through viewport attributes and authored presentation
+Layup supplies both through grouped viewport settings and authored presentation
 steps. The same features apply to graphs, decisions, states, and sequences.
 
 ## Fit a slide
 
 ```layup source
-diagram "A request through the system" layout=auto direction=right width=480 slide=wide {
-  process client "Client" blue
-  process api "API" green
-  process store "Storage" purple
-  client -> api "Request"
-  api -> store "Query"
+diagram main "A request through the system" type=graph layout=auto flow-direction=right width=480 {
+  slide size=wide
+  node client "Client" style=process palette=blue
+  node api "API" style=process palette=green
+  node store "Storage" style=process palette=purple
+  ::client -> ::api "Request"
+  ::api -> ::store "Query"
 }
 ```
 
 | Attribute | Behavior |
 | --- | --- |
-| `slide=wide` or `slide="16:9"` | 1920 × 1080 viewport |
-| `slide=standard` or `slide="4:3"` | 1440 × 1080 viewport |
-| `slide="1200:1800"` | Explicit width and height |
-| `slide-padding=N` | Interior padding, default 48 |
+| `slide size=wide` or `slide size="16:9"` | 1920 × 1080 viewport |
+| `slide size=standard` or `slide size="4:3"` | 1440 × 1080 viewport |
+| `slide size={width: 1200, height: 1800}` | Explicit width and height |
+| `padding=N` | Interior padding, default 48 |
 | `min-font-size=N` | Minimum post-fit font size, default 18 |
 
-The finished scene scales uniformly and centers in the viewport. Layout,
+The size, padding and readability properties belong to a `slide` statement at
+the diagram or view level. The finished scene scales uniformly and centers in the viewport. Layout,
 routes, measured text, and aspect ratio remain intact. `width=N` controls the
 original layout canvas separately. For a short pipeline, a compact source
 width such as `480` avoids fitting a mostly empty 900-unit default canvas.
@@ -36,28 +38,28 @@ on those warnings. The threshold is in slide units before display resizing.
 ## Reveal the explanation in steps
 
 ```layup source
-diagram "Dispatch a job" layout=auto direction=right {
+diagram main "Dispatch a job" type=graph layout=auto flow-direction=right {
   node api "API"
   node worker "Worker"
-  api -> worker "dispatch" id=dispatch
+  edge dispatch ::api -> ::worker "dispatch"
   step overview "Meet the services" {
-    show api worker
-    highlight api
-    note "The API accepts work for the worker."
+    show objects=[::api, ::worker]
+    highlight objects=[::api]
+    speaker-note "The API accepts work for the worker."
   }
   step request "Dispatch work" {
-    show-edge dispatch
-    highlight-edge dispatch
+    show connections=[dispatch]
+    highlight connections=[dispatch]
   }
 }
 ```
 
-`show` and `show-edge` accumulate. Highlights apply only to the current step
+`show objects=[…]` and `show connections=[…]` accumulate. Highlights apply only to the current step
 and require visible targets. Showing a container reveals its subtree;
 showing a descendant keeps ancestor frames visible.
 
 Edges ordinarily appear when both endpoints are visible. If an edge is
-assigned to `show-edge` anywhere, it waits for that explicit reveal and for
+assigned to `show connections=[…]` anywhere, it waits for that explicit reveal and for
 both endpoints. Give important edges IDs to keep step references stable.
 
 Static output starts with the complete diagram. **Present** starts the plan;

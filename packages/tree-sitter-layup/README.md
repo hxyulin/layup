@@ -9,12 +9,12 @@ It is versioned independently from the diagram engine.
 
 ## Coverage
 
-- Existing graph, decision, sequence, state-machine, model/view and presentation
-  examples, including custom styles, weighted rows and typed arrows.
-- The `layup 1` document prototype: scopes, quoted IDs, qualified references,
-  annotations, lists and records.
-- The agreed replacement vocabulary, including `type`, `style`, `node-style`,
-  `edge-style`, `palette`, explicit color properties and direction properties.
+- Shared document syntax with optional `layup 1`, named diagrams, scopes,
+  quoted IDs, dotted/root references, annotations, lists and records.
+- Graph, sequence and state-machine examples, including explicit styles,
+  weighted rows, four arrows, named connections, views and presentations.
+- Direct properties such as `type`, `style`, `node-style`, `edge-style`,
+  `palette`, paint channels and distinct flow/text directions.
 - Arbitrary property names, custom declaration heads, namespaced annotations
   such as `@company.analysis(...)`, Unicode identifiers and international text.
 - Inline `//` comments and nested `/* … */` comments. Comment markers inside

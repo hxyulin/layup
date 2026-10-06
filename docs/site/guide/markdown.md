@@ -35,10 +35,10 @@ the viewer's `prefers-color-scheme` for automatic theme output.
 
 ````markdown
 ```layup source
-diagram "Dispatch" layout=auto {
+diagram main "Dispatch" type=graph layout=auto {
   node api "API"
   node worker "Worker"
-  api -> worker "dispatch"
+  ::api -> ::worker "dispatch"
 }
 ```
 ````
@@ -52,12 +52,16 @@ support a default `diagram` plugin option and a `diagram=ID` fence flag.
 
 ````markdown
 ```layup view=detail
-model "Services" {
+diagram main "Services" type=graph {
   node api "API"
   node worker "Worker"
-  api -> worker
-  view overview { include api worker }
-  view detail { include worker }
+  ::api -> ::worker
+  view overview {
+    include ::api ::worker
+  }
+  view detail {
+    include ::worker
+  }
 }
 ```
 ````

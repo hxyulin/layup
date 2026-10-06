@@ -1,8 +1,9 @@
 use std::collections::BTreeMap;
 
 use super::{
-    Annotation, Attribute, Attributes, Body, Diagram, Document, Edge, GraphStatement, Kind, Node,
-    Reference, Value, error,
+    Annotation, Attribute, Attributes, Body, ConfigurationKind, DefaultCategory, Diagram, Document,
+    Edge, FragmentKind, GraphStatement, Kind, LayoutKind, NamedBlock, Node, Reference,
+    SelectionKind, Value, error,
     lex::{self, Located, Token},
 };
 use crate::{Error, diagnostic::Span};
@@ -31,6 +32,8 @@ pub(super) fn parse_recovering(source: &str) -> super::Parsed {
     let mut p = Parser {
         tokens,
         position: 0,
+        grammar: "graph".into(),
+        context: "diagram".into(),
         depth: 0,
         collection_depth: 0,
         value_spans: Vec::new(),
@@ -97,6 +100,8 @@ pub(super) fn parse_recovering(source: &str) -> super::Parsed {
 struct Parser<'a> {
     tokens: Vec<Located>,
     position: usize,
+    grammar: String,
+    context: String,
     depth: usize,
     errors: Vec<Error>,
     collection_depth: usize,
@@ -121,18 +126,12 @@ impl Parser<'_> {
             return Err(error(start, "diagram display label cannot be empty"));
         }
         let attributes = self.attributes()?;
-        let selector = attributes
-            .get("type")
-            .or_else(|| attributes.get("kind"))
-            .ok_or_else(|| {
-                error(
-                    start,
-                    "diagram requires `type=graph` or another registered type",
-                )
-            })?;
-        if attributes.contains_key("type") && attributes.contains_key("kind") {
-            return Err(error(start, "specify the diagram type once"));
-        }
+        let selector = attributes.get("type").ok_or_else(|| {
+            error(
+                start,
+                "diagram requires `type=graph` or another registered type",
+            )
+        })?;
         let diagram_type = match &selector.value {
             Value::Choice(s) | Value::String(s) => s.clone(),
             Value::Reference(r) if !r.root => r.segments.join("."),
@@ -146,9 +145,19 @@ impl Parser<'_> {
         if diagram_type.is_empty() {
             return Err(error(selector.value_span, "diagram type cannot be empty"));
         }
-        let (body, end) = if diagram_type == "graph" {
+        self.grammar = diagram_type.clone();
+        self.context = "diagram".into();
+        let (body, end) = if ["graph", "sequence", "state-machine"].contains(&diagram_type.as_str())
+        {
             let (body, end) = self.block()?;
-            (Body::Graph(body), end)
+            (
+                match diagram_type.as_str() {
+                    "sequence" => Body::Sequence(body),
+                    "state-machine" => Body::StateMachine(body),
+                    _ => Body::Graph(body),
+                },
+                end,
+            )
         } else {
             let token = self.take();
             if token.token == Token::Invalid {
@@ -438,6 +447,28 @@ impl Parser<'_> {
         if self.collection_depth > 0 {
             self.lines();
         }
+        if self.collection_depth == 0
+            && [
+                "kind",
+                "tone",
+                "font",
+                "align",
+                "textdir",
+                "stroke",
+                "direction",
+                "same-layer",
+                "via",
+                "fill",
+                "gutter",
+                "below",
+            ]
+            .contains(&key.as_str())
+        {
+            return Err(error(
+                span,
+                format!("obsolete property `{key}`; use the documented explicit property name"),
+            ));
+        }
         self.expect(Token::Equal)?;
         if self.collection_depth > 0 {
             self.lines();
@@ -445,18 +476,17 @@ impl Parser<'_> {
         let value_start = self.span();
         let value = self.value()?;
         let end = self.tokens[self.position - 1].span;
-        if result
-            .insert(
-                key.clone(),
-                Attribute {
-                    value,
-                    span: span.join(end),
-                    value_span: value_start.join(end),
-                },
-            )
-            .is_some()
-        {
-            return Err(error(span, format!("duplicate attribute `{key}`")));
+        if let Some(previous) = result.insert(
+            key.clone(),
+            Attribute {
+                value,
+                span: span.join(end),
+                value_span: value_start.join(end),
+                name_span: span,
+            },
+        ) {
+            return Err(error(span, format!("duplicate attribute `{key}`"))
+                .with_related(previous.name_span, "first assignment"));
         }
         Ok(())
     }
@@ -515,6 +545,12 @@ impl Parser<'_> {
         }
         Ok(result)
     }
+    fn context_block(&mut self, context: &str) -> Result<(Vec<GraphStatement>, Span), Error> {
+        let previous = std::mem::replace(&mut self.context, context.into());
+        let result = self.block();
+        self.context = previous;
+        result
+    }
     fn block(&mut self) -> Result<(Vec<GraphStatement>, Span), Error> {
         self.expect(Token::Open)?;
         self.enter()?;
@@ -552,8 +588,10 @@ impl Parser<'_> {
         start: Span,
         id: Option<String>,
         from: Reference,
+        from_span: Span,
         annotations: Vec<Annotation>,
     ) -> Result<GraphStatement, Error> {
+        let arrow_span = self.span();
         let arrow = match self.take().token {
             Token::Arrow(s) => s,
             _ => {
@@ -563,11 +601,16 @@ impl Parser<'_> {
                 ));
             }
         };
+        let to_start = self.span();
         let to = self.reference()?;
+        let to_span = to_start.join(self.tokens[self.position - 1].span);
         let label = self.label();
         let attributes = self.attributes()?;
         Ok(GraphStatement::Edge(Edge {
             id,
+            from_span,
+            to_span,
+            arrow_span,
             from,
             to,
             arrow,
@@ -581,10 +624,18 @@ impl Parser<'_> {
         let annotations = self.annotations()?;
         let start = self.span();
         let saved = self.position;
-        if let Ok(from) = self.reference()
+        if self.grammar != "sequence"
+            && !["view", "step"].contains(&self.context.as_str())
+            && let Ok(from) = self.reference()
             && matches!(self.peek(), Token::Arrow(_))
         {
-            return self.edge(start, None, from, annotations);
+            return self.edge(
+                start,
+                None,
+                from,
+                start.join(self.tokens[self.position - 1].span),
+                annotations,
+            );
         }
         self.position = saved;
         if self.peek() == &Token::Close || self.peek() == &Token::Eof {
@@ -595,23 +646,139 @@ impl Parser<'_> {
             .with_help("add a target before the closing brace, or remove the annotation"));
         }
         let (head, _) = self.name()?;
-        if head == "edge" {
+        let valid = match self.context.as_str() {
+            "step" => ["show", "highlight", "speaker-note"].contains(&head.as_str()),
+            "view" => ["include", "step", "slide"].contains(&head.as_str()),
+            "alternatives" => head == "branch",
+            _ => match self.grammar.as_str() {
+                "sequence" => [
+                    "participant",
+                    "actor",
+                    "message",
+                    "note",
+                    "loop",
+                    "optional",
+                    "alternatives",
+                    "node-style",
+                    "edge-style",
+                    "defaults",
+                    "view",
+                    "step",
+                    "slide",
+                ]
+                .contains(&head.as_str()),
+                "state-machine" => [
+                    "state",
+                    "initial",
+                    "final",
+                    "choice",
+                    "transition",
+                    "node-style",
+                    "edge-style",
+                    "defaults",
+                    "view",
+                    "step",
+                    "slide",
+                    "legend",
+                    "text",
+                    "code",
+                    "tag",
+                    "entry",
+                    "exit",
+                    "port",
+                    "row",
+                    "section",
+                    "band",
+                    "divider",
+                    "gap",
+                ]
+                .contains(&head.as_str()),
+                _ => [
+                    "node",
+                    "group",
+                    "package",
+                    "crate",
+                    "edge",
+                    "node-style",
+                    "edge-style",
+                    "defaults",
+                    "row",
+                    "section",
+                    "band",
+                    "divider",
+                    "gap",
+                    "text",
+                    "code",
+                    "tag",
+                    "port",
+                    "view",
+                    "step",
+                    "slide",
+                    "legend",
+                ]
+                .contains(&head.as_str()),
+            },
+        };
+        let diagram_only = [
+            "view",
+            "defaults",
+            "slide",
+            "legend",
+            "node-style",
+            "edge-style",
+            "participant",
+            "actor",
+        ]
+        .contains(&head.as_str());
+        if diagram_only && self.context != "diagram" && !(head == "slide" && self.context == "view")
+        {
+            return Err(error(
+                start,
+                format!("`{head}` belongs directly to the diagram"),
+            ));
+        }
+        if head == "branch" && self.context != "alternatives" {
+            return Err(error(start, "branches belong directly inside alternatives"));
+        }
+        if head == "step" && self.context != "diagram" && self.context != "view" {
+            return Err(error(start, "steps belong directly to a diagram or view"));
+        }
+        if !valid {
+            return Err(error(
+                start,
+                format!(
+                    "`{head}` is not a statement in {} {}",
+                    self.grammar, self.context
+                ),
+            ));
+        }
+        if ["edge", "message", "transition"].contains(&head.as_str()) {
             let id = self.name()?.0;
+            let from_start = self.span();
             let from = self.reference()?;
-            return self.edge(start, Some(id), from, annotations);
+            return self.edge(
+                start,
+                Some(id),
+                from,
+                from_start.join(self.tokens[self.position - 1].span),
+                annotations,
+            );
         }
         match head.as_str() {
-            "node" | "group" | "package" | "crate" => {
+            "node" | "group" | "package" | "crate" | "participant" | "actor" | "state"
+            | "initial" | "final" | "choice" => {
                 let id = self.name()?.0;
+                let label_span = matches!(self.peek(), Token::String(_)).then(|| self.span());
                 let title = self.label().unwrap_or_else(|| id.clone());
                 let attributes = self.attributes()?;
                 let body = if self.peek() == &Token::Open {
-                    self.block()?.0
+                    self.context_block(&head)?.0
                 } else {
                     Vec::new()
                 };
                 Ok(GraphStatement::Node(Node {
                     declaration: head,
+                    label_span,
                     id,
                     title,
                     attributes,
@@ -620,7 +787,7 @@ impl Parser<'_> {
                     span: start.join(self.tokens[self.position - 1].span),
                 }))
             }
-            "node-kind" | "edge-kind" | "node-style" | "edge-style" => {
+            "node-style" | "edge-style" => {
                 let id = self.name()?.0;
                 let attributes = self.attributes()?;
                 let kind = Kind {
@@ -629,10 +796,10 @@ impl Parser<'_> {
                     attributes,
                     span: start.join(self.tokens[self.position - 1].span),
                 };
-                Ok(if head == "node-kind" || head == "node-style" {
-                    GraphStatement::NodeKind(kind)
+                Ok(if head == "node-style" {
+                    GraphStatement::NodeStyle(kind)
                 } else {
-                    GraphStatement::EdgeKind(kind)
+                    GraphStatement::EdgeStyle(kind)
                 })
             }
             "row" => {
@@ -645,7 +812,7 @@ impl Parser<'_> {
                     span: start.join(end),
                 })
             }
-            "text" | "code" | "tag" => {
+            "text" | "code" | "tag" | "speaker-note" | "entry" | "exit" => {
                 let text = self
                     .label()
                     .ok_or_else(|| error(self.span(), "content requires one quoted string"))?;
@@ -656,9 +823,205 @@ impl Parser<'_> {
                     span: start.join(self.tokens[self.position - 1].span),
                 })
             }
+            "view" | "step" => {
+                let (id, id_span) = self.name()?;
+                let title = self.label().unwrap_or_else(|| id.clone());
+                let attributes = self.attributes()?;
+                let (body, end) = self.context_block(&head)?;
+                let block = NamedBlock {
+                    id,
+                    id_span,
+                    title,
+                    attributes,
+                    annotations,
+                    body,
+                    span: start.join(end),
+                };
+                Ok(if head == "view" {
+                    GraphStatement::View(block)
+                } else {
+                    GraphStatement::Step(block)
+                })
+            }
+            "include" | "show" | "highlight" => {
+                let mut objects = Vec::new();
+                let mut connections = Vec::new();
+                let mut object_spans = Vec::new();
+                let mut connection_spans = Vec::new();
+                if head == "include" {
+                    while !matches!(self.peek(), Token::Newline | Token::Close | Token::Eof) {
+                        let start = self.span();
+                        objects.push(self.reference()?);
+                        object_spans.push(start.join(self.tokens[self.position - 1].span));
+                    }
+                } else {
+                    let attributes = self.attributes()?;
+                    for (key, attr) in attributes {
+                        let Value::List(values) = attr.value else {
+                            return Err(error(attr.span, "selection requires a list"));
+                        };
+                        if values.iter().any(|v| {
+                            !matches!(v, Value::Choice(_) | Value::String(_) | Value::Reference(_))
+                        }) {
+                            return Err(error(attr.value_span, "selection requires identities"));
+                        }
+                        let spans = self
+                            .value_spans
+                            .iter()
+                            .filter(|v| {
+                                v.span.start >= attr.value_span.start
+                                    && v.span.end <= attr.value_span.end
+                                    && ["choice", "string", "reference"].contains(&v.kind.as_str())
+                            })
+                            .map(|v| v.span)
+                            .collect::<Vec<_>>();
+                        for (value, value_span) in values.into_iter().zip(spans) {
+                            let reference = match value {
+                                Value::Reference(r) => r,
+                                Value::Choice(s) | Value::String(s) => Reference {
+                                    root: false,
+                                    segments: vec![s],
+                                },
+                                _ => return Err(error(attr.span, "selection requires identities")),
+                            };
+                            match key.as_str() {
+                                "objects" => {
+                                    objects.push(reference);
+                                    object_spans.push(value_span);
+                                }
+                                "connections"
+                                    if !reference.root && reference.segments.len() == 1 =>
+                                {
+                                    connections.push(reference.segments[0].clone());
+                                    connection_spans.push(value_span);
+                                }
+                                _ => {
+                                    return Err(error(
+                                        attr.span,
+                                        "selection accepts objects and diagram-wide connections",
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                if objects.is_empty() && connections.is_empty() {
+                    return Err(error(start, "selection requires at least one target"));
+                }
+                Ok(GraphStatement::Selection {
+                    kind: match head.as_str() {
+                        "include" => SelectionKind::Include,
+                        "show" => SelectionKind::Show,
+                        _ => SelectionKind::Highlight,
+                    },
+                    objects,
+                    object_spans,
+                    connections,
+                    connection_spans,
+                    annotations,
+                    span: start.join(self.tokens[self.position - 1].span),
+                })
+            }
+            "loop" | "optional" | "alternatives" | "branch" => {
+                let title = self
+                    .label()
+                    .ok_or_else(|| error(start, "fragment requires a quoted label"))?;
+                let (body, end) = self.context_block(&head)?;
+                Ok(GraphStatement::Fragment {
+                    kind: match head.as_str() {
+                        "loop" => FragmentKind::Loop,
+                        "optional" => FragmentKind::Optional,
+                        "alternatives" => FragmentKind::Alternatives,
+                        _ => FragmentKind::Branch,
+                    },
+                    title,
+                    body,
+                    annotations,
+                    span: start.join(end),
+                })
+            }
+            "note" => {
+                let text = self
+                    .label()
+                    .ok_or_else(|| error(start, "note requires quoted text"))?;
+                let attributes = self.attributes()?;
+                Ok(GraphStatement::SequenceNote {
+                    text,
+                    attributes,
+                    annotations,
+                    span: start.join(self.tokens[self.position - 1].span),
+                })
+            }
+            "slide" | "legend" => {
+                let attributes = self.attributes()?;
+                Ok(GraphStatement::Configuration {
+                    kind: if head == "slide" {
+                        ConfigurationKind::Slide
+                    } else {
+                        ConfigurationKind::Legend
+                    },
+                    attributes,
+                    annotations,
+                    span: start.join(self.tokens[self.position - 1].span),
+                })
+            }
+            "defaults" => {
+                let (category, span) = self.name()?;
+                let category = match category.as_str() {
+                    "node" => DefaultCategory::Node,
+                    "edge" => DefaultCategory::Edge,
+                    "participant" => DefaultCategory::Participant,
+                    "message" => DefaultCategory::Message,
+                    "state" => DefaultCategory::State,
+                    "transition" => DefaultCategory::Transition,
+                    _ => return Err(error(span, "unknown defaults category")),
+                };
+                let attributes = self.attributes()?;
+                Ok(GraphStatement::Defaults {
+                    category,
+                    attributes,
+                    annotations,
+                    span: start.join(self.tokens[self.position - 1].span),
+                })
+            }
+            "section" | "band" | "divider" | "gap" => {
+                let title = self.label();
+                let attributes = self.attributes()?;
+                let (body, end) = if head == "section" || head == "band" {
+                    self.context_block(&head)?
+                } else {
+                    (Vec::new(), self.tokens[self.position - 1].span)
+                };
+                Ok(GraphStatement::Layout {
+                    kind: match head.as_str() {
+                        "section" => LayoutKind::Section,
+                        "band" => LayoutKind::Band,
+                        "divider" => LayoutKind::Divider,
+                        _ => LayoutKind::Gap,
+                    },
+                    title,
+                    attributes,
+                    body,
+                    annotations,
+                    span: start.join(end),
+                })
+            }
+            "port" => {
+                let id = self.name()?.0;
+                let attributes = self.attributes()?;
+                Ok(GraphStatement::Port {
+                    id,
+                    attributes,
+                    annotations,
+                    span: start.join(self.tokens[self.position - 1].span),
+                })
+            }
             _ => Err(error(
                 start,
-                format!("unsupported graph statement `{head}` in this checkpoint"),
+                format!(
+                    "unsupported statement `{head}` in {} {}",
+                    self.grammar, self.context
+                ),
             )),
         }
     }

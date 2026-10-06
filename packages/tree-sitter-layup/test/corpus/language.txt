@@ -145,17 +145,17 @@ diagram calls "Calls" type=graph background-color="#fff" {
             (string_content)))))))
 
 ==================
-Legacy styles, weighted rows and typed arrows
+Styles, weighted rows and named connections
 ==================
-model "Model" {
-  style service node blue
-  arrow calls dashed purple
-  row 2:1 {
-    service api "API" { code "// literal /* text */\nfn main()"; sub "Notes" }
-    node store "Store" green
+diagram main "Model" type=graph {
+  node-style service base=card palette=blue
+  edge-style calls stroke-style=dashed palette=purple
+  row weights=[2, 1] {
+    node api "API" style=service { code "// literal /* text */\nfn main()"; text "Notes" }
+    node store "Store" palette=green
   }
-  api -calls-> store labeled
-  store <-calls- api
+  edge invoke api -> store style=calls label=style
+  edge reverse store <- api style=calls
   api <-> store
   api -- store
   view detail "Detail" { include api store }
@@ -166,37 +166,57 @@ model "Model" {
 (source_file
   (declaration
     (declaration_keyword)
+    (reference
+      (identifier))
     (string
       (string_content))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
     (block
       (declaration
         (declaration_keyword)
         (reference
           (identifier))
-        (reference
-          (identifier))
-        (reference
-          (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
       (declaration
         (declaration_keyword)
         (reference
           (identifier))
-        (reference
-          (identifier))
-        (reference
-          (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
       (declaration
         (declaration_keyword)
-        (weights
-          (number)
-          (number))
+        (attribute
+          (identifier)
+          (list
+            (number)
+            (number)))
         (block
           (declaration
-            (identifier)
+            (declaration_keyword)
             (reference
               (identifier))
             (string
               (string_content))
+            (attribute
+              (identifier)
+              (reference
+                (identifier)))
             (block
               (declaration
                 (declaration_keyword)
@@ -214,22 +234,38 @@ model "Model" {
               (identifier))
             (string
               (string_content))
-            (reference
-              (identifier)))))
+            (attribute
+              (identifier)
+              (reference
+                (identifier))))))
       (connection
+        (connection_keyword)
+        (identifier)
         (reference
           (identifier))
         (arrow)
         (reference
           (identifier))
-        (reference
-          (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
       (connection
+        (connection_keyword)
+        (identifier)
         (reference
           (identifier))
         (arrow)
         (reference
-          (identifier)))
+          (identifier))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
       (connection
         (reference
           (identifier))
@@ -262,11 +298,11 @@ Sequence and state bodies
 diagram sequence type=sequence {
   participant api "API"
   actor user "User"
-  message request user -> api "Request" async
+  message request user -> api "Request" delivery=async
   loop "Retry" {
     alternatives "Result" {
-      branch "Done" { api -> user "Result" return }
-      branch "Pending" { api -> api "Wait" }
+      branch "Done" { message result api -> user "Result" type=reply }
+      branch "Pending" { message wait api -> api "Wait" }
     }
   }
 }
@@ -312,8 +348,10 @@ diagram states type=state-machine {
           (identifier))
         (string
           (string_content))
-        (reference
-          (identifier)))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
       (declaration
         (declaration_keyword)
         (string
@@ -330,6 +368,8 @@ diagram states type=state-machine {
                   (string_content))
                 (block
                   (connection
+                    (connection_keyword)
+                    (identifier)
                     (reference
                       (identifier))
                     (arrow)
@@ -337,14 +377,18 @@ diagram states type=state-machine {
                       (identifier))
                     (string
                       (string_content))
-                    (reference
-                      (identifier)))))
+                    (attribute
+                      (identifier)
+                      (reference
+                        (identifier))))))
               (declaration
                 (declaration_keyword)
                 (string
                   (string_content))
                 (block
                   (connection
+                    (connection_keyword)
+                    (identifier)
                     (reference
                       (identifier))
                     (arrow)
@@ -407,7 +451,7 @@ Nested and inline comments, Unicode and keyword IDs
 /* Outer
    /* nested */ remaining
 */
-diagram 图 "跨语言" {
+diagram 图 "跨语言" type=graph {
   node node "节点" text-direction=/* before value */auto // trailing
   node معالجة "مرحبا"
   node row "שורה"
@@ -426,6 +470,10 @@ diagram 图 "跨语言" {
       (identifier))
     (string
       (string_content))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
     (block
       (declaration
         (declaration_keyword)
@@ -484,7 +532,7 @@ Multiline values and arbitrary annotations
   },
 )
 @company.custom(
-  {names: [
+  data={names: [
     "first",
     "second",
   ], score: -2.5e+3},
@@ -520,17 +568,19 @@ diagram future type=company-custom {
       (identifier)
       (identifier))
     (arguments
-      (record
-        (record_entry
-          (identifier)
-          (list
-            (string
-              (string_content))
-            (string
-              (string_content))))
-        (record_entry
-          (identifier)
-          (number)))))
+      (annotation_argument
+        (identifier)
+        (record
+          (record_entry
+            (identifier)
+            (list
+              (string
+                (string_content))
+              (string
+                (string_content))))
+          (record_entry
+            (identifier)
+            (number))))))
   (declaration
     (declaration_keyword)
     (reference
@@ -557,19 +607,16 @@ diagram future type=company-custom {
                 (identifier)))))))))
 
 ==================
-Compact arrows and qualified legacy references
+Compact arrows and qualified references
 ==================
-diagram "Compact" {
+diagram compact "Compact" type=graph {
   node a
   node b
   a->b
   a<-b
   a<->b
   a--b
-  a-call->b
-  a<-call-b
-  a<-call->b
-  api::run -> net/Transport
+  ::api.run -> net.Transport
 }
 
 ---
@@ -577,8 +624,14 @@ diagram "Compact" {
 (source_file
   (declaration
     (declaration_keyword)
+    (reference
+      (identifier))
     (string
       (string_content))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
     (block
       (declaration
         (declaration_keyword)
@@ -586,24 +639,6 @@ diagram "Compact" {
           (identifier)))
       (declaration
         (declaration_keyword)
-        (reference
-          (identifier)))
-      (connection
-        (reference
-          (identifier))
-        (arrow)
-        (reference
-          (identifier)))
-      (connection
-        (reference
-          (identifier))
-        (arrow)
-        (reference
-          (identifier)))
-      (connection
-        (reference
-          (identifier))
-        (arrow)
         (reference
           (identifier)))
       (connection

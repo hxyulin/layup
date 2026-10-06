@@ -1,42 +1,41 @@
-// One sequence model, a complete overview, and a slide-sized walkthrough.
+// One sequence diagram, a complete overview, and a slide-sized walkthrough.
 // Render with --view overview or --view walkthrough --html.
-model "Request and retry" mode=sequence slide=wide {
-  participant client "Browser" blue
-  participant api "API" purple
-  participant worker "Worker" green
-
-  client -> api "POST /jobs" id=request
-  api -> worker "Queue work" async id=enqueue
-  api -> client "202 Accepted" return id=accepted
+diagram main "Request and retry" type=sequence {
+  slide size=wide
+  participant client "Browser" palette=blue
+  participant api "API" palette=purple
+  participant worker "Worker" palette=green
+  message request ::client -> ::api "POST /jobs"
+  message enqueue ::api -> ::worker "Queue work" delivery=async
+  message accepted ::api -> ::client "202 Accepted" type=reply
   loop "Poll until complete" {
-    client -> api "GET /jobs/:id" id=poll
-    api -> client "200 + pending" return id=pending
+    message poll ::client -> ::api "GET /jobs/:id"
+    message pending ::api -> ::client "200 + pending" type=reply
   }
-  api -> client "200 + result" return id=result
-
+  message result ::api -> ::client "200 + result" type=reply
   view overview "Request and retry · overview" {
-    include client api worker
+    include ::client ::api ::worker
   }
   view walkthrough "Request and retry · walkthrough" {
-    include client api worker
+    include ::client ::api ::worker
     step request "Submit the request" {
-      show client api worker
-      show-edge request
-      highlight-edge request
-      note "The browser sends a request to the API."
+      show objects=[::client, ::api, ::worker]
+      show connections=[request]
+      highlight connections=[request]
+      speaker-note "The browser sends a request to the API."
     }
     step dispatch "Dispatch work asynchronously" {
-      show-edge enqueue accepted
-      highlight-edge enqueue
-      note "Work continues after the API returns an acknowledgement."
+      show connections=[enqueue, accepted]
+      highlight connections=[enqueue]
+      speaker-note "Work continues after the API returns an acknowledgement."
     }
     step retry "Poll while work is pending" {
-      show-edge poll pending
-      highlight-edge poll pending
+      show connections=[poll, pending]
+      highlight connections=[poll, pending]
     }
     step complete "Return the result" {
-      show-edge result
-      highlight-edge result
+      show connections=[result]
+      highlight connections=[result]
     }
   }
 }

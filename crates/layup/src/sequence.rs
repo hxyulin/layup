@@ -623,6 +623,15 @@ pub fn layout(
                 Align::Center => (center, Anchor::Middle),
                 Align::Left => (rect.x + 12.0, Anchor::Start),
                 Align::Right => (rect.right() - 12.0, Anchor::End),
+                Align::End => {
+                    if direction.resolve(&node.title.clone().unwrap_or_default())
+                        == text::Direction::Rtl
+                    {
+                        (rect.x + 12.0, Anchor::Start)
+                    } else {
+                        (rect.right() - 12.0, Anchor::End)
+                    }
+                }
                 Align::Start => logical_start(rect.x + 12.0, rect.w - 24.0, direction),
             };
             let mut text = text_item(

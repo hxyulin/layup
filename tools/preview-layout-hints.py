@@ -10,12 +10,12 @@ out = root / "out/checkpoint-02"
 out.mkdir(parents=True, exist_ok=True)
 cases = []
 for name, title, note in [
-    ("below", "Below", "Only below hints are added: no artificial edges or explicit rows."),
-    ("same-layer", "Same layer", "One same-layer hint moves Cache alongside Worker."),
+    ("below", "After", "Only after hints are added: no artificial edges or explicit rows."),
+    ("same-layer", "Same rank", "One same-rank hint moves Cache alongside Worker."),
     ("beside", "Beside", "Two beside hints keep Input, Transform, Output adjacent and in order. Notes stays outside that chain."),
 ]:
     after = (root / f"docs/checkpoints/02-layout-hints/{name}.layup").read_text()
-    before = re.sub(r" (?:below|same-layer|beside)=[\w-]+", "", after)
+    before = re.sub(r" (?:after|same-rank|beside)=[^\s{}]+", "", after)
     cases.append((title, note, before, after))
 sections = []
 for i, (title, note, before, after) in enumerate(cases):

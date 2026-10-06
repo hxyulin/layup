@@ -1,10 +1,11 @@
+mod support;
 use layup::{
     Compiled, compile,
     layout::{Item, Rect},
 };
 
 fn rect(c: &Compiled, id: &str) -> Rect {
-    c.scene.nodes[c.scene.node(id).unwrap()].rect
+    c.scene.nodes[support::node(&c.scene, id).unwrap()].rect
 }
 fn check(c: &Compiled) {
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
@@ -33,8 +34,8 @@ fn check(c: &Compiled) {
             );
             for (i, n) in c.scene.nodes.iter().enumerate() {
                 // Borders of containing states may be crossed on entry/exit.
-                let a = c.scene.node(&e.from).unwrap();
-                let b = c.scene.node(&e.to).unwrap();
+                let a = support::node(&c.scene, &e.from).unwrap();
+                let b = support::node(&c.scene, &e.to).unwrap();
                 if c.scene.is_descendant(a, i) || c.scene.is_descendant(b, i) {
                     continue;
                 }
@@ -56,11 +57,11 @@ fn nested_composites_have_scoped_initials_and_contained_geometry_in_all_directio
     for d in ["down", "up", "right", "left"] {
         let c = compile(&source.replace("direction=right", &format!("direction={d}"))).unwrap();
         check(&c);
-        let connected = c.scene.node("connected").unwrap();
-        let sending = c.scene.node("sending").unwrap();
+        let connected = support::node(&c.scene, "connected").unwrap();
+        let sending = support::node(&c.scene, "sending").unwrap();
         assert_eq!(c.scene.nodes[sending].parent, Some(connected));
         assert_eq!(
-            c.scene.nodes[c.scene.node("waiting").unwrap()].parent,
+            c.scene.nodes[support::node(&c.scene, "waiting").unwrap()].parent,
             Some(sending)
         );
         assert!(rect(&c, "connected").w > 240.0);
@@ -89,28 +90,28 @@ fn composite_validation_reports_scope_and_transition_source_lines() {
             2,
         ),
         (
-            "initial s; state parent { initial a; state child; a -> child };\n s -> child",
+            "initial s; state parent { initial a; state child; a -> child };\n s -> parent.child",
             "initial transition must target",
             3,
         ),
         (
-            "initial s; state parent { initial a; state child; final done; a -> child; child -> done }; state outside; s -> parent;\n outside -> done",
+            "initial s; state parent { initial a; state child; final done; a -> child; child -> done }; state outside; s -> parent;\n outside -> parent.done",
             "final marker must be entered",
             3,
         ),
         (
-            "initial s; state parent { initial a; state child; a -> child }; s -> parent;\n child -> a",
+            "initial s; state parent { initial a; state child; a -> child }; s -> parent;\n parent.child -> parent.a",
             "initial marker cannot have incoming",
             3,
         ),
         (
             "initial s; state parent { initial a; node invalid; a -> invalid }; s -> parent",
-            "requires state, initial",
+            "not a statement",
             2,
         ),
     ] {
         let e = compile(&format!(
-            "diagram \"Invalid\" mode=state-machine {{\n{body}\n}}"
+            "diagram main \"Invalid\" type=state-machine {{\n  {body}\n}}"
         ))
         .err()
         .unwrap();
@@ -122,35 +123,61 @@ fn composite_validation_reports_scope_and_transition_source_lines() {
 #[test]
 fn cross_boundary_transitions_retain_original_endpoints() {
     for d in ["down", "up", "right", "left"] {
-        let c=compile(&format!(r#"diagram "跨边界" mode=state-machine direction={d} {{
-            initial root; state outside "外部"
-            state parent "متصل" text-direction=rtl {{ initial enter; state ready "准备"; state work "工作"; enter -> ready; ready -> work "执行" }}
-            final done
-            root -> outside; outside -> parent "进入"; work -> outside "退出"; work -> done "结束"
-        }}"#)).unwrap();
+        let c = compile(&format!(
+            r#"diagram main "跨边界" type=state-machine flow-direction={d} {{
+  initial root
+  state outside "外部"
+  state parent "متصل" text-direction=rtl {{
+    initial enter
+    state ready "准备"
+    state work "工作"
+    transition connection-1 ::parent.enter -> ::parent.ready
+    transition connection-2 ::parent.ready -> ::parent.work "执行"
+  }}
+  final done
+  transition connection-3 ::root -> ::outside
+  transition connection-4 ::outside -> ::parent "进入"
+  transition connection-5 ::parent.work -> ::outside "退出"
+  transition connection-6 ::parent.work -> ::done "结束"
+}}"#
+        ))
+        .unwrap();
         check(&c);
         assert!(
             c.scene
                 .edges
                 .iter()
-                .any(|e| e.from == "work" && e.to == "outside")
+                .any(|e| support::authored(&e.from) == "work"
+                    && support::authored(&e.to) == "outside")
         );
-        assert!(
-            c.scene
-                .edges
-                .iter()
-                .any(|e| e.from == "outside" && e.to == "parent")
-        );
+        assert!(c.scene.edges.iter().any(
+            |e| support::authored(&e.from) == "outside" && support::authored(&e.to) == "parent"
+        ));
     }
 }
 
 #[test]
 fn direct_descendant_entry_and_unreachable_composites_are_checked_structurally() {
-    let c=compile(r#"diagram "Direct" mode=state-machine {
-        initial root; state a; state parent { initial enter; state b; state skipped; enter -> skipped }
-        state unreachable { initial dead; state isolated; dead -> isolated }
-        root -> a; a -> b
-    }"#).unwrap();
+    let c = compile(
+        r#"diagram main "Direct" type=state-machine {
+  initial root
+  state a
+  state parent {
+    initial enter
+    state b
+    state skipped
+    transition connection-1 ::parent.enter -> ::parent.skipped
+  }
+  state unreachable {
+    initial dead
+    state isolated
+    transition connection-2 ::unreachable.dead -> ::unreachable.isolated
+  }
+  transition connection-3 ::root -> ::a
+  transition connection-4 ::a -> ::parent.b
+}"#,
+    )
+    .unwrap();
     let warnings: Vec<_> = c
         .warnings
         .iter()
@@ -162,20 +189,30 @@ fn direct_descendant_entry_and_unreachable_composites_are_checked_structurally()
             .any(|w| w.msg.contains("`parent`") || w.msg.contains("`b`"))
     );
     assert!(warnings.iter().any(|w| w.msg.contains("`unreachable`")));
-    assert!(warnings.iter().any(|w| w.msg.contains("`enter`")));
+    assert!(
+        warnings
+            .iter()
+            .any(|w| w.msg.contains("unreachable") && w.msg.contains("enter"))
+    );
 }
 
 #[test]
 fn transitions_between_a_composite_and_its_descendants_have_real_ports() {
     for d in ["down", "up", "right", "left"] {
         let c = compile(&format!(
-            r#"diagram "Local transitions" mode=state-machine direction={d} {{
-            initial root
-            state parent "Parent" {{ initial enter; state a "A"; state b "B"; enter -> a; a -> b }}
-            root -> parent
-            b -> parent "reset"
-            parent -> a "resume"
-        }}"#
+            r#"diagram main "Local transitions" type=state-machine flow-direction={d} {{
+  initial root
+  state parent "Parent" {{
+    initial enter
+    state a "A"
+    state b "B"
+    transition connection-1 ::parent.enter -> ::parent.a
+    transition connection-2 ::parent.a -> ::parent.b
+  }}
+  transition connection-3 ::root -> ::parent
+  transition connection-4 ::parent.b -> ::parent "reset"
+  transition connection-5 ::parent -> ::parent.a "resume"
+}}"#
         ))
         .unwrap();
         check(&c);
@@ -191,35 +228,54 @@ fn transitions_between_a_composite_and_its_descendants_have_real_ports() {
 #[test]
 fn authored_rows_and_custom_kinds_preserve_composite_scopes() {
     let c = compile(
-        r#"diagram "Manual composite" mode=state-machine layout=manual width=1200 {
-        style online base=state tone=blue
-        row 1:3:1 {
-            initial root
-            online parent "Online" {
-                row { initial enter; state ready "Ready"; final finished }
-                enter -> ready
-                ready -> finished "complete"
-            }
-            final end
-        }
-        root -> parent
-        parent -> end "stop"
-    }"#,
+        r#"diagram main "Manual composite" type=state-machine layout=manual width=1200 {
+  node-style online base=state palette=blue
+  row weights=[1, 3, 1] {
+    initial root
+    state parent "Online" style=online {
+      row {
+        initial enter
+        state ready "Ready"
+        final finished
+      }
+      transition connection-1 ::parent.enter -> ::parent.ready
+      transition connection-2 ::parent.ready -> ::parent.finished "complete"
+    }
+    final end
+  }
+  transition connection-3 ::root -> ::parent
+  transition connection-4 ::parent -> ::end "stop"
+}"#,
     )
     .unwrap();
     check(&c);
     assert!(!c.diagram.auto_layout);
     assert_eq!(c.scene.width, 1200.0);
     assert_eq!(
-        c.scene.nodes[c.scene.node("ready").unwrap()].parent,
-        c.scene.node("parent")
+        c.scene.nodes[support::node(&c.scene, "ready").unwrap()].parent,
+        support::node(&c.scene, "parent")
     );
 }
 
 #[test]
 fn reordering_nested_transition_statements_preserves_geometry() {
     let a = include_str!("../../../examples/state-composite.layup");
-    let b = a.replace("      begin -> waiting\n      waiting -> retry \"timeout\"\n      retry -> waiting \"retry\"\n      waiting -> delivered \"ack\"", "      waiting -> delivered \"ack\"\n      retry -> waiting \"retry\"\n      waiting -> retry \"timeout\"\n      begin -> waiting").replace("  start -> offline\n  offline -> connected \"connect\"\n  connected -> offline \"disconnect\"\n  connected -> stopped \"shutdown\"", "  connected -> stopped \"shutdown\"\n  connected -> offline \"disconnect\"\n  offline -> connected \"connect\"\n  start -> offline");
+    let mut lines = a.lines().map(str::to_owned).collect::<Vec<_>>();
+    let positions = lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.starts_with("      transition "))
+        .map(|(i, _)| i)
+        .collect::<Vec<_>>();
+    let reversed = positions
+        .iter()
+        .rev()
+        .map(|i| lines[*i].clone())
+        .collect::<Vec<_>>();
+    for (i, line) in positions.into_iter().zip(reversed) {
+        lines[i] = line;
+    }
+    let b = lines.join("\n");
     assert_ne!(a, b);
     let a = compile(a).unwrap();
     let b = compile(&b).unwrap();

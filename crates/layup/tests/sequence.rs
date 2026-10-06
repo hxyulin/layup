@@ -1,3 +1,4 @@
+mod support;
 use layup::{Compiled, compile, layout::Item, model::Mode};
 
 fn text_rows(item: &Item) -> Vec<String> {
@@ -10,32 +11,42 @@ fn text_rows(item: &Item) -> Vec<String> {
 }
 
 fn cx(c: &Compiled, id: &str) -> f64 {
-    c.scene.nodes[c.scene.node(id).unwrap()].rect.cx()
+    c.scene.nodes[support::node(&c.scene, id).unwrap()]
+        .rect
+        .cx()
 }
 
 #[test]
 fn authored_events_stay_ordered_and_message_kinds_are_preserved() {
-    let source = r#"diagram "Chronology" mode=sequence {
-      participant a "Client"; participant b "Service"
-      a -> b "Request" id=request
-      note "Check credentials" over=b
-      b -> b "Validate" id=validate
-      loop "Retry if needed" {
-        b -> a "Retry" return id=retry
-        a -> b "Re-submit" async id=resubmit
-      }
-      b -> a "Response" return id=response
-    }"#;
+    let source = r#"diagram main "Chronology" type=sequence {
+  participant a "Client"
+  participant b "Service"
+  message request ::a -> ::b "Request"
+  note "Check credentials" over=::b
+  message validate ::b -> ::b "Validate"
+  loop "Retry if needed" {
+    message retry ::b -> ::a "Retry" type=reply
+    message resubmit ::a -> ::b "Re-submit" delivery=async
+  }
+  message response ::b -> ::a "Response" type=reply
+}"#;
     let c = compile(source).unwrap();
     assert_eq!(c.diagram.mode, Mode::Sequence);
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     let sequence = c.sequence.as_ref().unwrap();
-    assert_eq!(sequence.participants, ["a", "b"]);
+    assert_eq!(
+        sequence
+            .participants
+            .iter()
+            .map(|id| support::authored(id))
+            .collect::<Vec<_>>(),
+        ["a", "b"]
+    );
     assert_eq!(
         sequence
             .messages
             .iter()
-            .map(|m| m.id.as_str())
+            .map(|m| support::authored(&m.id))
             .collect::<Vec<_>>(),
         ["request", "validate", "retry", "resubmit", "response"]
     );
@@ -53,15 +64,19 @@ fn authored_events_stay_ordered_and_message_kinds_are_preserved() {
     assert!(sequence.annotations.iter().any(|a| a.kind == "note"));
     assert!(sequence.annotations.iter().any(|a| a.kind == "loop"));
     let source_span = c.scene.edges[0].span;
-    assert!(source[source_span.start..source_span.end].contains("id=request"));
+    assert!(source[source_span.start..source_span.end].contains("message request"));
 }
 
 #[test]
 fn left_direction_reverses_participants_without_reversing_time() {
-    let source = r#"diagram "Order" mode=sequence direction=right {
-      participant a "A"; participant b "B"; participant c "C"
-      a -> b "First"; b -> c "Second"; c -> a "Third"
-    }"#;
+    let source = r#"diagram main "Order" type=sequence participant-direction=right {
+  participant a "A"
+  participant b "B"
+  participant c "C"
+  message connection-1 ::a -> ::b "First"
+  message connection-2 ::b -> ::c "Second"
+  message connection-3 ::c -> ::a "Third"
+}"#;
     let right = compile(source).unwrap();
     let left = compile(&source.replace("direction=right", "direction=left")).unwrap();
     assert!(cx(&right, "a") < cx(&right, "b") && cx(&right, "b") < cx(&right, "c"));
@@ -77,15 +92,25 @@ fn left_direction_reverses_participants_without_reversing_time() {
 
 #[test]
 fn alternatives_notes_and_fragments_have_measured_extents() {
-    let source = r#"diagram "Fragments" mode=sequence {
-      participant a "Browser"; participant b "API"
-      note "Overview" from=a to=b
-      alt "Response" {
-        branch "Success" { b -> a "OK" id=ok }
-        branch "Retry" { loop "Backoff" { a -> b "Retry" id=retry } }
+    let source = r#"diagram main "Fragments" type=sequence {
+  participant a "Browser"
+  participant b "API"
+  note "Overview" between=[::a, ::b]
+  alternatives "Response" {
+    branch "Success" {
+      message ok ::b -> ::a "OK"
+    }
+    branch "Retry" {
+      loop "Backoff" {
+        message retry ::a -> ::b "Retry"
       }
-      opt "Cleanup" { note "Release resources" over=b; b -> b "Close" id=close }
-    }"#;
+    }
+  }
+  optional "Cleanup" {
+    note "Release resources" over=::b
+    message close ::b -> ::b "Close"
+  }
+}"#;
     let c = compile(source).unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     let annotations = &c.sequence.as_ref().unwrap().annotations;
@@ -110,49 +135,78 @@ fn invalid_sequence_structure_has_source_diagnostics() {
     for (body, expected) in [
         ("", "at least one participant"),
         ("participant a; participant a", "duplicate"),
-        ("participant a; a -> missing", "unknown node"),
-        ("participant a; a -> a id=one; a -> a id=one", "duplicate"),
-        ("participant \"Anonymous\"", "explicit id"),
-        ("participant a { note \"Nested\" }", "nested body"),
+        (
+            "participant a; message request a -> missing",
+            "unknown object",
+        ),
+        (
+            "participant a; message one a -> a; message one a -> a",
+            "duplicate",
+        ),
+        ("participant", "identifier"),
+        ("participant a { note \"Nested\" }", "no body"),
         (
             "participant a; note \"Unknown\" over=missing",
-            "unknown participant",
+            "unknown object",
         ),
-        ("participant a; note \"Half\" from=a", "both from="),
-        ("participant a; note \"Mixed\" over=a to=a", "note takes"),
+        (
+            "participant a; note \"Half\" between=[a]",
+            "two participant",
+        ),
+        (
+            "participant a; note \"Mixed\" over=a between=[a,a]",
+            "either",
+        ),
         ("participant a; note a", "quoted"),
         ("participant a; loop \"Empty\" {}", "event"),
-        ("participant a; loop Retry { a -> a }", "quoted label"),
-        ("participant a; loop \"Missing body\"", "body"),
         (
-            "participant a; branch \"Orphan\" { a -> a }",
+            "participant a; loop Retry { message request a -> a }",
+            "quoted label",
+        ),
+        ("participant a; loop \"Missing body\"", "Open"),
+        (
+            "participant a; branch \"Orphan\" { message request a -> a }",
             "branches belong",
         ),
         (
-            "participant a; alt \"Incomplete\" { branch \"One\" { a -> a } }",
+            "participant a; alternatives \"Incomplete\" { branch \"One\" { message request a -> a } }",
             "at least two",
         ),
-        ("participant a; alt \"Wrong\" { a -> a; a -> a }", "branch"),
+        (
+            "participant a; alternatives \"Wrong\" { message one a -> a; message two a -> a }",
+            "not a statement",
+        ),
         (
             "participant a; loop \"Nested declaration\" { participant b }",
-            "unknown sequence statement",
+            "directly",
         ),
-        ("participant a; a -> a via=left", "routing ports"),
+        (
+            "participant a; message request a -> a route-side=left",
+            "routing",
+        ),
+        (
+            "participant a; message request a -> a type=reply delivery=async",
+            "delivery applies",
+        ),
+        (
+            "participant a; message request a -> a delivery=return",
+            "sync or async",
+        ),
     ] {
-        let source = format!("// 中文\ndiagram \"Invalid\" mode=sequence {{ {body} }}");
-        let error = match compile(&source) {
-            Ok(_) => panic!("accepted invalid sequence: {body}"),
-            Err(e) => e,
-        };
+        let source = format!("// 中文\ndiagram main \"Invalid\" type=sequence {{ {body} }}");
+        let error = compile(&source).err().unwrap();
         assert!(error.msg.contains(expected), "{body}: {error}");
-        assert_eq!(error.line, Some(2));
+        assert_eq!(error.line, Some(2), "{body}: {error}");
         let span = error.span.unwrap();
         assert!(span.end <= source.len() && span.start < span.end, "{body}");
     }
-    let error = compile("diagram \"Wrong axis\" mode=sequence direction=down { participant a }")
-        .err()
-        .unwrap();
-    assert_eq!(error.code, "sequence/direction");
+    assert_eq!(
+        compile("diagram main type=sequence participant-direction=down { participant a }")
+            .err()
+            .unwrap()
+            .code,
+        "document/direction"
+    );
 }
 
 #[test]
@@ -166,7 +220,7 @@ fn international_multiline_labels_and_user_fonts_use_measured_text() {
     assert!(c.scene.edges[1].points[0].1 > c.scene.edges[0].points[0].1 + 28.0);
     let long_label = "中".repeat(40);
     let source = format!(
-        "diagram \"Font metrics\" mode=sequence {{ participant a \"{long_label}\"; participant b \"B\"; a -> b \"{long_label}\" }}"
+        "diagram main \"Font metrics\" type=sequence {{\n  participant a \"{long_label}\"\n  participant b \"B\"\n  message connection-1 ::a -> ::b \"{long_label}\"\n}}"
     );
     let default = compile(&source).unwrap();
     let mut fonts = layup::text::Fonts::new();
@@ -183,12 +237,12 @@ fn international_multiline_labels_and_user_fonts_use_measured_text() {
 fn long_messages_expand_automatic_width_and_wrap_authored_width() {
     let label = "A long request label with parameters and context ".repeat(7);
     let source = format!(
-        "diagram \"Labels\" mode=sequence {{ participant a; participant b; a -> b \"{label}\" }}"
+        "diagram main \"Labels\" type=sequence {{\n  participant a\n  participant b\n  message connection-1 ::a -> ::b \"{label}\"\n}}"
     );
     let automatic = compile(&source).unwrap();
     assert!(automatic.scene.width > 1400.0);
     assert!(automatic.warnings.is_empty(), "{:?}", automatic.warnings);
-    let authored = compile(&source.replace("mode=sequence", "mode=sequence width=900")).unwrap();
+    let authored = compile(&source.replace("type=sequence", "type=sequence width=900")).unwrap();
     assert_eq!(authored.scene.width, 900.0);
     assert!(authored.scene.height > automatic.scene.height);
     assert!(text_rows(authored.scene.edges[0].chip.as_ref().unwrap()).len() > 1);
@@ -197,21 +251,28 @@ fn long_messages_expand_automatic_width_and_wrap_authored_width() {
 
 #[test]
 fn slides_and_reveal_steps_keep_sequence_message_geometry_and_identity() {
-    let source = r#"diagram "Playback" mode=sequence {
-      participant client; participant api
-      client -> api "Request" id=request
-      api -> client "Response" return id=response
-    }"#;
+    let source = r#"diagram main "Playback" type=sequence {
+  participant client
+  participant api
+  message request ::client -> ::api "Request"
+  message response ::api -> ::client "Response" type=reply
+}"#;
     let plain = compile(source).unwrap();
-    let authored = source
-        .replace("mode=sequence", "mode=sequence slide=wide min-font-size=1")
-        .replace("\n    }", "\n      step first { show client api; show-edge request; highlight-edge request }\n      step second { show-edge response; highlight-edge response }\n    }");
+    let authored = source.replacen('{', "{ slide size=wide min-font-size=1;", 1);
+    let end = authored.rfind('}').unwrap();
+    let authored = format!(
+        "{} step first {{ show objects=[client, api] connections=[request]; highlight connections=[request] }}; step second {{ show connections=[response]; highlight connections=[response] }} }}",
+        &authored[..end]
+    );
     let c = compile(&authored).unwrap();
     assert_eq!(c.presentation.steps.len(), 2);
-    assert_eq!(c.presentation.steps[0].visible_edges, ["request"]);
+    assert_eq!(
+        c.presentation.steps[0].visible_edges,
+        ["relationship:\"request\""]
+    );
     assert_eq!(
         c.presentation.steps[1].visible_edges,
-        ["request", "response"]
+        ["relationship:\"request\"", "relationship:\"response\""]
     );
     assert_eq!(c.viewport(), (1920.0, 1080.0));
     for (before, after) in plain.scene.edges.iter().zip(&c.scene.edges) {
@@ -223,8 +284,8 @@ fn slides_and_reveal_steps_keep_sequence_message_geometry_and_identity() {
         );
     }
     let svg = layup::svg::render(&c, layup::Theme::Light);
-    assert!(svg.contains("data-edge-id=\"request\""));
-    assert!(svg.contains("data-edge-id=\"response\""));
+    assert!(svg.contains("data-edge-id=\"relationship:&quot;request&quot;\""));
+    assert!(svg.contains("data-edge-id=\"relationship:&quot;response&quot;\""));
 }
 
 #[test]
@@ -245,15 +306,22 @@ fn sequence_examples_compile_without_warnings() {
 
 #[test]
 fn selected_sequence_views_keep_message_identity_and_authored_order() {
-    let source = r#"model "Shared interactions" mode=sequence slide=wide min-font-size=1 {
-      participant client "Client"; participant api "API"; participant store "Store"
-      client -> api "Request" id=request
-      api -> store "Query" id=query
-      store -> api "Records" return id=records
-      api -> client "Response" return id=response
-      view overview "Client and API" { include client api }
-      view data "Storage access" { include api store }
-    }"#;
+    let source = r#"diagram main "Shared interactions" type=sequence {
+  slide size=wide min-font-size=1
+  participant client "Client"
+  participant api "API"
+  participant store "Store"
+  message request ::client -> ::api "Request"
+  message query ::api -> ::store "Query"
+  message records ::store -> ::api "Records" type=reply
+  message response ::api -> ::client "Response" type=reply
+  view overview "Client and API" {
+    include ::client ::api
+  }
+  view data "Storage access" {
+    include ::api ::store
+  }
+}"#;
     let fonts = layup::text::Fonts::default();
     for (view, participants, messages) in [
         (
@@ -270,11 +338,17 @@ fn selected_sequence_views_keep_message_identity_and_authored_order() {
         let c = layup::compile_with_options(source, &options, &fonts).unwrap();
         assert!(c.warnings.is_empty(), "{:?}", c.warnings);
         let info = c.sequence.as_ref().unwrap();
-        assert_eq!(info.participants, participants);
+        assert_eq!(
+            info.participants
+                .iter()
+                .map(|id| support::authored(id))
+                .collect::<Vec<_>>(),
+            participants
+        );
         assert_eq!(
             info.messages
                 .iter()
-                .map(|m| m.id.as_str())
+                .map(|m| support::authored(&m.id))
                 .collect::<Vec<_>>(),
             messages
         );
@@ -284,37 +358,49 @@ fn selected_sequence_views_keep_message_identity_and_authored_order() {
 }
 
 #[test]
-fn participant_id_attributes_follow_existing_node_id_precedence() {
+fn participants_require_explicit_names_and_do_not_use_style_words_as_flags() {
     for declaration in [
-        "participant \"API\" id=api",
-        "participant alias \"API\" id=api",
-        "actor alias \"User\" id=api",
-        "participant blue \"API\" id=api",
+        "participant api \"API\"",
+        "actor api \"User\"",
+        "participant api",
+        "participant \"api\" \"API\"",
     ] {
-        let source = format!(
-            "diagram \"Authored IDs\" mode=sequence {{ {declaration}; api -> api \"Local work\" }}"
-        );
+        let source =
+            format!("diagram main type=sequence {{ {declaration}; message local api -> api }}");
         let c = compile(&source).unwrap();
-        assert_eq!(c.sequence.as_ref().unwrap().participants, ["api"]);
-        assert_eq!(c.scene.edges[0].from, "api");
-        assert_eq!(c.scene.edges[0].to, "api");
+        assert_eq!(
+            c.sequence.as_ref().unwrap().participants,
+            ["object:[\"api\"]"]
+        );
+        assert_eq!(c.scene.edges[0].from, "object:[\"api\"]");
     }
+    let c = compile(
+        "diagram main type=sequence { participant blue \"API\"; message local blue -> blue }",
+    )
+    .unwrap();
+    assert_eq!(
+        c.document.unwrap().objects["object:[\"blue\"]"]
+            .authored_id
+            .as_deref(),
+        Some("blue")
+    );
+    assert!(compile("diagram main type=sequence { participant alias id=api }").is_err());
 }
 
 #[test]
 fn participant_styles_monospace_headers_and_roles_use_measured_layout() {
-    let source = r#"diagram "Styled participants" mode=sequence width=900 {
-      style participant process mono blue
-      style actor process hollow purple
-      actor user "User"
-      participant api "ConnectionPool<RequestContext>" role="The service owns authorization, validation, processing and persistence for every incoming request."
-      user -> api "Call"
-    }"#;
+    let source = r#"diagram main "Styled participants" type=sequence width=900 {
+  node-style participant base=process font-family=mono palette=blue
+  node-style actor base=process fill-color=none palette=purple
+  actor user "User" style=actor
+  participant api "ConnectionPool<RequestContext>" style=participant role="The service owns authorization, validation, processing and persistence for every incoming request."
+  message connection-1 ::user -> ::api "Call"
+}"#;
     let c = compile(source).unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     assert!(c.diagram.kinds["participant"].mono);
     assert!(c.diagram.kinds["actor"].hollow);
-    let api = c.scene.node("api").unwrap();
+    let api = support::node(&c.scene, "api").unwrap();
     let texts: Vec<_> = c
         .scene
         .items
@@ -337,11 +423,13 @@ fn participant_styles_monospace_headers_and_roles_use_measured_layout() {
 #[test]
 fn rtl_titles_subtitles_and_fragment_headings_anchor_to_the_right() {
     use layup::{layout::Anchor, text::Direction};
-    let source = r#"diagram "طلب متعدد الخطوات" mode=sequence text-direction=rtl {
-      subtitle "تفاصيل معالجة الطلب"
-      participant client "عميل"; participant api "خادم"
-      loop "إعادة المحاولة" { client -> api "طلب" }
-    }"#;
+    let source = r#"diagram main "طلب متعدد الخطوات" type=sequence text-direction=rtl subtitle="تفاصيل معالجة الطلب" {
+  participant client "عميل"
+  participant api "خادم"
+  loop "إعادة المحاولة" {
+    message connection-1 ::client -> ::api "طلب"
+  }
+}"#;
     let c = compile(source).unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     let headings: Vec<_> = c
@@ -363,13 +451,16 @@ fn rtl_titles_subtitles_and_fragment_headings_anchor_to_the_right() {
 
 #[test]
 fn invalid_sequence_layout_and_unsupported_legend_are_diagnosed() {
-    let invalid = compile("diagram \"Bad layout\" mode=sequence layout=mystery { participant a }")
-        .err()
-        .unwrap();
+    let invalid =
+        compile("diagram main \"Bad layout\" type=sequence layout=mystery {\n  participant a\n}")
+            .err()
+            .unwrap();
     assert_eq!(invalid.code, "sequence/layout");
     assert!(invalid.span.is_some());
     for declaration in ["legend off", "legend arrows", "legend { participant a }"] {
-        let source = format!("diagram \"Legend\" mode=sequence {{ participant a; {declaration} }}");
+        let source = format!(
+            "diagram main \"Legend\" type=sequence {{\n  participant a\n  {declaration}\n}}"
+        );
         let invalid = compile(&source).err().unwrap();
         assert!(invalid.msg.contains("legend"));
         assert!(invalid.span.is_some());
@@ -379,7 +470,7 @@ fn invalid_sequence_layout_and_unsupported_legend_are_diagnosed() {
 #[test]
 fn deep_fragments_fail_before_their_geometry_becomes_negative() {
     let source = format!(
-        "diagram \"Depth\" mode=sequence width=900 {{\nparticipant a\n{}a -> a \"Work\"\n{}}}",
+        "diagram main \"Depth\" type=sequence width=900 {{\nparticipant a\n{}message work a -> a \"Work\"\n{}}}",
         "loop \"Nested\" {\n".repeat(40),
         "}\n".repeat(40),
     );
@@ -392,7 +483,7 @@ fn deep_fragments_fail_before_their_geometry_becomes_negative() {
 
 #[test]
 fn missing_glyphs_in_multiline_message_and_note_groups_are_reported() {
-    let source = "diagram \"Glyph coverage\" mode=sequence {\nparticipant a; participant b\na -> b \"Request\\n𐍈\"\nnote \"Context\\n𓀀\" over=b\n}";
+    let source = "diagram main \"Glyph coverage\" type=sequence {\n  participant a\n  participant b\n  message connection-1 ::a -> ::b \"Request\\n𐍈\"\n  note \"Context\\n𓀀\" over=::b\n}";
     let c = compile(source).unwrap();
     let missing: Vec<_> = c
         .warnings
@@ -403,7 +494,7 @@ fn missing_glyphs_in_multiline_message_and_note_groups_are_reported() {
     assert!(
         missing
             .iter()
-            .any(|w| w.msg.contains("U+10348") && w.line == Some(3))
+            .any(|w| w.msg.contains("U+10348") && w.line == Some(4))
     );
     assert!(missing.iter().any(|w| w.msg.contains("U+13000")));
     assert_eq!(

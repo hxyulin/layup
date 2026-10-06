@@ -10,7 +10,7 @@ const root = new URL('../../../', import.meta.url);
 const cli = (args, source) => spawnSync(new URL('target/debug/layup', root).pathname, args, { input: source, encoding: 'utf8' });
 const engine = loadSync();
 const example = readFileSync(new URL('examples/language-v1.layup', root), 'utf8');
-const source = 'layup 1\ndiagram first "First" kind=graph { node a }\ndiagram second "Second" kind=graph { node b }';
+const source = 'layup 1\ndiagram first "First" type=graph { node a }\ndiagram second "Second" type=graph { node b }';
 
 test('revision-one scoped graphs retain source evidence with native/WASM parity', () => {
   const native = cli(['compile', '-'], example);
@@ -48,13 +48,13 @@ test('diagram selection is consistent in CLI, WASM and embedded Markdown', () =>
   assert.throws(() => engine.compile(source, { diagram: 'missing' }), e => e instanceof LayupError && e.code === 'document/diagram');
   assert.throws(() => engine.render(source, { diagram: 'second\noperation=format' }), TypeError);
   assert.throws(() => engine.lint(source, { diagram: 1 }), TypeError);
-  assert.throws(() => engine.compile('diagram "Legacy" {}', { diagram: 'second' }), LayupError);
+  assert.throws(() => engine.compile('diagram main "Legacy" type=graph {}', { diagram: 'second' }), LayupError);
 });
 
 test('versioned invalid input does not fall back or hide errors during selection', () => {
   for (const invalid of [
     source.replace('layup 1', 'layup 2'),
-    source.replace('kind=graph', 'kind=sequence'),
+    source.replace('type=graph', 'type=sequence'),
     source.replace('node b', 'node b\nb -> missing'),
   ]) {
     assert.throws(() => engine.compile(invalid, { diagram: 'first' }), e => e instanceof LayupError && e.span !== null);
@@ -66,7 +66,7 @@ test('versioned invalid input does not fall back or hide errors during selection
 });
 
 test('inline and nested multiline comments preserve native/WASM formatting and spans', () => {
-  const input = '/* 注释 /* nested */ */\nlayup /* revision */ 1\ndiagram main kind=graph {\nnode a /* label\ncontinues */ "A" tone=/* color */blue // inline\nnode b "/* literal */"\na/* from */->b\n}';
+  const input = '/* 注释 /* nested */ */\nlayup /* revision */ 1\ndiagram main type=graph {\nnode a /* label\ncontinues */ "A" palette=/* color */blue // inline\nnode b "/* literal */"\na/* from */->b\n}';
   const native = cli(['compile', '-'], input);
   assert.equal(native.status, 0, native.stderr);
   assert.deepEqual(engine.compile(input), JSON.parse(native.stdout));
@@ -75,7 +75,7 @@ test('inline and nested multiline comments preserve native/WASM formatting and s
   assert.equal(engine.format(formatted), formatted);
   assert.match(formatted, /\/\* label\ncontinues \*\//);
   assert.deepEqual(engine.lint(input), []);
-  const invalid = 'layup 1\ndiagram main kind=graph { /* unfinished';
+  const invalid = 'layup 1\ndiagram main type=graph { /* unfinished';
   assert.throws(() => engine.compile(invalid), e => e instanceof LayupError && e.code === 'document/comment');
   assert.equal(engine.lint(invalid)[0].code, 'document/comment');
 });

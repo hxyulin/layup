@@ -67,6 +67,16 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
         nodes.push(object([
             ("id", quote(&node.id)),
             ("kind", quote(&node.kind)),
+            (
+                "paint",
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.objects.get(&node.id))
+                    .map_or("null".into(), |n| {
+                        serde_json::to_string(&n.paint).expect("paint JSON")
+                    }),
+            ),
             ("parentId", parent),
             ("rect", rect(node.rect)?),
             ("outline", outline(node.outline)?),
@@ -133,6 +143,16 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
             ("from", quote(&edge.from)),
             ("to", quote(&edge.to)),
             ("kind", quote(&edge.kind)),
+            (
+                "paint",
+                compiled
+                    .document
+                    .as_ref()
+                    .and_then(|d| d.relationships.get(&edge.id))
+                    .map_or("null".into(), |n| {
+                        serde_json::to_string(&n.paint).expect("paint JSON")
+                    }),
+            ),
             (
                 "points",
                 array(
@@ -261,6 +281,15 @@ pub fn export(compiled: &Compiled) -> Result<String, Error> {
                         scene.edges.iter().find(|e| e.line == line).map(|e| e.span)
                     })
                 });
+            let location = location.or_else(|| {
+                compiled.document.as_ref().and_then(|document| {
+                    document
+                        .manifest
+                        .iter()
+                        .find(|entry| Some(entry.span.line) == warning.line)
+                        .map(|entry| entry.span)
+                })
+            });
             Diagnostic {
                 severity: Severity::Warning,
                 code: "layout",
@@ -497,6 +526,14 @@ fn outline(value: Outline) -> Result<String, Error> {
 
 fn drawing(value: &Item) -> Result<String, Error> {
     Ok(match value {
+        Item::StyledGroup { paint, items, .. } => object([
+            ("type", quote("group")),
+            ("paint", serde_json::to_string(paint).expect("paint")),
+            (
+                "items",
+                array(items.iter().map(drawing).collect::<Result<Vec<_>, _>>()?),
+            ),
+        ]),
         Item::Group(items) => object([
             ("type", quote("group")),
             (

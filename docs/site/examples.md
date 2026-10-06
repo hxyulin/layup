@@ -26,44 +26,44 @@ rather than the DSL playground.
 ## Decision: where should a request go?
 
 ```layup
-diagram "Choose a support route" layout=auto {
-  decision urgent "Is the service unavailable?" yellow
-  decision account "Is this an account issue?" blue
-  terminal incident "Page the on-call team" red
-  terminal billing "Contact account support" green
-  terminal help "Use the help center" purple
-  urgent -> incident "Yes"
-  urgent -> account "No"
-  account -> billing "Yes"
-  account -> help "No"
+diagram main "Choose a support route" type=graph layout=auto {
+  node urgent "Is the service unavailable?" style=decision palette=yellow
+  node account "Is this an account issue?" style=decision palette=blue
+  node incident "Page the on-call team" style=terminal palette=red
+  node billing "Contact account support" style=terminal palette=green
+  node help "Use the help center" style=terminal palette=purple
+  ::urgent -> ::incident "Yes"
+  ::urgent -> ::account "No"
+  ::account -> ::billing "Yes"
+  ::account -> ::help "No"
 }
 ```
 
 ## Sequence: show an asynchronous handoff
 
 ```layup
-diagram "Accept work asynchronously" mode=sequence {
+diagram main "Accept work asynchronously" type=sequence {
   participant browser "Browser"
   participant api "API"
   participant worker "Worker"
-  browser -> api "POST /jobs"
-  api -> worker "Queue job" async
-  api -> browser "202 Accepted" return
+  message connection-1 ::browser -> ::api "POST /jobs"
+  message connection-2 ::api -> ::worker "Queue job" delivery=async
+  message connection-3 ::api -> ::browser "202 Accepted" type=reply
 }
 ```
 
 ## State: show a lifecycle
 
 ```layup
-diagram "A connection lifecycle" mode=state-machine direction=right {
+diagram main "A connection lifecycle" type=state-machine flow-direction=right {
   initial start
   state offline "Offline"
   state online "Online"
   final closed
-  start -> offline
-  offline -> online "connect"
-  online -> offline "disconnect"
-  online -> closed "close"
+  transition connection-1 ::start -> ::offline
+  transition connection-2 ::offline -> ::online "connect"
+  transition connection-3 ::online -> ::offline "disconnect"
+  transition connection-4 ::online -> ::closed "close"
 }
 ```
 
