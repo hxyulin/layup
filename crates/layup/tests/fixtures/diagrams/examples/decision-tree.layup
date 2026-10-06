@@ -1,0 +1,11 @@
+diagram main "Choose a support route" type=graph layout=auto width=1000 subtitle="Questions branch into follow-up questions or terminal outcomes." {
+  node urgent "Is the service unavailable?" style=decision palette=yellow
+  node account "Is this an account issue?" style=decision palette=blue
+  node incident "Page the on-call team" style=terminal palette=red
+  node billing "Contact account support" style=terminal palette=green
+  node help "Use the help center" style=terminal palette=purple
+  ::urgent -> ::incident "Yes"
+  ::urgent -> ::account "No"
+  ::account -> ::billing "Yes"
+  ::account -> ::help "No"
+}

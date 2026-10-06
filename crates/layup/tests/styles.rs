@@ -220,7 +220,7 @@ fn automatic_legend_position_does_not_force_unused_entries() {
 
 #[test]
 fn legend_samples_retain_declared_paint_and_merge_identical_literal_strokes() {
-    let c = compile(include_str!("../../../examples/paint.layup")).unwrap();
+    let c = compile(include_str!("fixtures/diagrams/examples/paint.layup")).unwrap();
     let groups = c
         .scene
         .items
@@ -255,4 +255,64 @@ fn legend_samples_retain_declared_paint_and_merge_identical_literal_strokes() {
             .count(),
         3
     );
+}
+
+#[test]
+fn automatic_edge_palettes_reset_inherited_colors_and_follow_semantic_targets() {
+    for (settings, edges) in [
+        ("defaults edge palette=auto", "a -> b \"Request\""),
+        (
+            "edge-style calls palette=red",
+            "a -> b \"Request\" style=calls palette=auto",
+        ),
+        (
+            "edge-style parent palette=red; edge-style calls base=parent palette=auto",
+            "a -> b \"Request\" style=calls",
+        ),
+        (
+            "edge-style calls palette=red",
+            "b <- a \"Request\" style=calls palette=auto",
+        ),
+    ] {
+        let c = compile(&format!(
+            "diagram main type=graph {{ {settings}; node a palette=blue; node b palette=green; {edges} }}"
+        )).unwrap();
+        assert_eq!(
+            c.scene.edges[0].tone,
+            layup::style::Tone::Green,
+            "{settings}: {edges}"
+        );
+        assert!(matches!(
+            c.scene.edges[0].chip,
+            Some(Item::Chip {
+                tone: layup::style::Tone::Green,
+                ..
+            })
+        ));
+    }
+    // An automatic override on one connection must not affect its siblings.
+    let c = compile("diagram main type=graph { node a palette=blue; node b palette=green; edge-style calls palette=red; a -> b style=calls palette=auto; a -> b style=calls }").unwrap();
+    assert_eq!(c.scene.edges[0].tone, layup::style::Tone::Green);
+    assert_eq!(c.scene.edges[1].tone, layup::style::Tone::Red);
+}
+
+#[test]
+fn quoted_style_names_cannot_collide_with_literal_escape_sequences_in_legends() {
+    let c = compile(
+        r#"diagram main type=graph {
+        node-style "a b" fill-color=red legend-label="Red"
+        node-style a_20_b fill-color=blue legend-label="Blue"
+        node a style="a b"
+        node b style=a_20_b
+        legend visibility=visible nodes=["a b", a_20_b]
+    }"#,
+    )
+    .unwrap();
+    for theme in [Theme::Light, Theme::Dark, Theme::Auto] {
+        let svg = layup::svg::render(&c, theme);
+        assert!(svg.contains("p-legend-node-a_20_b"));
+        assert!(svg.contains("p-legend-node-a_5f_20_5f_b"));
+        assert!(svg.contains("--paint-legend-node-a_20_b-fill:red"));
+        assert!(svg.contains("--paint-legend-node-a_5f_20_5f_b-fill:blue"));
+    }
 }

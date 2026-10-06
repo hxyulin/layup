@@ -18,7 +18,7 @@ fn scene(source: &str, diagram: Option<&str>) -> serde_json::Value {
 
 #[test]
 fn graph_fixture_preserves_scoped_identity_source_spans_and_annotations() {
-    let source = include_str!("../../../examples/language-v1.layup");
+    let source = include_str!("fixtures/diagrams/examples/language-v1.layup");
     let compiled = layup::compile(source).unwrap();
     let json: serde_json::Value =
         serde_json::from_str(&layup::scene::export(&compiled).unwrap()).unwrap();
@@ -162,7 +162,7 @@ fn left_and_bidirectional_sides_follow_semantic_endpoints() {
 
 #[test]
 fn formatting_preserves_comments_values_references_and_is_idempotent() {
-    let source = include_str!("../../../examples/language-v1.layup");
+    let source = include_str!("fixtures/diagrams/examples/language-v1.layup");
     let formatted = layup::format::format(source).unwrap();
     assert_eq!(layup::format::format(&formatted).unwrap(), formatted);
     assert!(formatted.contains("// Definitions can follow"));
@@ -551,4 +551,107 @@ fn reviewed_style_vocabulary_preserves_inheritance_and_source_ranges() {
     assert!(
         layup::compile(&source.replace("palette=purple", "palette=purple palette=blue")).is_err()
     );
+}
+
+#[test]
+fn unused_defaults_receive_the_same_value_and_style_validation_as_used_defaults() {
+    for (grammar, defaults, objects, relationship) in [
+        ("graph", "edge style=missing", "node a; node b", "a -> b"),
+        ("graph", "edge bus=notBoolean", "node a; node b", "a -> b"),
+        (
+            "graph",
+            "edge source-side=wrong",
+            "node a; node b",
+            "a -> b",
+        ),
+        ("graph", "edge target-side=null", "node a; node b", "a -> b"),
+        ("graph", "edge route-side=wrong", "node a; node b", "a -> b"),
+        ("graph", "node href=null", "node a", ""),
+        ("graph", "node style=missing", "node a", ""),
+        ("graph", "node after=false", "node a", ""),
+        (
+            "sequence",
+            "message type=typo",
+            "participant a; participant b",
+            "message m a -> b",
+        ),
+        (
+            "sequence",
+            "message delivery=typo",
+            "participant a; participant b",
+            "message m a -> b",
+        ),
+        (
+            "sequence",
+            "message type=reply delivery=async",
+            "participant a; participant b",
+            "message m a -> b",
+        ),
+        (
+            "state-machine",
+            "transition event=null",
+            "state a; state b",
+            "a -> b",
+        ),
+    ] {
+        let unused = format!("diagram main type={grammar} {{ defaults {defaults} }}");
+        let used = format!(
+            "diagram main type={grammar} {{ defaults {defaults}; {objects}; {relationship} }}"
+        );
+        let unused_error = layup::compile(&unused).err().expect(&unused);
+        let used_error = layup::compile(&used).err().expect(&used);
+        assert_eq!(unused_error.code, used_error.code, "{defaults}");
+        assert_eq!(unused_error.msg, used_error.msg, "{defaults}");
+        assert!(unused_error.span.is_some());
+    }
+    for source in [
+        "diagram main type=graph { defaults edge style=calls bus=false source-side=top; edge-style calls palette=blue }",
+        "diagram main type=graph { defaults node style=service href=\"https://example.com\"; node-style service }",
+        "diagram main type=sequence { defaults message type=call delivery=async; participant a }",
+        "diagram main type=state-machine { defaults transition style=calls label=style; edge-style calls default-label=\"Call\"; initial start; state ready; start -> ready }",
+    ] {
+        layup::compile(source).unwrap();
+    }
+}
+
+#[test]
+fn transition_style_captions_conflict_with_each_structured_caption_field() {
+    for fields in ["event=\"tick\"", "guard=\"ready\"", "action=\"run()\""] {
+        for declaration in [
+            format!("transition go ready -> ready style=calls label=style {fields}"),
+            format!("defaults transition style=calls label=style {fields}"),
+            format!(
+                "defaults transition style=calls label=style; transition go ready -> ready {fields}"
+            ),
+        ] {
+            let source = format!(
+                "diagram main type=state-machine {{ initial start; state ready; start -> ready; edge-style calls default-label=\"Caption\"; {declaration} }}"
+            );
+            let error = layup::compile(&source).err().expect(&source);
+            assert_eq!(error.code, "document/transition");
+            assert!(error.msg.contains("label=style"));
+        }
+    }
+    for declaration in [
+        "transition go ready -> ready style=calls label=style",
+        "transition go ready -> ready event=\"tick\" guard=\"ready\" action=\"run()\"",
+    ] {
+        layup::compile(&format!("diagram main type=state-machine {{ initial start; state ready; start -> ready; edge-style calls default-label=\"Caption\"; {declaration} }}")).unwrap();
+    }
+}
+
+#[test]
+fn packaged_readme_quickstart_uses_compilable_source_syntax() {
+    let readme = include_str!("../README.md");
+    let source = readme
+        .split("let source = r#\"")
+        .nth(1)
+        .unwrap()
+        .split("\"#;")
+        .next()
+        .unwrap();
+    let compiled = layup::compile(source).unwrap();
+    assert_eq!(compiled.scene.nodes.len(), 2);
+    assert_eq!(compiled.scene.edges.len(), 1);
+    assert!(compiled.warnings.is_empty());
 }

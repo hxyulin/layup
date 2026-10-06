@@ -1,0 +1,22 @@
+// Fictional library boundaries: nested containers and typed edges.
+diagram main "Storage contracts" type=graph subtitle="An adapter implements a shared interface; the application selects that adapter." {
+  package storage-api "storage-api" {
+    node store "Store interface" style=trait {
+      code "get(key) / put(key, value)"
+    }
+  }
+  package storage-disk "storage-disk" {
+    node disk "Disk adapter" style=type {
+      code "DiskStore"
+      text "Implements the storage interface using local files."
+    }
+  }
+  package application "application" {
+    node app "Catalog" style=module {
+      code "Catalog<DiskStore>"
+      text "Receives a storage implementation at startup."
+    }
+  }
+  ::storage-disk.disk -> ::storage-api.store label=style style=impl
+  ::application.app -> ::storage-disk.disk label=style style=uses
+}

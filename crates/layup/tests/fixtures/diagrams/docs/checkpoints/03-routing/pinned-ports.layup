@@ -1,0 +1,6 @@
+diagram main "Keep explicit ports" type=graph {
+  node source "Source"
+  node obstacle "Obstacle"
+  node target "Target"
+  ::source -> ::target "around" source-side=right target-side=right
+}

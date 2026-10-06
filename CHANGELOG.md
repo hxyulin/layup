@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Validate unused diagram defaults, reject conflicting transition captions, and
+  reset inherited connection palettes with `palette=auto`.
+- Preserve distinct quoted style names in SVG legend paint and marker IDs.
+- Package self-contained Rust test fixtures and update the crate quickstart for
+  the current language.
 - Replace the source DSL with named diagrams and per-type graph, sequence and
   state-machine grammars. The optional `layup 1` assertion checks the revision;
   legacy headers, typed arrow names, implicit object IDs and bare style flags
@@ -14,10 +19,6 @@
 - Migrate canonical diagrams, Markdown guides, frontend fixtures and Tree-sitter
   syntax highlighting together. ER, member/port geometry, full-document JSON
   input and public property schemas remain future extensions.
-
-
-## Unreleased
-
 - Version-1 semantic graph input in Rust and JS/WASM, with original symbol IDs,
   hierarchy, custom kinds, named views, original-code locations and metadata.
 - CLI render/compile/check detect graph `.json` files; render/compile accept

@@ -1,0 +1,6 @@
+diagram main "Keep supporting nodes together" type=graph layout=auto subtitle="The cache shares the worker's layer, even without an incoming edge." {
+  node api "API"
+  node worker "Worker"
+  node cache "Cache" same-rank=::worker
+  ::api -> ::worker
+}

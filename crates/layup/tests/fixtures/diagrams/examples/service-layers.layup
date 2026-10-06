@@ -1,0 +1,31 @@
+// Fictional web service: authored bands and weighted rows.
+diagram main "A small web service" type=graph subtitle="A layered design: request handling depends on application logic and storage." {
+  band "Entry points" {
+    row {
+      node http "HTTP API" style=card palette=blue {
+        code "GET /items"
+        text "Validate requests and format responses."
+      }
+      node cli "Admin CLI" style=card palette=blue {
+        code "service import"
+        text "Run maintenance jobs."
+      }
+    }
+  }
+  band "Application" {
+    node service "Catalog service" style=card palette=green {
+      text "Coordinate use cases and enforce business rules."
+    }
+  }
+  band "Infrastructure" {
+    row weights=[2, 1] {
+      node database "Database" style=card palette=yellow {
+        code "Repository"
+        text "Persist catalog records."
+      }
+      node cache "Cache" style=card palette=purple {
+        text "Reuse frequent lookups."
+      }
+    }
+  }
+}

@@ -90,6 +90,42 @@ try {
   await page.setContent(document(render(source, 'light') + render(other, 'light')));
   await check(page.locator('svg.layup').nth(0), 'light');
   assert.equal((await values(page.locator('svg.layup').nth(1))).fill, 'rgb(255, 0, 0)');
+  // Quoted style names and names resembling escaped punctuation stay distinct,
+  // including the CSS variables and marker IDs of connection legend samples.
+  const collisionSource = `diagram main type=graph {
+    node-style "a b" fill-color=red legend-label="Red node"
+    node-style a_20_b fill-color=blue legend-label="Blue node"
+    edge-style "a b" stroke-color=red legend-label="Red edge"
+    edge-style a_20_b stroke-color=blue legend-label="Blue edge"
+    node a style="a b"
+    node b style=a_20_b
+    a -> b style="a b"
+    b -> a style=a_20_b
+    legend visibility=visible nodes=["a b", a_20_b] edges=["a b", a_20_b]
+  }`;
+  for (const theme of ['light', 'dark']) {
+    await page.setContent(document(render(collisionSource, theme)));
+    const samples = await page.locator('.legend-paint').evaluateAll(groups => groups.map(group => {
+      const line = group.querySelector('.ln');
+      const shape = group.querySelector('.box');
+      const markerId = line && getComputedStyle(line).markerEnd.match(/#([^"')]+)/)[1];
+      return {
+        label: group.textContent.trim(),
+        color: getComputedStyle(line ?? shape)[line ? 'stroke' : 'fill'],
+        markerId,
+        markerColor: markerId && getComputedStyle(document.getElementById(markerId).querySelector('path')).fill,
+      };
+    }));
+    assert.equal(samples.length, 4);
+    for (const sample of samples) {
+      const color = sample.label.startsWith('Red') ? 'rgb(255, 0, 0)' : 'rgb(0, 0, 255)';
+      assert.equal(sample.color, color, sample.label);
+      if (sample.markerId) assert.equal(sample.markerColor, color, sample.label);
+    }
+    const markerIds = samples.filter(sample => sample.markerId).map(sample => sample.markerId);
+    assert.equal(new Set(markerIds).size, 2);
+    await page.screenshot({ path: `out/paint/style-names-${theme}.png`, fullPage: true });
+  }
   assert.deepEqual(errors, []);
   console.log('Verified fixed/automatic/host paint themes, marker and legend colors, literal channels, stroke styles, CSS isolation and narrow layout.');
 } finally {

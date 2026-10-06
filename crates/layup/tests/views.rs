@@ -118,7 +118,7 @@ fn view_slide_configuration_overrides_shared_configuration() {
 }
 #[test]
 fn formatting_keeps_all_selected_views_and_steps() {
-    let source = include_str!("../../../examples/presentation-model.layup");
+    let source = include_str!("fixtures/diagrams/examples/presentation-model.layup");
     let formatted = layup::format::format(source).unwrap();
     assert_eq!(layup::format::format(&formatted).unwrap(), formatted);
     for view in ["overview", "walkthrough"] {

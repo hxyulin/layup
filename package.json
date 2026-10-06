@@ -15,6 +15,7 @@
     "showcase": "node tools/render-showcase.mjs",
     "showcase:check": "node tools/render-showcase.mjs --check",
     "analysis:example": "node packages/layup/cargo-cli.js --source-base-url https://github.com/hxyulin/layup/blob/main/ -o examples/code-analysis.json",
+    "fixtures:sync": "node tools/sync-crate-fixtures.mjs --write",
     "repo:check": "node tools/check-repository.mjs",
     "syntax:generate": "pnpm --filter @hxyulin/tree-sitter-layup generate",
     "syntax:test": "pnpm --filter @hxyulin/tree-sitter-layup test && pnpm --filter @hxyulin/tree-sitter-layup check:generated"

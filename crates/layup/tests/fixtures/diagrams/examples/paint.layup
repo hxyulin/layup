@@ -1,0 +1,12 @@
+// Separate semantic declarations, reusable styles and theme-aware paint.
+diagram paint "Services and their presentation" type=graph layout=auto flow-direction=right background-color={light: "#ffffff", dark: "#101827"} {
+  node-style service base=process palette=blue fill-color={light: "#eff6ff", dark: "#172554"} stroke-color={light: "#1d4ed8", dark: "#93c5fd"} text-color={light: "#1e3a8a", dark: "#bfdbfe"} legend-label="Service"
+  node-style storage base=service shape=rectangle fill-color=none legend-label="Storage"
+  edge-style calls palette=target default-label="request" legend-label="RPC" stroke-color={light: "#1d4ed8", dark: "#93c5fd"} stroke-style=dotted stroke-width=2
+  node api "API" style=service
+  node worker "Worker" style=service palette=green
+  node store "Storage" style=storage
+  edge dispatch api -> worker style=calls label=style
+  edge save worker -> store "save" style=calls
+  legend visibility=visible nodes=[service, storage] edges=[calls] position=bottom
+}

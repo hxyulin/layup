@@ -1,0 +1,8 @@
+diagram main "A return path" type=graph {
+  node start "Start"
+  node work "Work"
+  node finish "Finish"
+  ::start -> ::work
+  ::work -> ::finish
+  ::finish -> ::start "retry"
+}

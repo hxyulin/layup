@@ -246,7 +246,7 @@ fn css_token(value: &str) -> String {
     value
         .chars()
         .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '_' || c == '-' {
+            if c.is_ascii_alphanumeric() || c == '-' {
                 c.to_string()
             } else {
                 format!("_{:x}_", u32::from(c))

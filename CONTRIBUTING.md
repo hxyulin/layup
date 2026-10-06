@@ -89,7 +89,10 @@ fullscreen diagrams when changing shared client styles.
 Add complete, strict-clean examples to `examples/`. Document language changes
 in the site guide and reference, and keep relevant repository references in
 `docs/` aligned. Use `layup` fences for complete diagrams and `text` for partial
-syntax. Playground presets import the canonical examples.
+syntax. Playground presets import the canonical examples. Rust tests use
+packaged copies in `crates/layup/tests/fixtures/diagrams` so they also run from a crate archive.
+After changing canonical diagrams, run `pnpm fixtures:sync`; `pnpm repo:check`
+verifies those copies match their sources.
 
 The README is a showcase and entry point. Put detailed tutorials and API
 material on the docs site. Its diagram previews are generated in both themes:

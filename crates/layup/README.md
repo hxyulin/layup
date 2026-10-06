@@ -23,9 +23,9 @@ cargo binstall layup-cli --version 0.3.0
 
 ```rust
 fn main() -> Result<(), layup::Error> {
-    let source = r#"diagram "A request" layout=auto direction=right {
-        process client "Client" blue
-        process api "API" green
+    let source = r#"diagram request "A request" type=graph layout=auto flow-direction=right {
+        node client "Client" style=process palette=blue
+        node api "API" style=process palette=green
         client -> api "Request"
     }"#;
     let compiled = layup::compile(source)?;
@@ -38,11 +38,11 @@ fn main() -> Result<(), layup::Error> {
 The engine supports authored/automatic layouts in all four graph directions,
 Unicode and RTL text, decisions, state machines, sequence diagrams, slide
 viewports, presentation steps and shared models with named views. Public
-modules also expose the lexer/parser, formatter, linter and scene exporter.
+modules expose the document parser, formatter, linter and scene exporter.
 
 The current checkout also provides `input::Graph`, `input::parse`,
 `input::compile`, and `input::compile_json` for versioned semantic graph
-input with original code locations and analysis metadata. These unreleased
+input with original code locations and analysis metadata. These
 APIs reuse the DSL compilation pipeline. See
 [generation from analysis](https://hxyulin.github.io/layup/guide/code-analysis.html).
 

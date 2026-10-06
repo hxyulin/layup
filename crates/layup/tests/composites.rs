@@ -53,7 +53,7 @@ fn check(c: &Compiled) {
 
 #[test]
 fn nested_composites_have_scoped_initials_and_contained_geometry_in_all_directions() {
-    let source = include_str!("../../../examples/state-composite.layup");
+    let source = include_str!("fixtures/diagrams/examples/state-composite.layup");
     for d in ["down", "up", "right", "left"] {
         let c = compile(&source.replace("direction=right", &format!("direction={d}"))).unwrap();
         check(&c);
@@ -259,7 +259,7 @@ fn authored_rows_and_custom_kinds_preserve_composite_scopes() {
 
 #[test]
 fn reordering_nested_transition_statements_preserves_geometry() {
-    let a = include_str!("../../../examples/state-composite.layup");
+    let a = include_str!("fixtures/diagrams/examples/state-composite.layup");
     let mut lines = a.lines().map(str::to_owned).collect::<Vec<_>>();
     let positions = lines
         .iter()

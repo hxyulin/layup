@@ -265,6 +265,81 @@ fn style_values(attrs: &Attributes, edge: bool) -> Result<(), Error> {
     }
     Ok(())
 }
+// Validate target values independently of whether a declaration uses them.
+// Keep defaults and concrete objects/connections on the same value contract.
+fn target_values(attrs: &Attributes, edge: bool) -> Result<(), Error> {
+    style_values(attrs, edge)?;
+    super::Paint::parse(attrs, edge)?;
+    for (name, a) in attrs {
+        let choices: Option<&[&str]> = match name.as_str() {
+            "source-side" | "target-side" | "route-side" => {
+                Some(&["top", "right", "bottom", "left"])
+            }
+            "type" => Some(&["call", "reply"]),
+            "delivery" => Some(&["sync", "async"]),
+            "label" => Some(&["style"]),
+            _ => None,
+        };
+        if let Some(choices) = choices {
+            if !choices.contains(&text(&a.value, a.value_span)?.as_str()) {
+                return Err(fail(
+                    a.value_span,
+                    if matches!(name.as_str(), "type" | "delivery") {
+                        "document/message"
+                    } else {
+                        "document/value"
+                    },
+                    format!("{name} must be {}", choices.join(" or ")),
+                ));
+            }
+        } else {
+            match name.as_str() {
+                "bus" if !matches!(a.value, Value::Bool(_)) => {
+                    return Err(fail(
+                        a.value_span,
+                        "document/value",
+                        "bus requires true or false",
+                    ));
+                }
+                "style" | "role" | "href" | "event" | "guard" | "action" => {
+                    text(&a.value, a.value_span)?;
+                }
+                "after" | "same-rank" | "beside"
+                    if !matches!(&a.value, Value::Reference(_))
+                        && !matches!(&a.value, Value::Choice(s) | Value::String(s) if !s.is_empty()) =>
+                {
+                    return Err(fail(
+                        a.value_span,
+                        "document/reference",
+                        "expected an object reference",
+                    ));
+                }
+                _ => {}
+            }
+        }
+    }
+    if attr_text(attrs, "type")?.as_deref() == Some("reply")
+        && let Some(a) = attrs.get("delivery")
+    {
+        return Err(fail(
+            a.value_span,
+            "document/message",
+            "delivery applies only to calls",
+        ));
+    }
+    if attrs.contains_key("label")
+        && let Some(a) = ["event", "guard", "action"]
+            .iter()
+            .find_map(|key| attrs.get(*key))
+    {
+        return Err(fail(
+            a.name_span,
+            "document/transition",
+            "label=style is exclusive with event/guard/action",
+        ));
+    }
+    Ok(())
+}
 fn attr_text(attrs: &Attributes, name: &str) -> Result<Option<String>, Error> {
     attrs
         .iter()
@@ -913,7 +988,7 @@ impl<'a> Builder<'a> {
                             "beside",
                         ],
                     )?;
-                    style_values(&node.attributes, false)?;
+                    target_values(&node.attributes, false)?;
                     if self.mode == "sequence" {
                         for name in ["after", "same-rank", "beside", "shape"] {
                             if let Some(a) = node.attributes.get(name) {
@@ -1576,7 +1651,7 @@ impl<'a> Builder<'a> {
                 "action",
             ],
         )?;
-        style_values(&edge.attributes, true)?;
+        target_values(&edge.attributes, true)?;
         let mut from = self.resolve(&edge.from, scope, edge.from_span)?;
         let mut to = self.resolve(&edge.to, scope, edge.to_span)?;
         if edge.arrow == "<-" {
@@ -1849,8 +1924,31 @@ fn lower(
                 },
             )?;
             let edge = ["edge", "message", "transition"].contains(&category.as_str());
-            style_values(attrs, edge)?;
-            super::Paint::parse(attrs, edge)?;
+            target_values(attrs, edge)?;
+            if let Some(a) = attrs.get("style") {
+                builder.kind(
+                    &text(&a.value, a.value_span)?,
+                    edge,
+                    a.value_span,
+                    &mut BTreeSet::new(),
+                )?;
+            }
+            if let Some(a) = attrs.get("label") {
+                let name = attr_text(attrs, "kind")?.unwrap_or_else(|| "default".into());
+                let (base, style) =
+                    builder.kind(&name, true, a.value_span, &mut BTreeSet::new())?;
+                let preset = &crate::style::arrow_presets()[&base];
+                if attr_text(&style, "label")?.is_none()
+                    && preset.chip.is_none()
+                    && preset.label.is_none()
+                {
+                    return Err(fail(
+                        a.value_span,
+                        "document/label",
+                        "label=style requires a default-label on the selected edge style",
+                    ));
+                }
+            }
             let invalid: &[&str] = if diagram.diagram_type == "sequence" {
                 &[
                     "after",

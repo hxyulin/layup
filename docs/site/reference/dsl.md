@@ -85,12 +85,15 @@ Styles belong directly to a diagram. Forward bases work; cycles, duplicate
 definitions and invalid unused definitions fail. A custom style is selected
 with `style=NAME`, rather than a declaration keyword. Defaults categories are
 `node`/`edge`, `participant`/`message`, or `state`/`transition`, according to the
-body grammar. There can be one defaults declaration per category.
+body grammar. There can be one defaults declaration per category. Default
+values and style references are validated even when no declaration uses them.
 
 Properties resolve through built-in defaults, diagram defaults, declared base
 styles, declared overrides and instance overrides. A palette change retains
 inherited explicit paint; `fill-color=auto` clears an inherited fill override.
-Container paint does not propagate to contained objects.
+For connections, `palette=auto` resets an inherited palette and derives it from
+the target node, as does `palette=target`. Container paint does not propagate
+to contained objects.
 
 Built-in node templates include `node`, `card`, `interface`, `container`,
 `package`, `crate`, `process`, `decision`, and `terminal`. Software-oriented
@@ -134,7 +137,7 @@ Built-in connection styles include `default`, `flow`, `impl`, `extends`,
 | `source-side`, `target-side` | `top`, `right`, `bottom`, `left` on semantic endpoints |
 | `route-side` | Preferred exterior side |
 | `bus=true` / `bus=false` | Shared routing channel |
-| `label=style` | Request the selected style's default caption; exclusive with a positional caption |
+| `label=style` | Request the selected style's default caption; exclusive with a positional caption or transition `event`/`guard`/`action` |
 
 Palette inheritance changes paint independently of caption/legend labels.
 

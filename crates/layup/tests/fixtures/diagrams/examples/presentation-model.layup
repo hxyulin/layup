@@ -1,0 +1,41 @@
+// One sequence diagram, a complete overview, and a slide-sized walkthrough.
+// Render with --view overview or --view walkthrough --html.
+diagram main "Request and retry" type=sequence {
+  slide size=wide
+  participant client "Browser" palette=blue
+  participant api "API" palette=purple
+  participant worker "Worker" palette=green
+  message request ::client -> ::api "POST /jobs"
+  message enqueue ::api -> ::worker "Queue work" delivery=async
+  message accepted ::api -> ::client "202 Accepted" type=reply
+  loop "Poll until complete" {
+    message poll ::client -> ::api "GET /jobs/:id"
+    message pending ::api -> ::client "200 + pending" type=reply
+  }
+  message result ::api -> ::client "200 + result" type=reply
+  view overview "Request and retry · overview" {
+    include ::client ::api ::worker
+  }
+  view walkthrough "Request and retry · walkthrough" {
+    include ::client ::api ::worker
+    step request "Submit the request" {
+      show objects=[::client, ::api, ::worker]
+      show connections=[request]
+      highlight connections=[request]
+      speaker-note "The browser sends a request to the API."
+    }
+    step dispatch "Dispatch work asynchronously" {
+      show connections=[enqueue, accepted]
+      highlight connections=[enqueue]
+      speaker-note "Work continues after the API returns an acknowledgement."
+    }
+    step retry "Poll while work is pending" {
+      show connections=[poll, pending]
+      highlight connections=[poll, pending]
+    }
+    step complete "Return the result" {
+      show connections=[result]
+      highlight connections=[result]
+    }
+  }
+}

@@ -211,7 +211,7 @@ fn invalid_sequence_structure_has_source_diagnostics() {
 
 #[test]
 fn international_multiline_labels_and_user_fonts_use_measured_text() {
-    let source = include_str!("../../../examples/sequence-international.layup");
+    let source = include_str!("fixtures/diagrams/examples/sequence-international.layup");
     let c = compile(source).unwrap();
     assert!(c.warnings.is_empty(), "{:?}", c.warnings);
     let first = c.scene.edges[0].chip.as_ref().unwrap();
@@ -291,8 +291,8 @@ fn slides_and_reveal_steps_keep_sequence_message_geometry_and_identity() {
 #[test]
 fn sequence_examples_compile_without_warnings() {
     for source in [
-        include_str!("../../../examples/sequence.layup"),
-        include_str!("../../../examples/sequence-international.layup"),
+        include_str!("fixtures/diagrams/examples/sequence.layup"),
+        include_str!("fixtures/diagrams/examples/sequence-international.layup"),
     ] {
         let c = compile(source).unwrap();
         assert!(c.warnings.is_empty(), "{:?}", c.warnings);

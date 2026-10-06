@@ -261,7 +261,7 @@ fn normalized_svg(compiled: &layup::Compiled) -> String {
 
 #[test]
 fn formatting_existing_diagrams_is_idempotent_and_preserves_rendering() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/diagrams");
     let mut directories = vec![root.join("examples"), root.join("docs")];
     let mut checked = 0;
     while let Some(directory) = directories.pop() {

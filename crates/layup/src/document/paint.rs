@@ -188,7 +188,7 @@ impl Paint {
                     if let Value::Choice(s) | Value::String(s) = &attr.value {
                         paint.palette_origin = match s.as_str() {
                             "source" => Some(PaletteOrigin::Source),
-                            "target" => Some(PaletteOrigin::Target),
+                            "target" | "auto" => Some(PaletteOrigin::Target),
                             _ => None,
                         };
                     }

@@ -1,0 +1,6 @@
+diagram main "Skip a busy stage" type=graph {
+  node input "Input"
+  node busy "Independent work"
+  node output "Output"
+  ::input -> ::output "bypass"
+}

@@ -340,7 +340,7 @@ fn native_compilation_uses_selected_view_and_preserves_authored_references() {
 
 #[test]
 fn formatting_keeps_every_view_semantically_identical() {
-    let source = include_str!("../../../../examples/model-views.layup");
+    let source = include_str!("../../tests/fixtures/diagrams/examples/model-views.layup");
     let formatted = layup::format::format(source).unwrap();
     assert_eq!(layup::format::format(&formatted).unwrap(), formatted);
     for view in ["overview", "detail"] {

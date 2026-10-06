@@ -1,0 +1,34 @@
+// Render with `just docs`. This diagram is built by the tool it describes.
+@doc(text="The CLI passes diagram text to compile. Lexer and parser read syntax; model resolves semantics; layout measures blocks using bundled fonts; route places edges; check reports warnings. SVG embeds the fonts, and HTML wraps SVG with interaction.")
+diagram main "How layup builds a diagram" type=graph width=900 subtitle="layup-cli handles commands and files; layup provides the layout engine." {
+  // Documentation: The CLI passes diagram text to compile. Lexer and parser read syntax; model resolves semantics; layout measures blocks using bundled fonts; route places edges; check reports warnings. SVG embeds the fonts, and HTML wraps SVG with interaction.
+  node syntax "1. Read the source" palette=blue {
+    code "lexer.rs + parser.rs"
+    text "Turn .layup text into tokens and generic syntax items."
+  }
+  node model "2. Resolve the diagram" palette=green {
+    code "model.rs + style.rs"
+    text "Resolve node IDs, kinds, tones, edge targets, and the legend."
+  }
+  node layout "3. Measure and place blocks" palette=yellow {
+    code "layout.rs + text/"
+    text "Read bundled IBM Plex advances; wrap text and place rows and containers."
+  }
+  node route "4. Route edges" palette=purple {
+    code "route.rs"
+    text "Find orthogonal paths around nodes and place edge labels."
+  }
+  node check "5. Report problems" palette=orange {
+    code "check.rs"
+    text "Combine scene checks with layout and routing warnings; --strict fails on warnings."
+  }
+  node output "6. Render the result" palette=blue {
+    code "svg.rs + html.rs"
+    text "SVG embeds the measured fonts. HTML wraps SVG with pan, zoom, and selection."
+  }
+  ::syntax -> ::model
+  ::model -> ::layout
+  ::layout -> ::route
+  ::route -> ::check
+  ::check -> ::output
+}

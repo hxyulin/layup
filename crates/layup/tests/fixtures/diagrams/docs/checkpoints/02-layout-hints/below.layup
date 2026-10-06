@@ -1,0 +1,5 @@
+diagram main "Order without extra edges" type=graph layout=auto subtitle="Place stages vertically without drawing relationships that do not exist." {
+  node setup "Setup"
+  node execute "Execute" after=::setup
+  node cleanup "Cleanup" after=::execute
+}

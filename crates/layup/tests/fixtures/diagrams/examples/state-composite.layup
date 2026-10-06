@@ -1,0 +1,29 @@
+diagram main "Connection lifecycle" type=state-machine flow-direction=right {
+  initial start
+  state offline "Offline" palette=gray
+  state connected "Connected" palette=blue {
+    text "entry / open(); exit / close()"
+    initial enter
+    state ready "Ready" palette=green
+    state sending "Sending" palette=yellow {
+      initial begin
+      state waiting "Awaiting reply" palette=purple
+      state retry "Retrying" palette=orange
+      final delivered
+      transition connection-1 ::connected.sending.begin -> ::connected.sending.waiting
+      transition connection-2 ::connected.sending.waiting -> ::connected.sending.retry "timeout"
+      transition connection-3 ::connected.sending.retry -> ::connected.sending.waiting "retry"
+      transition connection-4 ::connected.sending.waiting -> ::connected.sending.delivered "ack"
+    }
+    final complete
+    transition connection-5 ::connected.enter -> ::connected.ready
+    transition connection-6 ::connected.ready -> ::connected.sending "send"
+    transition connection-7 ::connected.sending -> ::connected.ready "next"
+    transition connection-8 ::connected.sending -> ::connected.complete "finished"
+  }
+  final stopped
+  transition connection-9 ::start -> ::offline
+  transition connection-10 ::offline -> ::connected "connect"
+  transition connection-11 ::connected -> ::offline "disconnect"
+  transition connection-12 ::connected -> ::stopped "shutdown"
+}

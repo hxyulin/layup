@@ -1,0 +1,13 @@
+diagram main "检查申请" type=graph layout=auto flow-direction=left width=1200 {
+  node complete "申请资料是否完整？" style=decision palette=yellow {
+    text "请确认姓名和联系方式。"
+  }
+  node approved "هل تمت الموافقة؟" style=decision palette=blue text-direction=rtl
+  node followup "请补充申请资料" style=terminal palette=orange
+  node accept "قبول الطلب" style=terminal palette=green text-direction=rtl
+  node reject "رفض الطلب" style=terminal palette=red text-direction=rtl
+  ::complete -> ::approved "是"
+  ::complete -> ::followup "否"
+  ::approved -> ::accept "نعم"
+  ::approved -> ::reject "لا"
+}

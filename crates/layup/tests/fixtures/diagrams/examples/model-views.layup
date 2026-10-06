@@ -1,0 +1,27 @@
+// Define the architecture once, then choose a view with --view overview/detail.
+// Explicit IDs keep references and presentation steps stable between views.
+// Ancestor containers remain around selected descendants. Unselected
+// siblings and connections to them disappear; endpoint IDs never change.
+diagram main "Job processing" type=graph layout=auto {
+  node-style service base=node palette=blue
+  node client "Client" style=service
+  node api "Job API" style=service
+  group processing "Processing" {
+    node queue "Queue" palette=purple
+    node worker "Worker" palette=green {
+      code "process(job)"
+      text "Retries failed jobs"
+    }
+    node store "Object storage" palette=orange
+  }
+  ::client -> ::api "submit"
+  ::api -> ::processing.queue "enqueue"
+  ::processing.queue -> ::processing.worker "consume"
+  ::processing.worker -> ::processing.store "save"
+  view overview "Job processing · overview" flow-direction=right {
+    include ::client ::api ::processing
+  }
+  view detail "Job processing · worker" flow-direction=down {
+    include ::processing.queue ::processing.worker ::processing.store
+  }
+}

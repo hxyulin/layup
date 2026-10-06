@@ -3,10 +3,10 @@ use layup::{compile, model};
 #[test]
 fn public_model_builder_accepts_the_same_document_preprocessing() {
     for source in [
-        include_str!("../../../examples/presentation-model.layup"),
-        include_str!("../../../examples/model-views.layup"),
-        include_str!("../../../examples/slides.layup"),
-        include_str!("../../../examples/language-v1.layup"),
+        include_str!("fixtures/diagrams/examples/presentation-model.layup"),
+        include_str!("fixtures/diagrams/examples/model-views.layup"),
+        include_str!("fixtures/diagrams/examples/slides.layup"),
+        include_str!("fixtures/diagrams/examples/language-v1.layup"),
     ] {
         let typed = model::build(source).unwrap();
         let compiled = compile(source).unwrap();
