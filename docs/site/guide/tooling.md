@@ -6,11 +6,12 @@ Use it to catch authoring problems before a diagram enters a document or talk.
 ## Editor syntax highlighting
 
 The repository includes a separate
-[`@hxyulin/tree-sitter-layup` grammar package](https://github.com/hxyulin/layup/tree/main/packages/tree-sitter-layup)
+[Tree-sitter Layup grammar](https://github.com/hxyulin/layup/tree/main/packages/tree-sitter-layup)
 with highlight and folding queries. It recognizes `.layup` files, inline
 `//` comments, nested `/* … */` comments, namespaced annotations, structured
 values, Unicode identifiers and qualified references. The package guide
-includes a Neovim setup and a Node parsing example.
+includes a Git-based Neovim installation pinned to `v0.4.0`, a custom
+`nvim-treesitter` configuration and an optional Node parsing example.
 
 The grammar covers shared document syntax and graph, sequence and state
 bodies. Extension declaration heads can be highlighted before a renderer
@@ -19,9 +20,10 @@ implements them. Use
 bodies can use the shared declaration syntax; arbitrary embedded languages
 require additional grammars and editor injection queries.
 
-The package is currently available from the repository. It has not been
-published to npm. Tree-sitter highlighting is an editor integration; the
-documentation playground continues to use its existing editor.
+Editor installs fetch the grammar and queries from Git; no npm publication is
+required. The optional Node binding is not published to npm. Tree-sitter
+highlighting is an editor integration; the documentation playground continues
+to use its existing editor.
 
 Named documents have an optional `layup 1` revision assertion. See
 [shared document syntax](/guide/language-v1) for extensions and exact typed values.

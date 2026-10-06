@@ -28,7 +28,7 @@ function checkTokens(filename, tokens) {
     if (token.children) checkTokens(filename, token.children);
   }
 }
-for (const filename of ['README.md', 'CONTRIBUTING.md', 'AGENTS.md']) {
+for (const filename of ['README.md', 'CONTRIBUTING.md', 'AGENTS.md', 'packages/tree-sitter-layup/README.md']) {
   checkTokens(filename, md.parse(readFileSync(join(root, filename), 'utf8'), {}));
 }
 const directory = join(root, '.github/ISSUE_TEMPLATE');
