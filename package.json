@@ -15,7 +15,9 @@
     "showcase": "node tools/render-showcase.mjs",
     "showcase:check": "node tools/render-showcase.mjs --check",
     "analysis:example": "node packages/layup/cargo-cli.js --source-base-url https://github.com/hxyulin/layup/blob/main/ -o examples/code-analysis.json",
-    "repo:check": "node tools/check-repository.mjs"
+    "repo:check": "node tools/check-repository.mjs",
+    "syntax:generate": "pnpm --filter @hxyulin/tree-sitter-layup generate",
+    "syntax:test": "pnpm --filter @hxyulin/tree-sitter-layup test && pnpm --filter @hxyulin/tree-sitter-layup check:generated"
   },
   "devDependencies": {
     "markdown-it": "^14.3.2",

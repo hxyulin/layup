@@ -132,6 +132,11 @@ analysis-test: wasm
 language-test: wasm
     node tools/verify-language-v1.mjs
 
+# Parse canonical diagrams, check editor highlights and incremental recovery.
+syntax-test:
+    pnpm install --frozen-lockfile
+    pnpm syntax:test
+
 # Regenerate light/dark README previews from canonical examples.
 showcase:
     pnpm showcase

@@ -56,3 +56,4 @@ jobs:
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
           "$RUNNER_TEMP/actionlint" -color
       - run: pnpm repo:check
+      - run: pnpm syntax:test

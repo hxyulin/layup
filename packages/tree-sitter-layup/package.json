@@ -1,0 +1,73 @@
+{
+  "name": "@hxyulin/tree-sitter-layup",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for Layup software diagrams",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hxyulin/layup.git",
+    "directory": "packages/tree-sitter-layup"
+  },
+  "license": "MIT OR Apache-2.0",
+  "author": {
+    "name": "Layup contributors"
+  },
+  "main": "bindings/node",
+  "types": "bindings/node",
+  "keywords": [
+    "incremental",
+    "parsing",
+    "tree-sitter",
+    "layup"
+  ],
+  "files": [
+    "grammar.js",
+    "tree-sitter.json",
+    "binding.gyp",
+    "prebuilds/**",
+    "queries/*",
+    "src/**",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "bindings/node/index.js",
+    "bindings/node/index.d.ts",
+    "bindings/node/binding.cc"
+  ],
+  "dependencies": {
+    "node-addon-api": "^8.5.0",
+    "node-gyp-build": "^4.8.4",
+    "node-gyp": "^12.4.0"
+  },
+  "devDependencies": {
+    "tree-sitter": "0.25.1",
+    "tree-sitter-cli": "0.26.11"
+  },
+  "peerDependencies": {
+    "tree-sitter": "^0.25.0"
+  },
+  "peerDependenciesMeta": {
+    "tree-sitter": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "install": "node-gyp-build",
+    "generate": "tree-sitter generate --abi 15",
+    "test": "tree-sitter test --rebuild && node --test bindings/node/*_test.js",
+    "check:generated": "node tools/check-generated.mjs",
+    "prepack": "pnpm check:generated",
+    "pretest": "node-gyp rebuild"
+  },
+  "engines": {
+    "node": ">=22.9"
+  },
+  "exports": {
+    ".": {
+      "types": "./bindings/node/index.d.ts",
+      "default": "./bindings/node/index.js"
+    },
+    "./queries/*": "./queries/*",
+    "./tree-sitter.json": "./tree-sitter.json",
+    "./package.json": "./package.json"
+  }
+}

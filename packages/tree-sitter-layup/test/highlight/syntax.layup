@@ -1,0 +1,30 @@
+layup 1
+// <- keyword
+//    ^ number
+@company.analysis(value={public: true, extra: null})
+// ^ attribute
+//       ^ attribute
+//                ^ property
+//                       ^ property
+//                               ^ boolean
+//                                            ^ constant.builtin
+diagram calls type=graph {
+// <- keyword
+//      ^ variable
+//            ^ property
+//                 ^ constant
+  node node "// literal /* literal */" fill-color="#fff"
+// ^ keyword
+//      ^ variable
+//           ^ string
+//                                      ^ property
+  node -> api
+// ^ variable
+//      ^ operator
+//         ^ variable
+  service store "Storage"
+// ^ type
+//         ^ variable
+  /* outer /* nested */ outer */
+// ^ comment
+}

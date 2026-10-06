@@ -1,0 +1,11 @@
+node_modules/
+build/
+prebuilds/
+*.node
+*.so
+*.dylib
+*.dll
+*.wasm
+*.o
+*.obj
+*.tgz

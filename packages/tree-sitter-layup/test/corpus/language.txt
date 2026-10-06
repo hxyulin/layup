@@ -1,0 +1,640 @@
+==================
+Scoped graph and replacement vocabulary
+==================
+layup 1
+
+@acme.analysis(summary="generated", data={tags: [entry, "HTTP"], public: true, extra: null})
+diagram calls "Calls" type=graph background-color="#fff" {
+  node-style service palette=blue fill-color="#eff" stroke-width=1.5
+  edge-style calls stroke-style=dashed
+  defaults node text-direction=auto
+  group backend "Backend" {
+    node "API::run(&self)" "API" style=service
+    node cache "Cache"
+    edge lookup "API::run(&self)" -> cache style=calls
+  }
+  node red "Client"
+  red -> ::backend."API::run(&self)"
+}
+
+---
+
+(source_file
+  (version_directive
+    (number))
+  (annotation
+    (annotation_name
+      (identifier)
+      (identifier))
+    (arguments
+      (attribute
+        (identifier)
+        (string
+          (string_content)))
+      (attribute
+        (identifier)
+        (record
+          (record_entry
+            (identifier)
+            (list
+              (reference
+                (identifier))
+              (string
+                (string_content))))
+          (record_entry
+            (identifier)
+            (boolean))
+          (record_entry
+            (identifier)
+            (null))))))
+  (declaration
+    (declaration_keyword)
+    (reference
+      (identifier))
+    (string
+      (string_content))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
+    (attribute
+      (identifier)
+      (string
+        (string_content)))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (attribute
+          (identifier)
+          (reference
+            (identifier)))
+        (attribute
+          (identifier)
+          (string
+            (string_content)))
+        (attribute
+          (identifier)
+          (number)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (attribute
+          (identifier)
+          (reference
+            (identifier))))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (block
+          (declaration
+            (declaration_keyword)
+            (string
+              (string_content))
+            (string
+              (string_content))
+            (attribute
+              (identifier)
+              (reference
+                (identifier))))
+          (declaration
+            (declaration_keyword)
+            (reference
+              (identifier))
+            (string
+              (string_content)))
+          (connection
+            (connection_keyword)
+            (identifier)
+            (reference
+              (string
+                (string_content)))
+            (arrow)
+            (reference
+              (identifier))
+            (attribute
+              (identifier)
+              (reference
+                (identifier))))))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)
+          (string
+            (string_content)))))))
+
+==================
+Legacy styles, weighted rows and typed arrows
+==================
+model "Model" {
+  style service node blue
+  arrow calls dashed purple
+  row 2:1 {
+    service api "API" { code "// literal /* text */\nfn main()"; sub "Notes" }
+    node store "Store" green
+  }
+  api -calls-> store labeled
+  store <-calls- api
+  api <-> store
+  api -- store
+  view detail "Detail" { include api store }
+}
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (string
+      (string_content))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (reference
+          (identifier))
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (reference
+          (identifier))
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (weights
+          (number)
+          (number))
+        (block
+          (declaration
+            (identifier)
+            (reference
+              (identifier))
+            (string
+              (string_content))
+            (block
+              (declaration
+                (declaration_keyword)
+                (string
+                  (string_content)
+                  (escape_sequence)
+                  (string_content)))
+              (declaration
+                (declaration_keyword)
+                (string
+                  (string_content)))))
+          (declaration
+            (declaration_keyword)
+            (reference
+              (identifier))
+            (string
+              (string_content))
+            (reference
+              (identifier)))))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier))
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (block
+          (declaration
+            (declaration_keyword)
+            (reference
+              (identifier))
+            (reference
+              (identifier))))))))
+
+==================
+Sequence and state bodies
+==================
+diagram sequence type=sequence {
+  participant api "API"
+  actor user "User"
+  message request user -> api "Request" async
+  loop "Retry" {
+    alternatives "Result" {
+      branch "Done" { api -> user "Result" return }
+      branch "Pending" { api -> api "Wait" }
+    }
+  }
+}
+diagram states type=state-machine {
+  initial start
+  state active "Active" { entry "open()"; exit "close()" }
+  final done
+  transition begin start -> active
+  active -> done "finish"
+}
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (reference
+      (identifier))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content)))
+      (connection
+        (connection_keyword)
+        (identifier)
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (string
+          (string_content))
+        (block
+          (declaration
+            (declaration_keyword)
+            (string
+              (string_content))
+            (block
+              (declaration
+                (declaration_keyword)
+                (string
+                  (string_content))
+                (block
+                  (connection
+                    (reference
+                      (identifier))
+                    (arrow)
+                    (reference
+                      (identifier))
+                    (string
+                      (string_content))
+                    (reference
+                      (identifier)))))
+              (declaration
+                (declaration_keyword)
+                (string
+                  (string_content))
+                (block
+                  (connection
+                    (reference
+                      (identifier))
+                    (arrow)
+                    (reference
+                      (identifier))
+                    (string
+                      (string_content)))))))))))
+  (declaration
+    (declaration_keyword)
+    (reference
+      (identifier))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (block
+          (declaration
+            (declaration_keyword)
+            (string
+              (string_content)))
+          (declaration
+            (declaration_keyword)
+            (string
+              (string_content)))))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier)))
+      (connection
+        (connection_keyword)
+        (identifier)
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier))
+        (string
+          (string_content))))))
+
+==================
+Nested and inline comments, Unicode and keyword IDs
+==================
+/* Outer
+   /* nested */ remaining
+*/
+diagram 图 "跨语言" {
+  node node "节点" text-direction=/* before value */auto // trailing
+  node معالجة "مرحبا"
+  node row "שורה"
+  node -> معالجة
+  معالجة -> row
+  node "A /* string */ // string" "Escaped \"quote\""
+}
+
+---
+
+(source_file
+  (block_comment)
+  (declaration
+    (declaration_keyword)
+    (reference
+      (identifier))
+    (string
+      (string_content))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (attribute
+          (identifier)
+          (block_comment)
+          (reference
+            (identifier))))
+      (line_comment)
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (string
+          (string_content))
+        (string
+          (string_content)
+          (escape_sequence)
+          (string_content)
+          (escape_sequence))))))
+
+==================
+Multiline values and arbitrary annotations
+==================
+@source(
+  uri="src/main.rs",
+  range={
+    start-line: 8,
+    start-column: 1,
+  },
+)
+@company.custom(
+  {names: [
+    "first",
+    "second",
+  ], score: -2.5e+3},
+)
+diagram future type=company-custom {
+  entity account "Account" {
+    field id type=uuid
+  }
+}
+
+---
+
+(source_file
+  (annotation
+    (annotation_name
+      (identifier))
+    (arguments
+      (attribute
+        (identifier)
+        (string
+          (string_content)))
+      (attribute
+        (identifier)
+        (record
+          (record_entry
+            (identifier)
+            (number))
+          (record_entry
+            (identifier)
+            (number))))))
+  (annotation
+    (annotation_name
+      (identifier)
+      (identifier))
+    (arguments
+      (record
+        (record_entry
+          (identifier)
+          (list
+            (string
+              (string_content))
+            (string
+              (string_content))))
+        (record_entry
+          (identifier)
+          (number)))))
+  (declaration
+    (declaration_keyword)
+    (reference
+      (identifier))
+    (attribute
+      (identifier)
+      (reference
+        (identifier)))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier))
+        (string
+          (string_content))
+        (block
+          (declaration
+            (declaration_keyword)
+            (reference
+              (identifier))
+            (attribute
+              (identifier)
+              (reference
+                (identifier)))))))))
+
+==================
+Compact arrows and qualified legacy references
+==================
+diagram "Compact" {
+  node a
+  node b
+  a->b
+  a<-b
+  a<->b
+  a--b
+  a-call->b
+  a<-call-b
+  a<-call->b
+  api::run -> net/Transport
+}
+
+---
+
+(source_file
+  (declaration
+    (declaration_keyword)
+    (string
+      (string_content))
+    (block
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier)))
+      (declaration
+        (declaration_keyword)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)))
+      (connection
+        (reference
+          (identifier)
+          (identifier))
+        (arrow)
+        (reference
+          (identifier)
+          (identifier))))))

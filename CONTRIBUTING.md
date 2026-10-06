@@ -13,6 +13,8 @@ bug reports are useful contributions.
   installation method; `pnpm --version` should match the pin.
 - [just](https://github.com/casey/just) for the repository recipes.
 - [actionlint](https://github.com/rhysd/actionlint) for workflow edits; CI pins 1.7.12.
+- A C/C++ compiler and Python 3 for the Tree-sitter Node binding. Use Node 22.9+ for this package. The pinned
+  Tree-sitter CLI is installed by pnpm; no global CLI is required.
 
 ```sh
 git clone https://github.com/hxyulin/layup.git
@@ -34,6 +36,7 @@ require Node or the WASM target. `just` lists the available recipes.
 | `crates/layup-cli/` | `layup` CLI |
 | `crates/layup-wasm/` | WASM bridge to the same Rust engine |
 | `packages/layup/` | Node/browser adapters, types, Markdown integration and client interactions |
+| `packages/tree-sitter-layup/` | Editor syntax grammar, highlight/fold queries and Node binding |
 | `docs/site/` | Public VitePress docs, playground and production browser tests |
 | `examples/` | Canonical DSL fixtures and demos |
 | `tools/` | WASM build, visual reviews and repository maintenance |
@@ -52,6 +55,7 @@ just check           # Rust formatting, clippy, tests and strict diagram checks
 just js-test         # rebuild WASM; compare JavaScript behavior with the CLI
 just vitepress-test  # Markdown integration and interactive client in Chromium
 just docs-test       # production docs, live editor and Pages asset paths
+just syntax-test     # Tree-sitter corpus, highlights, canonical diagrams and editing recovery
 just workflows-check # actionlint for GitHub Actions
 pnpm repo:check      # contributor links, image assets and issue forms
 pnpm showcase:check  # README light/dark previews match canonical examples
@@ -60,6 +64,13 @@ pnpm showcase:check  # README light/dark previews match canonical examples
 `just check` runs recovering parser, layout and rendering tests as well as
 strict example checks. Add a focused regression test when fixing behavior;
 avoid tests that only restate the implementation.
+
+For grammar changes, run `pnpm syntax:generate` and commit the generated C
+parser, JSON grammar/node types and parser headers with the source change.
+`pnpm syntax:test` checks that these files match the pinned generator. Native
+binaries and build directories stay ignored. See the
+[grammar package guide](packages/tree-sitter-layup/README.md) for editor setup
+and its deliberately broader syntax coverage.
 
 For layout or text changes, also run the relevant visual review recipe:
 `international-test`, `decision-test`, `state-test`, `sequence-test`,

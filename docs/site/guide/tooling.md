@@ -3,6 +3,26 @@
 Source tooling shares the same Rust implementation in the CLI and browser.
 Use it to catch authoring problems before a diagram enters a document or talk.
 
+## Editor syntax highlighting
+
+The repository includes a separate
+[`@hxyulin/tree-sitter-layup` grammar package](https://github.com/hxyulin/layup/tree/main/packages/tree-sitter-layup)
+with highlight and folding queries. It recognizes `.layup` files, inline
+`//` comments, nested `/* … */` comments, namespaced annotations, structured
+values, Unicode identifiers and qualified references. The package guide
+includes a Neovim setup and a Node parsing example.
+
+The grammar covers existing diagrams, the revision-one graph prototype and
+the proposed replacement vocabulary. Syntax highlighting can therefore
+recognize constructs that the compiler does not yet implement. Use
+`layup lint` for authoritative language and semantic diagnostics. Custom diagram
+bodies can use the shared declaration syntax; arbitrary embedded languages
+require additional grammars and editor injection queries.
+
+The package is currently available from the repository. It has not been
+published to npm. Tree-sitter highlighting is an editor integration; the
+documentation playground continues to use its existing editor.
+
 ## Lint a source file or Markdown
 
 ```sh

@@ -1,0 +1,19 @@
+{
+  "grammars": [{
+    "name": "layup",
+    "camelcase": "Layup",
+    "scope": "source.layup",
+    "path": ".",
+    "file-types": ["layup"],
+    "injection-regex": "^layup$",
+    "highlights": "queries/highlights.scm"
+  }],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT OR Apache-2.0",
+    "description": "Tree-sitter grammar for Layup software diagrams",
+    "authors": [{"name": "Layup contributors"}],
+    "links": {"repository": "https://github.com/hxyulin/layup"}
+  },
+  "bindings": {"c": false, "go": false, "java": false, "node": true, "python": false, "rust": false, "swift": false, "zig": false}
+}

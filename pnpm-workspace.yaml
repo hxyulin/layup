@@ -1,7 +1,11 @@
 packages:
   - packages/layup
+  - packages/tree-sitter-layup
   - examples/vitepress
   - docs/site
 
 allowBuilds:
   esbuild: true
+  tree-sitter-cli: true
+  tree-sitter: true
+  '@hxyulin/tree-sitter-layup': true
